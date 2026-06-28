@@ -1,10 +1,6 @@
 package com.example
 
-import android.app.DownloadManager
-import android.content.Context
-import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -12,10 +8,9 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -23,560 +18,307 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
-import androidx.compose.ui.viewinterop.AndroidView
-import android.widget.VideoView
-import android.widget.MediaController
-import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.border
-import androidx.compose.ui.graphics.Color
-import com.example.ui.theme.MyApplicationTheme
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.Serializable
 
-import androidx.lifecycle.lifecycleScope
+@Serializable
+data class TodoItem(
+    val id: Int? = null,
+    val name: String
+)
+
+// Initialize Supabase Client using BuildConfig securely
+val supabase = createSupabaseClient(
+    supabaseUrl = BuildConfig.SUPABASE_URL,
+    supabaseKey = BuildConfig.SUPABASE_KEY
+) {
+    install(Postgrest)
+}
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                com.yausername.youtubedl_android.YoutubeDL.getInstance().init(applicationContext)
-                com.yausername.youtubedl_android.YoutubeDL.getInstance().updateYoutubeDL(applicationContext)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
-        
         setContent {
-            MyApplicationTheme {
-                FBDownloaderScreen()
-            }
-        }
-    }
-}
-
-data class VideoLink(
-    val quality: String,
-    val url: String,
-    val isHd: Boolean = false
-)
-
-data class VideoOptions(
-    val title: String,
-    val description: String,
-    val links: List<VideoLink>
-)
-
-class DownloaderViewModel : ViewModel() {
-    private val _urlInput = MutableStateFlow("https://www.facebook.com/shikho.bangladesh/videos/1556415209387103/")
-    val urlInput: StateFlow<String> = _urlInput.asStateFlow()
-
-    private val _isLoading = MutableStateFlow(false)
-    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
-
-    private val _errorMessage = MutableStateFlow<String?>(null)
-    val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
-
-    private val _videoOptions = MutableStateFlow<VideoOptions?>(null)
-    val videoOptions: StateFlow<VideoOptions?> = _videoOptions.asStateFlow()
-
-    fun setUrl(url: String) {
-        _urlInput.value = url
-        _errorMessage.value = null
-    }
-
-    fun clearError() {
-        _errorMessage.value = null
-    }
-
-    fun clearAll() {
-        _urlInput.value = ""
-        _videoOptions.value = null
-        _errorMessage.value = null
-    }
-
-    private fun shouldResolveRedirect(url: String): Boolean {
-        val lower = url.lowercase()
-        return lower.contains("fb.watch") || 
-               lower.contains("facebook.com/share") || 
-               lower.contains("fb.me") || 
-               (lower.contains("fb.com") && !lower.contains("facebook.com/reel") && !lower.contains("facebook.com/watch") && !lower.contains("facebook.com/videos"))
-    }
-
-    private suspend fun resolveRedirect(urlStr: String): String = withContext(Dispatchers.IO) {
-        val trimmed = urlStr.trim()
-        if (!shouldResolveRedirect(trimmed)) {
-            return@withContext trimmed.replace("&amp;", "&")
-        }
-        try {
-            var currentUrl = trimmed
-            for (i in 0..4) {
-                val connection = java.net.URL(currentUrl).openConnection() as java.net.HttpURLConnection
-                connection.instanceFollowRedirects = false
-                connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36")
-                connection.connectTimeout = 6000
-                connection.readTimeout = 6000
-                
-                val responseCode = connection.responseCode
-                if (responseCode in 300..399) {
-                    val loc = connection.getHeaderField("Location")
-                    if (!loc.isNullOrBlank()) {
-                        val nextUrl = if (loc.startsWith("/")) {
-                            val originalUrl = java.net.URL(currentUrl)
-                            "${originalUrl.protocol}://${originalUrl.host}$loc"
-                        } else {
-                            loc
-                        }
-                        
-                        // If redirect leads to login, skip following it!
-                        if (nextUrl.contains("login") || nextUrl.contains("checkpoint") || nextUrl.contains("cookie")) {
-                            connection.disconnect()
-                            break
-                        }
-                        currentUrl = nextUrl.replace("&amp;", "&")
-                    } else {
-                        connection.disconnect()
-                        break
-                    }
-                } else {
-                    connection.disconnect()
-                    break
-                }
-                connection.disconnect()
-            }
-            currentUrl.replace("&amp;", "&")
-        } catch (e: Exception) {
-            trimmed.replace("&amp;", "&")
-        }
-    }
-
-    private suspend fun extractVideo(context: Context, fbUrl: String): VideoOptions? = withContext(Dispatchers.IO) {
-        val resolvedUrl = resolveRedirect(fbUrl)
-        val allLinks = mutableListOf<VideoLink>()
-        var finalTitle = "Facebook Video"
-        var finalDescription = "Ready for download"
-
-        try {
-            com.yausername.youtubedl_android.YoutubeDL.getInstance().init(context)
-            val request = com.yausername.youtubedl_android.YoutubeDLRequest(resolvedUrl)
-            request.addOption("-J") // Dump JSON info
-            
-            val videoInfo = com.yausername.youtubedl_android.YoutubeDL.getInstance().getInfo(request)
-            
-            finalTitle = videoInfo.title ?: finalTitle
-            finalDescription = videoInfo.description ?: finalDescription
-            
-            videoInfo.formats?.forEach { format ->
-                val formatNote = format.formatNote ?: ""
-                val ext = format.ext ?: "mp4"
-                val url = format.url
-                
-                if (url != null && !url.contains(".m3u8") && ext != "mhtml") {
-                    val isHd = formatNote.contains("1080") || formatNote.contains("720") || formatNote.contains("HD") || (format.height > 480)
-                    val resolution = if (formatNote.isNotBlank()) formatNote else if (format.height > 0) "${format.height}p" else "Unknown"
-                    val codecInfo = if (format.acodec != "none" && format.vcodec != "none") "with audio" 
-                                    else if (format.vcodec != "none") "video only"
-                                    else "audio only"
-                                    
-                    val label = "$resolution ($codecInfo)"
-                    
-                    if (format.acodec != "none" || format.vcodec != "none") {
-                         allLinks.add(VideoLink(label, url, isHd))
+            MaterialTheme {
+                Scaffold(
+                    modifier = Modifier.fillMaxSize()
+                ) { innerPadding ->
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(innerPadding),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        TodoList()
                     }
                 }
             }
-            
-            if (allLinks.isNotEmpty()) {
-                val uniqueLinks = allLinks.distinctBy { it.url }.sortedByDescending { it.isHd }
-                return@withContext VideoOptions(
-                    title = finalTitle,
-                    description = finalDescription.take(100),
-                    links = uniqueLinks
-                )
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-            return@withContext VideoOptions("Error", "yt-dlp error: ${e.message}", emptyList())
-        }
-        
-        return@withContext VideoOptions("Error", "Failed to find any playable links", emptyList())
-    }
-
-    fun extractOptions(context: Context) {
-        val fbUrl = _urlInput.value.trim()
-        if (fbUrl.isEmpty()) {
-            _errorMessage.value = "Please enter a valid URL."
-            return
-        }
-
-        viewModelScope.launch {
-            _isLoading.value = true
-            _errorMessage.value = null
-            _videoOptions.value = null
-            
-            val options = extractVideo(context, fbUrl)
-            if (options != null && options.links.isNotEmpty()) {
-                _videoOptions.value = options
-            } else if (options != null && options.links.isEmpty()) {
-                _errorMessage.value = "Extraction failed. Reason: ${options.description}"
-            } else {
-                _errorMessage.value = "Failed to extract. Please make sure the video is public and the link is correct."
-            }
-            _isLoading.value = false
-        }
-    }
-
-    fun triggerDownload(context: Context, url: String, label: String) {
-        try {
-            val fileName = "FB_Video_${label.replace(Regex("[^A-Za-z0-9]"), "_")}_${System.currentTimeMillis()}.mp4"
-            
-            val request = DownloadManager.Request(Uri.parse(url))
-                .setTitle(fileName)
-                .setDescription("Downloading Facebook video...")
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(
-                    Environment.DIRECTORY_DOWNLOADS,
-                    fileName
-                )
-                .setAllowedOverMetered(true)
-                .setAllowedOverRoaming(true)
-
-            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            downloadManager.enqueue(request)
-            Toast.makeText(context, "Download started ($label)...", Toast.LENGTH_SHORT).show()
-        } catch (e: Exception) {
-            _errorMessage.value = "Failed to start download. Please check storage permissions."
         }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun FBDownloaderScreen(viewModel: DownloaderViewModel = androidx.lifecycle.viewmodel.compose.viewModel()) {
-    val urlInput by viewModel.urlInput.collectAsState()
-    val isLoading by viewModel.isLoading.collectAsState()
-    val errorMessage by viewModel.errorMessage.collectAsState()
-    val videoOptions by viewModel.videoOptions.collectAsState()
-    
+fun TodoList() {
     val context = LocalContext.current
-    val clipboardManager = LocalClipboardManager.current
-    val snackbarHostState = remember { SnackbarHostState() }
-    val scrollState = rememberScrollState()
+    val coroutineScope = rememberCoroutineScope()
+    
+    var items by remember { mutableStateOf<List<TodoItem>>(listOf()) }
+    var isLoading by remember { mutableStateOf(false) }
+    var isSaving by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    var newTodoText by remember { mutableStateOf("") }
 
-    LaunchedEffect(errorMessage) {
-        errorMessage?.let {
-            snackbarHostState.showSnackbar(it)
-            viewModel.clearError()
+    // Mask credentials for display safety
+    val maskedUrl = if (BuildConfig.SUPABASE_URL.length > 12) {
+        BuildConfig.SUPABASE_URL.take(12) + "..." + BuildConfig.SUPABASE_URL.takeLast(5)
+    } else {
+        BuildConfig.SUPABASE_URL
+    }
+
+    // Load todos from Supabase
+    val loadTodos: () -> Unit = {
+        coroutineScope.launch {
+            isLoading = true
+            errorMessage = null
+            try {
+                withContext(Dispatchers.IO) {
+                    items = supabase.from("todos")
+                        .select()
+                        .decodeList<TodoItem>()
+                }
+            } catch (e: Exception) {
+                errorMessage = "Error loading: ${e.localizedMessage}"
+                Toast.makeText(context, "লোড করতে ব্যর্থ হয়েছে!", Toast.LENGTH_SHORT).show()
+            } finally {
+                isLoading = false
+            }
         }
     }
 
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { 
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.PlayCircle,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.size(28.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "FB Downloader Pro", 
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 20.sp
-                        )
+    // Add a todo
+    val addTodo: () -> Unit = {
+        if (newTodoText.isNotBlank()) {
+            coroutineScope.launch {
+                isSaving = true
+                try {
+                    withContext(Dispatchers.IO) {
+                        supabase.from("todos").insert(TodoItem(name = newTodoText))
                     }
-                },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp)
-                )
-            )
-        },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        modifier = Modifier.fillMaxSize()
-    ) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-                .verticalScroll(scrollState)
-                .padding(20.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
-        ) {
-            Spacer(modifier = Modifier.height(12.dp))
-            
-            // Hero Header Icon
-            Box(
-                modifier = Modifier
-                    .size(96.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(MaterialTheme.colorScheme.primaryContainer),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Download,
-                    contentDescription = "Download Icon",
-                    modifier = Modifier.size(52.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                    newTodoText = ""
+                    Toast.makeText(context, "টাস্ক যুক্ত হয়েছে!", Toast.LENGTH_SHORT).show()
+                    loadTodos()
+                } catch (e: Exception) {
+                    Toast.makeText(context, "যুক্ত করতে ব্যর্থ: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                } finally {
+                    isSaving = false
+                }
             }
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            Text(
-                text = "Download Facebook Videos",
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            
-            Text(
-                text = "Paste any video, reel, or watch link to extract instantly",
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
-            )
-            
-            Spacer(modifier = Modifier.height(24.dp))
+        }
+    }
 
-            // URL input card
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp)
-                ) {
-                    OutlinedTextField(
-                        value = urlInput,
-                        onValueChange = { viewModel.setUrl(it) },
-                        label = { Text("Video URL") },
-                        placeholder = { Text("https://www.facebook.com/...") },
-                        leadingIcon = {
-                            Icon(imageVector = Icons.Default.Link, contentDescription = "Link")
-                        },
-                        trailingIcon = {
-                            if (urlInput.isNotEmpty()) {
-                                IconButton(onClick = { viewModel.clearAll() }) {
-                                    Icon(imageVector = Icons.Default.Close, contentDescription = "Clear")
-                                }
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag("url_input"),
-                        singleLine = true,
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        OutlinedButton(
-                            onClick = {
-                                val clip = clipboardManager.getText()?.text
-                                if (!clip.isNullOrEmpty()) {
-                                    viewModel.setUrl(clip)
-                                }
-                            },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(vertical = 12.dp)
-                        ) {
-                            Icon(imageVector = Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Paste Link", fontSize = 14.sp)
-                        }
-
-                        Button(
-                            onClick = { viewModel.extractOptions(context) },
-                            modifier = Modifier.weight(1.2f),
-                            shape = RoundedCornerShape(12.dp),
-                            enabled = !isLoading && urlInput.isNotBlank(),
-                            contentPadding = PaddingValues(vertical = 12.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.primary
-                            )
-                        ) {
-                            if (isLoading) {
-                                CircularProgressIndicator(
-                                    color = MaterialTheme.colorScheme.onPrimary,
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("Analyzing...", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            } else {
-                                Icon(imageVector = Icons.Default.FlashOn, contentDescription = null, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Extract", fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                            }
+    // Delete a todo
+    val deleteTodo: (Int) -> Unit = { todoId ->
+        coroutineScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    supabase.from("todos").delete {
+                        filter {
+                            eq("id", todoId)
                         }
                     }
                 }
+                Toast.makeText(context, "টাস্ক মুছে ফেলা হয়েছে!", Toast.LENGTH_SHORT).show()
+                loadTodos()
+            } catch (e: Exception) {
+                Toast.makeText(context, "মুছে ফেলতে ব্যর্থ: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
             }
+        }
+    }
 
-            Spacer(modifier = Modifier.height(24.dp))
+    // Auto-load on start
+    LaunchedEffect(Unit) {
+        loadTodos()
+    }
 
-            // Animated Results Card
-            AnimatedVisibility(
-                visible = videoOptions != null,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        // App Header
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            shape = RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                videoOptions?.let { options ->
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 24.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(1.dp)
-                        ),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(16.dp)
+                Text(
+                    text = "শিক্ষালয় টাস্ক ম্যানেজার",
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+                Text(
+                    text = "Supabase Realtime Database",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f)
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = "সংযুক্ত: $maskedUrl",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.5f)
+                )
+            }
+        }
+
+        // Add Todo Input
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = newTodoText,
+                onValueChange = { newTodoText = it },
+                label = { Text("নতুন কাজ লিখুন...") },
+                modifier = Modifier.weight(1f),
+                singleLine = true,
+                shape = RoundedCornerShape(12.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            Button(
+                onClick = addTodo,
+                enabled = !isSaving && newTodoText.isNotBlank(),
+                modifier = Modifier.height(56.dp),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                if (isSaving) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Icon(imageVector = Icons.Default.Add, contentDescription = "Add")
+                }
+            }
+        }
+
+        // List Area
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            contentAlignment = Alignment.Center
+        ) {
+            if (isLoading) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator()
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Supabase থেকে ডেটা লোড হচ্ছে...", color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f))
+                }
+            } else if (errorMessage != null) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    modifier = Modifier.padding(16.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ErrorOutline,
+                        contentDescription = "Error",
+                        tint = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = errorMessage ?: "Unknown error",
+                        color = MaterialTheme.colorScheme.error,
+                        textAlign = TextAlign.Center
+                    )
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(onClick = loadTodos) {
+                        Text("পুনরায় চেষ্টা করুন")
+                    }
+                }
+            } else if (items.isEmpty()) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.PlaylistAddCheck,
+                        contentDescription = "Empty",
+                        tint = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
+                        modifier = Modifier.size(64.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        "কোনো কাজ পাওয়া যায়নি! নতুন কাজ যুক্ত করুন।",
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(items, key = { it.id ?: 0 }) { item ->
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                         ) {
                             Row(
-                                verticalAlignment = Alignment.CenterVertically
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.VideoLibrary,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.secondary,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "Available Qualities",
-                                    fontSize = 16.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            
-                            Spacer(modifier = Modifier.height(12.dp))
-                            
-                            Text(
-                                text = options.title,
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            
-                            Spacer(modifier = Modifier.height(16.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-                            Spacer(modifier = Modifier.height(16.dp))
-                            
-                            Column(
-                                verticalArrangement = Arrangement.spacedBy(10.dp)
-                            ) {
-                                options.links.forEach { link ->
-                                    val containerColor = if (link.isHd) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
-                                    val onContainerColor = if (link.isHd) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSecondaryContainer
-                                    val icon = if (link.isHd) Icons.Default.HighQuality else Icons.Default.Sd
-                                    
-                                    ElevatedCard(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        shape = RoundedCornerShape(12.dp),
-                                        colors = CardDefaults.elevatedCardColors(
-                                            containerColor = containerColor
-                                        )
-                                    ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(horizontal = 16.dp, vertical = 14.dp)
-                                        ) {
-                                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                                Icon(
-                                                    imageVector = icon,
-                                                    contentDescription = null,
-                                                    tint = onContainerColor,
-                                                    modifier = Modifier.size(24.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(12.dp))
-                                                Text(
-                                                    text = link.quality,
-                                                    fontWeight = FontWeight.Bold,
-                                                    fontSize = 15.sp,
-                                                    color = onContainerColor
-                                                )
-                                            }
-                                            
-                                            Spacer(modifier = Modifier.height(12.dp))
-                                            
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                            ) {
-                                                OutlinedButton(
-                                                    onClick = {
-                                                        clipboardManager.setText(androidx.compose.ui.text.AnnotatedString(link.url))
-                                                        Toast.makeText(context, "${link.quality} link copied!", Toast.LENGTH_SHORT).show()
-                                                    },
-                                                    modifier = Modifier.weight(1f),
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    border = BorderStroke(1.dp, onContainerColor.copy(alpha = 0.5f)),
-                                                    colors = ButtonDefaults.outlinedButtonColors(
-                                                        contentColor = onContainerColor
-                                                    )
-                                                ) {
-                                                    Icon(imageVector = Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp))
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    Text("Copy Link")
-                                                }
-                                                
-                                                Button(
-                                                    onClick = { viewModel.triggerDownload(context, link.url, link.quality) },
-                                                    modifier = Modifier.weight(1f),
-                                                    shape = RoundedCornerShape(8.dp),
-                                                    colors = ButtonDefaults.buttonColors(
-                                                        containerColor = onContainerColor,
-                                                        contentColor = containerColor
-                                                    )
-                                                ) {
-                                                    Icon(imageVector = Icons.Default.Download, contentDescription = null, modifier = Modifier.size(16.dp))
-                                                    Spacer(modifier = Modifier.width(6.dp))
-                                                    Text("Download")
-                                                }
-                                            }
-                                        }
-                                    }
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircleOutline,
+                                        contentDescription = "Pending",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.padding(end = 8.dp)
+                                    )
+                                    Text(
+                                        text = item.name,
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                                IconButton(
+                                    onClick = { item.id?.let { deleteTodo(it) } }
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Delete,
+                                        contentDescription = "Delete",
+                                        tint = MaterialTheme.colorScheme.error
+                                    )
                                 }
                             }
                         }

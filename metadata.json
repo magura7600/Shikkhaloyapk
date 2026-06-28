@@ -1,6 +1,6 @@
 {
-  "name": "FB Video Downloader",
-  "description": "Download public videos from Facebook via URL.",
+  "name": "Shikkhaloy",
+  "description": "An advanced EdTech platform for learning, interactive quizzes, and personalized study paths.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
