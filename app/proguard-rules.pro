@@ -5,6 +5,11 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
+# Keep YoutubeDL library classes and native interfaces
+-keep class com.yausername.youtubedl_android.** { *; }
+-keep interface com.yausername.youtubedl_android.** { *; }
+-keep class * implements com.yausername.youtubedl_android.** { *; }
+
 # If your project uses WebView with JS, uncomment the following
 # and specify the fully qualified class name to the JavaScript interface
 # class:

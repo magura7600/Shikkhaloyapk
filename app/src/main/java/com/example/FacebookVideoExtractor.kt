@@ -421,12 +421,12 @@ object FacebookVideoExtractor {
                     
                     if (ext != "mhtml") {
                         val resolution = getResolutionName(format, url)
-                        val hasAudio = format.acodec != "none" && format.acodec != null
-                        val hasVideo = format.vcodec != "none" && (format.vcodec != null || format.height > 0 || format.width > 0 || resolution.contains("p") || ext == "mp4")
+                        val isAudioOnly = format.vcodec == "none" || format.ext == "m4a" || format.ext == "mp3" || format.formatId?.contains("audio") == true
+                        val hasVideo = !isAudioOnly
+                        val hasAudio = format.acodec != "none" && (format.acodec != null || ext == "mp4" || format.vcodec == null || !isAudioOnly)
                         
                         // Check for best audio (prefer audio-only, but fall back to audio-capable video)
                         if (hasAudio) {
-                            val isAudioOnly = !hasVideo
                             val score = (if (isAudioOnly) 1000000 else 0) + (format.abr ?: 0)
                             if (score > bestAudioBitrate) {
                                 bestAudioBitrate = score
@@ -438,7 +438,15 @@ object FacebookVideoExtractor {
                             val isHd = resolution.contains("1080") || resolution.contains("720") || resolution.contains("4K") || resolution.contains("1440") || (format.height > 480)
                             val rawHeight = format.height
                             val numericHeight = if (rawHeight > 0) rawHeight else {
-                                resolution.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
+                                val numeric = resolution.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
+                                if (numeric > 0) numeric else {
+                                    val lowerRes = resolution.lowercase()
+                                    when {
+                                        lowerRes == "hd" -> 720
+                                        lowerRes == "sd" -> 480
+                                        else -> 0
+                                    }
+                                }
                             }
 
                             allLinks.add(VideoLink(resolution, url, isHd, hasAudio, numericHeight))
@@ -450,21 +458,51 @@ object FacebookVideoExtractor {
             // Group all found links by their standardized quality string (e.g., "360p", "480p", "540p", "720p")
             val resolutionGroups = mutableMapOf<String, MutableList<VideoLink>>()
             allLinks.forEach { link ->
-                val qName = when (link.height) {
-                    1080 -> "1080p"
-                    720 -> "720p"
-                    540 -> "540p"
-                    480 -> "480p"
-                    360 -> "360p"
-                    240 -> "240p"
-                    144 -> "144p"
+                val qName = when {
+                    link.height >= 851 -> "1080p"
+                    link.height in 601..850 -> "720p"
+                    link.height in 501..600 -> "540p"
+                    link.height in 401..500 -> "480p"
+                    link.height in 281..400 -> "360p"
+                    link.height in 120..280 -> "240p"
                     else -> {
-                        val numeric = link.quality.replace(Regex("[^0-9]"), "").toIntOrNull()
-                        if (numeric != null && numeric > 0) "${numeric}p" else link.quality
+                        val lower = link.quality.lowercase()
+                        when {
+                            lower == "hd" -> "720p"
+                            lower == "sd" -> "480p"
+                            else -> {
+                                val numeric = link.quality.replace(Regex("[^0-9]"), "").toIntOrNull()
+                                if (numeric != null) {
+                                    when {
+                                        numeric >= 851 -> "1080p"
+                                        numeric in 601..850 -> "720p"
+                                        numeric in 501..600 -> "540p"
+                                        numeric in 401..500 -> "480p"
+                                        numeric in 281..400 -> "360p"
+                                        numeric in 120..280 -> "240p"
+                                        else -> "${numeric}p"
+                                    }
+                                } else {
+                                    link.quality
+                                }
+                            }
+                        }
                     }
                 }
                 
-                val cleanLink = link.copy(quality = qName)
+                // Normalizing height for sorting
+                val normalizedHeight = when (qName) {
+                    "1080p" -> 1080
+                    "720p" -> 720
+                    "540p" -> 540
+                    "480p" -> 480
+                    "360p" -> 360
+                    "240p" -> 240
+                    else -> link.height
+                }
+                
+                val isHd = normalizedHeight >= 720
+                val cleanLink = link.copy(quality = qName, height = normalizedHeight, isHd = isHd)
                 if (!resolutionGroups.containsKey(qName)) {
                     resolutionGroups[qName] = mutableListOf()
                 }

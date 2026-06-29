@@ -32,9 +32,23 @@ jobs:
       
     - name: Create .env file for secrets
       run: |
-        echo "SUPABASE_URL=${{ secrets.SUPABASE_URL }}" >> .env
-        echo "SUPABASE_KEY=${{ secrets.SUPABASE_KEY }}" >> .env
-        echo "GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}" >> .env
+        SUPABASE_URL="${{ secrets.SUPABASE_URL }}"
+        SUPABASE_KEY="${{ secrets.SUPABASE_KEY }}"
+        GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}"
+        
+        if [ -z "$SUPABASE_URL" ]; then
+          SUPABASE_URL="https://gputlynskpbbiexbpphj.supabase.co"
+        fi
+        if [ -z "$SUPABASE_KEY" ]; then
+          SUPABASE_KEY="sb_publishable_NwiSPi0Rl4VAf_B2v5Fp6g_KgwTb_Ol"
+        fi
+        if [ -z "$GEMINI_API_KEY" ]; then
+          GEMINI_API_KEY="MY_GEMINI_API_KEY"
+        fi
+        
+        echo "SUPABASE_URL=$SUPABASE_URL" >> .env
+        echo "SUPABASE_KEY=$SUPABASE_KEY" >> .env
+        echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
         
     - name: Build Debug APK
       run: ./gradlew assembleDebug
