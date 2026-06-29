@@ -393,17 +393,7 @@ object FacebookVideoExtractor {
             )
         }
 
-        // 2. Try direct HTML extraction from the video page first (extremely fast and works on shared links)
-        try {
-            val directHtmlOptions = tryDirectHtmlExtraction(fbUrl)
-            if (directHtmlOptions != null && directHtmlOptions.links.isNotEmpty()) {
-                return@withContext directHtmlOptions
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        // 3. Fallback to YoutubeDL
+        // 2. Try YoutubeDL first to get all exact resolutions: 360p, 480p, 540p, 720p, etc.
         try {
             YoutubeDL.getInstance().init(context)
             val request = YoutubeDLRequest(fbUrl)
@@ -417,7 +407,6 @@ object FacebookVideoExtractor {
             var bestAudioBitrate = -1
 
             videoInfo.formats?.forEach { format ->
-                val formatNote = format.formatNote ?: ""
                 val ext = format.ext ?: "mp4"
                 val url = format.url
                 
@@ -432,8 +421,8 @@ object FacebookVideoExtractor {
                     
                     if (ext != "mhtml") {
                         val resolution = getResolutionName(format, url)
-                        val hasAudio = format.acodec != null && format.acodec != "none"
-                        val hasVideo = format.vcodec != "none" && (format.vcodec != null || format.height > 0 || format.width > 0 || resolution.contains("p"))
+                        val hasAudio = format.acodec != "none" && format.acodec != null
+                        val hasVideo = format.vcodec != "none" && (format.vcodec != null || format.height > 0 || format.width > 0 || resolution.contains("p") || ext == "mp4")
                         
                         // Check for best audio (prefer audio-only, but fall back to audio-capable video)
                         if (hasAudio) {
@@ -447,48 +436,59 @@ object FacebookVideoExtractor {
 
                         if (hasVideo) {
                             val isHd = resolution.contains("1080") || resolution.contains("720") || resolution.contains("4K") || resolution.contains("1440") || (format.height > 480)
-                            
                             val rawHeight = format.height
                             val numericHeight = if (rawHeight > 0) rawHeight else {
                                 resolution.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
                             }
 
-                            val audioLabel = if (hasAudio) "with audio" else "video only (merges audio)"
-                            val formatId = format.formatId ?: ""
-                            val formatNote = format.formatNote ?: ""
-                            val labelBuilder = java.lang.StringBuilder()
-                            labelBuilder.append(resolution)
-                            
-                            val extraInfo = when {
-                                formatNote.isNotBlank() && !formatNote.equals(resolution, ignoreCase = true) -> formatNote
-                                formatId.isNotBlank() && !formatId.equals(resolution, ignoreCase = true) -> formatId
-                                else -> ""
-                            }
-                            if (extraInfo.isNotBlank()) {
-                                labelBuilder.append(" - ").append(extraInfo)
-                            }
-                            labelBuilder.append(" (").append(audioLabel).append(")")
-                            val finalLabel = labelBuilder.toString()
-
-                            allLinks.add(VideoLink(finalLabel, url, isHd, hasAudio, numericHeight))
+                            allLinks.add(VideoLink(resolution, url, isHd, hasAudio, numericHeight))
                         }
                     }
                 }
             }
 
-            // Keep all unique direct links sorted by resolution (height) descending
-            val uniqueLinks = allLinks
-                .distinctBy { it.url }
-                .sortedWith { a, b ->
-                    if (a.height != b.height) {
-                        b.height.compareTo(a.height) // Descending by height (resolution)
-                    } else {
-                        val hasAudioA = if (a.hasAudio) 1 else 0
-                        val hasAudioB = if (b.hasAudio) 1 else 0
-                        hasAudioB.compareTo(hasAudioA)
+            // Group all found links by their standardized quality string (e.g., "360p", "480p", "540p", "720p")
+            val resolutionGroups = mutableMapOf<String, MutableList<VideoLink>>()
+            allLinks.forEach { link ->
+                val qName = when (link.height) {
+                    1080 -> "1080p"
+                    720 -> "720p"
+                    540 -> "540p"
+                    480 -> "480p"
+                    360 -> "360p"
+                    240 -> "240p"
+                    144 -> "144p"
+                    else -> {
+                        val numeric = link.quality.replace(Regex("[^0-9]"), "").toIntOrNull()
+                        if (numeric != null && numeric > 0) "${numeric}p" else link.quality
                     }
                 }
-            
+                
+                val cleanLink = link.copy(quality = qName)
+                if (!resolutionGroups.containsKey(qName)) {
+                    resolutionGroups[qName] = mutableListOf()
+                }
+                resolutionGroups[qName]?.add(cleanLink)
+            }
+
+            // Deduplicate: choose the best link for each resolution group
+            val uniqueLinks = mutableListOf<VideoLink>()
+            resolutionGroups.forEach { (qName, linksList) ->
+                // Sort links: prefer hasAudio == true first, then valid URL
+                val bestLink = linksList.sortedWith { a, b ->
+                    val hasAudioA = if (a.hasAudio) 1 else 0
+                    val hasAudioB = if (b.hasAudio) 1 else 0
+                    hasAudioB.compareTo(hasAudioA) // true comes first
+                }.firstOrNull()
+
+                if (bestLink != null) {
+                    uniqueLinks.add(bestLink)
+                }
+            }
+
+            // Sort unique links by resolution height descending (e.g. 720p, 540p, 480p, 360p)
+            uniqueLinks.sortByDescending { it.height }
+
             if (uniqueLinks.isNotEmpty()) {
                 return@withContext VideoOptions(
                     title = videoInfo.title ?: "Facebook Video",
@@ -497,6 +497,16 @@ object FacebookVideoExtractor {
                     adaptiveUrl = adaptiveUrl,
                     audioUrl = bestAudioUrl
                 )
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // 3. Fallback to direct HTML extraction from the video page (fast backup if YoutubeDL fails)
+        try {
+            val directHtmlOptions = tryDirectHtmlExtraction(fbUrl)
+            if (directHtmlOptions != null && directHtmlOptions.links.isNotEmpty()) {
+                return@withContext directHtmlOptions
             }
         } catch (e: Exception) {
             e.printStackTrace()

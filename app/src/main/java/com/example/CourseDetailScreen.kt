@@ -52,6 +52,12 @@ import androidx.compose.material.icons.filled.MenuBook
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
 
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
@@ -1329,15 +1335,7 @@ fun ClassDetailView(
         // Video Player Placeholder or Actual Player
         if (clazz.recordedLink.isNotBlank()) {
             if (isLoadingVideo) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp)
-                        .background(Color.Black, RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Color.White)
-                }
+                VideoLoadingPlaceholder()
             } else if (videoOptions != null) {
                 Box(modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(16.dp))) {
                     VideoPlayer(
@@ -1544,6 +1542,117 @@ fun ClassDetailView(
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
+    val infiniteTransition = rememberInfiniteTransition(label = "loading")
+    
+    // Rotating arc animation
+    val angle by infiniteTransition.animateFloat(
+        initialValue = 0f,
+        targetValue = 360f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "rotation"
+    )
+    
+    // Pulsing opacity/scale for the background glow
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 0.95f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "scale"
+    )
+
+    val alpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 0.9f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "alpha"
+    )
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .background(
+                brush = Brush.verticalGradient(
+                    colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A))
+                ),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .border(1.dp, Color(0xFF334155).copy(alpha = 0.5f), RoundedCornerShape(16.dp)),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Elegant pulsing & rotating loading graphic
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .graphicsLayer(scaleX = scale, scaleY = scale),
+                contentAlignment = Alignment.Center
+            ) {
+                // Background outer soft glow ring
+                Canvas(modifier = Modifier.fillMaxSize()) {
+                    drawCircle(
+                        color = Color(0xFF3B82F6).copy(alpha = 0.15f),
+                        radius = size.minDimension / 1.8f
+                    )
+                }
+                
+                // Rotating color arc
+                Canvas(modifier = Modifier.size(48.dp).graphicsLayer(rotationZ = angle)) {
+                    drawArc(
+                        brush = Brush.sweepGradient(
+                            colors = listOf(Color(0xFF3B82F6), Color(0xFF8B5CF6), Color(0xFF3B82F6))
+                        ),
+                        startAngle = 0f,
+                        sweepAngle = 280f,
+                        useCenter = false,
+                        style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
+                    )
+                }
+                
+                // Centered subtle Play Icon (using existing PlayCircle)
+                Icon(
+                    imageVector = Icons.Filled.PlayCircle,
+                    contentDescription = null,
+                    tint = Color.White.copy(alpha = alpha),
+                    modifier = Modifier.size(28.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            // Bengali loading texts
+            Text(
+                text = "ভিডিও লিংক খোঁজা হচ্ছে...",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "সেরা রেজুলেশনগুলো প্রস্তুত করা হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন",
+                fontSize = 12.sp,
+                color = Color(0xFF94A3B8),
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 24.dp)
+            )
         }
     }
 }
