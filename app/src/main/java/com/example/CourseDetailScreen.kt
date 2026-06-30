@@ -556,12 +556,44 @@ fun CourseContentSection(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             if (canViewClass) {
-                                                Icon(Icons.Default.PlayCircle, contentDescription = "Class", tint = Color.Gray, modifier = Modifier.size(20.dp))
+                                                Icon(if (isClassUpcoming(clazz)) Icons.Default.DateRange else Icons.Default.PlayCircle, contentDescription = "Class", tint = if (isClassUpcoming(clazz)) accentColor else Color.Gray, modifier = Modifier.size(20.dp))
                                             } else {
                                                 Icon(Icons.Default.Lock, contentDescription = "Locked", tint = Color.LightGray, modifier = Modifier.size(20.dp))
                                             }
                                             Spacer(modifier = Modifier.width(8.dp))
-                                            Text("${clazz.type}: ${clazz.title}", fontSize = 14.sp, color = if (canViewClass) Color.DarkGray else Color.LightGray, modifier = Modifier.weight(1f))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                 Text(
+                                                     text = "${clazz.type}: ${clazz.title}", 
+                                                     fontSize = 14.sp, 
+                                                     fontWeight = FontWeight.Medium,
+                                                     color = if (canViewClass) Color.DarkGray else Color.LightGray
+                                                 )
+                                                 if (isClassUpcoming(clazz)) {
+                                                     Spacer(modifier = Modifier.height(4.dp))
+                                                     Row(verticalAlignment = Alignment.CenterVertically) {
+                                                         Box(
+                                                             modifier = Modifier
+                                                                 .background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                                                 .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                         ) {
+                                                             Text(
+                                                                 text = "আসন্ন ক্লাস", 
+                                                                 color = accentColor, 
+                                                                 fontSize = 11.sp, 
+                                                                 fontWeight = FontWeight.Bold
+                                                             )
+                                                         }
+                                                         if (clazz.date.isNotBlank() || clazz.time.isNotBlank()) {
+                                                             Spacer(modifier = Modifier.width(8.dp))
+                                                             Text(
+                                                                 text = "${clazz.date} • ${clazz.time}", 
+                                                                 color = Color.Gray, 
+                                                                 fontSize = 11.sp
+                                                             )
+                                                         }
+                                                     }
+                                                 }
+                                             }
                                             if (isTeacher && (subject.sourceCourseId == null || subject.sourceCourseId == course.id)) {
                                                 IconButton(onClick = { classToEdit = Triple(subject, chapter, clazz) }) {
                                                     Icon(Icons.Default.Edit, contentDescription = "Edit Class", tint = Color.Gray, modifier = Modifier.size(20.dp))
@@ -1036,6 +1068,30 @@ fun CourseContentSection(
                                 }
                                 onUpdate(updatedSubjects)
                                 syncSubjectToAllCourses(updatedSubject)
+
+                                // Auto-schedule local and OneSignal push notification on class creation/modification
+                                ClassNotificationScheduler.scheduleLocalNotification(
+                                    context = mContext,
+                                    classId = newClass.id,
+                                    subjectTitle = subject.title,
+                                    chapterTitle = chapter.title,
+                                    classTitle = newClass.title,
+                                    mentorName = if (newMentor.isBlank()) "অজানা শিক্ষক" else newMentor,
+                                    dateStr = newClass.date,
+                                    timeStr = newClass.time
+                                )
+                                ClassNotificationScheduler.scheduleOneSignalPushNotification(
+                                    context = mContext,
+                                    courseId = course.id,
+                                    quarterId = newClass.quarterId,
+                                    subjectTitle = subject.title,
+                                    chapterTitle = chapter.title,
+                                    classTitle = newClass.title,
+                                    mentorName = if (newMentor.isBlank()) "অজানা শিক্ষক" else newMentor,
+                                    dateStr = newClass.date,
+                                    timeStr = newClass.time
+                                )
+
                                 chapterToAddClassTo = null
                                 classToEdit = null
                             }
@@ -1332,8 +1388,141 @@ fun ClassDetailView(
             }
         }
 
-        // Video Player Placeholder or Actual Player
-        if (clazz.recordedLink.isNotBlank()) {
+        // Video Player Placeholder or Actual Player or Live Countdown Timer
+        if (isClassUpcoming(clazz)) {
+            val targetTime = getClassCalendar(clazz.date, clazz.time)?.timeInMillis ?: 0L
+            var timeRemainingMillis by remember { mutableStateOf(0L) }
+
+            LaunchedEffect(targetTime) {
+                while (true) {
+                    val now = System.currentTimeMillis()
+                    timeRemainingMillis = (targetTime - now).coerceAtLeast(0L)
+                    if (timeRemainingMillis <= 0L) {
+                        break
+                    }
+                    kotlinx.coroutines.delay(1000)
+                }
+            }
+
+            val days = timeRemainingMillis / (1000 * 60 * 60 * 24)
+            val hours = (timeRemainingMillis / (1000 * 60 * 60)) % 24
+            val minutes = (timeRemainingMillis / (1000 * 60)) % 60
+            val seconds = (timeRemainingMillis / 1000) % 60
+
+            Card(
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                shape = RoundedCornerShape(24.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .background(accentColor.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
+                            .border(1.dp, accentColor, RoundedCornerShape(20.dp))
+                            .padding(horizontal = 16.dp, vertical = 6.dp)
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(8.dp)
+                                    .background(accentColor, CircleShape)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "লাইভ ক্লাস শুরু হতে বাকি",
+                                color = Color.White,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CountdownUnit(value = days, label = "দিন")
+                        CountdownDivider()
+                        CountdownUnit(value = hours, label = "ঘণ্টা")
+                        CountdownDivider()
+                        CountdownUnit(value = minutes, label = "মিনিট")
+                        CountdownDivider()
+                        CountdownUnit(value = seconds, label = "সেকেন্ড")
+                    }
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    Surface(
+                        color = Color.White.copy(alpha = 0.05f),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.DateRange,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "${if (clazz.date.isNotBlank()) clazz.date else "5 May 2026"} • ${if (clazz.time.isNotBlank()) clazz.time else "11:01 AM"}",
+                                color = Color.LightGray,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    if (clazz.liveLink.isNotBlank()) {
+                        Spacer(modifier = Modifier.height(20.dp))
+                        val isLiveActive = timeRemainingMillis <= 0L
+                        Button(
+                            onClick = {
+                                if (clazz.liveLink.startsWith("http://") || clazz.liveLink.startsWith("https://")) {
+                                    try {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(clazz.liveLink))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "লিঙ্ক ওপেন করা যায়নি", Toast.LENGTH_SHORT).show()
+                                    }
+                                } else {
+                                    Toast.makeText(context, "সঠিক লিঙ্ক পাওয়া যায়নি", Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(52.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isLiveActive) accentColor else Color.Gray.copy(alpha = 0.3f),
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(26.dp)
+                        ) {
+                            Icon(Icons.Default.PlayCircle, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                if (isLiveActive) "লাইভ ক্লাসে যোগ দিন" else "নির্দিষ্ট সময়ে জয়েন বাটন সচল হবে",
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp
+                            )
+                        }
+                    }
+                }
+            }
+        } else if (clazz.recordedLink.isNotBlank()) {
             if (isLoadingVideo) {
                 VideoLoadingPlaceholder()
             } else if (videoOptions != null) {
@@ -1655,4 +1844,103 @@ fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
             )
         }
     }
+}
+
+fun getClassCalendar(dateStr: String, timeStr: String): Calendar? {
+    if (dateStr.isBlank()) return null
+    try {
+        val dateParts = dateStr.trim().split("/")
+        if (dateParts.size != 3) return null
+        val day = dateParts[0].toIntOrNull() ?: return null
+        val month = (dateParts[1].toIntOrNull() ?: return null) - 1
+        val year = dateParts[2].toIntOrNull() ?: return null
+
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, day)
+        cal.set(Calendar.MONTH, month)
+        cal.set(Calendar.YEAR, year)
+
+        if (timeStr.isNotBlank()) {
+            val timeLower = timeStr.trim().uppercase()
+            val amPm = if (timeLower.contains("PM")) Calendar.PM else Calendar.AM
+            val cleanTime = timeLower.replace("AM", "").replace("PM", "").trim()
+            val timeParts = cleanTime.split(":")
+            if (timeParts.size >= 2) {
+                val hour12 = timeParts[0].toIntOrNull() ?: 12
+                val minute = timeParts[1].toIntOrNull() ?: 0
+                cal.set(Calendar.HOUR, if (hour12 == 12) 0 else hour12)
+                cal.set(Calendar.AM_PM, amPm)
+                cal.set(Calendar.MINUTE, minute)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+            } else {
+                cal.set(Calendar.HOUR_OF_DAY, 0)
+                cal.set(Calendar.MINUTE, 0)
+                cal.set(Calendar.SECOND, 0)
+                cal.set(Calendar.MILLISECOND, 0)
+            }
+        } else {
+            cal.set(Calendar.HOUR_OF_DAY, 0)
+            cal.set(Calendar.MINUTE, 0)
+            cal.set(Calendar.SECOND, 0)
+            cal.set(Calendar.MILLISECOND, 0)
+        }
+        return cal
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return null
+    }
+}
+
+fun isClassUpcoming(clazz: CourseClass): Boolean {
+    val cal = getClassCalendar(clazz.date, clazz.time) ?: return false
+    return cal.timeInMillis > System.currentTimeMillis()
+}
+
+fun convertToBengaliDigits(input: String): String {
+    val english = listOf('0', '1', '2', '3', '4', '5', '6', '7', '8', '9')
+    val benglish = listOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
+    var result = input
+    for (i in 0..9) {
+        result = result.replace(english[i], benglish[i])
+    }
+    return result
+}
+
+@Composable
+fun CountdownUnit(value: Long, label: String) {
+    val valueStr = convertToBengaliDigits(String.format("%02d", value))
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier
+            .width(64.dp)
+            .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
+            .padding(vertical = 12.dp)
+    ) {
+        Text(
+            text = valueStr,
+            color = Color.White,
+            fontSize = 24.sp,
+            fontWeight = FontWeight.ExtraBold,
+            lineHeight = 28.sp
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = label,
+            color = Color.Gray,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+fun CountdownDivider() {
+    Text(
+        text = ":",
+        color = Color.White.copy(alpha = 0.5f),
+        fontSize = 28.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier.offset(y = (-4).dp)
+    )
 }

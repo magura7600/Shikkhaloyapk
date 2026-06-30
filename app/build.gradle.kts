@@ -24,6 +24,15 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+  splits {
+    abi {
+      isEnable = true
+      reset()
+      include("armeabi-v7a", "arm64-v8a", "x86_64")
+      isUniversalApk = false
+    }
+  }
+
   signingConfigs {
     create("release") {
       val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
@@ -88,7 +97,7 @@ dependencies {
   implementation(libs.androidx.compose.material3)
   implementation(libs.androidx.compose.ui)
   implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
-  implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
+  // implementation("io.github.junkfood02.youtubedl-android:ffmpeg:0.18.1")
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)
@@ -111,6 +120,7 @@ dependencies {
   implementation(libs.supabase.auth)
   implementation(libs.ktor.client.okhttp)
   implementation(libs.kotlinx.serialization.json)
+  implementation(libs.onesignal)
   // implementation(libs.play.services.location)
   implementation(libs.retrofit)
   implementation(libs.media3.exoplayer)

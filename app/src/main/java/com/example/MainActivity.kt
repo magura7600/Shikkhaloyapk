@@ -10,6 +10,10 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.lifecycle.lifecycleScope
+import com.onesignal.OneSignal
+import com.onesignal.debug.LogLevel
+import kotlinx.coroutines.launch
 import androidx.compose.animation.*
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -103,6 +107,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+
+        // OneSignal debug logging (optional but highly recommended for setup)
+        OneSignal.Debug.logLevel = LogLevel.VERBOSE
+
+        // OneSignal Initialization
+        OneSignal.initWithContext(this, "9b18010c-9761-4d89-abfc-ae8a437f4943")
+
+        // Request notification permission
+        lifecycleScope.launch {
+            OneSignal.Notifications.requestPermission(true)
+        }
+
         setContent {
             MaterialTheme(
                 colorScheme = lightColorScheme(
@@ -974,6 +990,38 @@ fun DashboardScreen(
     var courseInteractions by remember { mutableStateOf(listOf<CourseInteraction>()) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+
+    // Sync OneSignal User identity and purchased course tags so they only receive notifications of courses they bought
+    LaunchedEffect(enrollments, profile.user_id) {
+        try {
+            // Set User Identity in OneSignal to track this user
+            OneSignal.login(profile.user_id)
+            
+            // Get user's enrolled courses
+            val myEnrollments = enrollments.filter { it.user_id == profile.user_id }
+            val tags = mutableMapOf<String, String>()
+            myEnrollments.forEach { enrollment ->
+                // Tag for the main course
+                tags["course_${enrollment.course_id}"] = "true"
+                
+                // Also tag for individual purchased quarters
+                if (enrollment.purchased_quarters.isNotBlank()) {
+                    enrollment.purchased_quarters.split(",").forEach { qId ->
+                        val trimmed = qId.trim()
+                        if (trimmed.isNotBlank()) {
+                            tags["quarter_$trimmed"] = "true"
+                        }
+                    }
+                }
+            }
+            if (tags.isNotEmpty()) {
+                OneSignal.User.addTags(tags)
+                android.util.Log.d("OneSignalSync", "Synced course enrollment tags to OneSignal: $tags")
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("OneSignalSync", "Failed to sync tags to OneSignal: ${e.message}")
+        }
+    }
 
     LaunchedEffect(Unit) {
         try {
