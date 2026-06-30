@@ -1,5 +1,6 @@
 package com.example
 
+import java.io.File
 import android.content.Context
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -10,6 +11,8 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.ui.draw.rotate
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.window.Dialog
@@ -32,6 +35,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Upload
+import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material.icons.filled.AssignmentTurnedIn
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -87,12 +99,36 @@ fun CourseDetailScreen(
     onCourseUpdate: (CourseItem) -> Unit,
     onMultipleCoursesUpdate: (List<CourseItem>) -> Unit = {},
     accentColor: Color,
+    initialSubjectId: String? = null,
+    initialChapterId: String? = null,
+    initialClassId: String? = null,
     onBack: () -> Unit
 ) {
     var selectedQuarters by remember { mutableStateOf(setOf<CourseQuarter>()) }
     var selectFullCourse by remember { mutableStateOf(true) }
     val mContext = LocalContext.current
     val isTeacher = course.channel_id == profile.user_id
+
+    // Check automatic quarter selection based on current date
+    var initialSelectedQuarterName by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(course.quarters) {
+        if (course.quarters.isNotEmpty()) {
+            val currentDate = java.time.LocalDate.now()
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            val activeQuarter = course.quarters.find { quarter ->
+                try {
+                    val start = java.time.LocalDate.parse(quarter.startDate, formatter)
+                    val end = java.time.LocalDate.parse(quarter.endDate, formatter)
+                    !currentDate.isBefore(start) && !currentDate.isAfter(end)
+                } catch(e: Exception) {
+                    false
+                }
+            }
+            if (activeQuarter != null) {
+                initialSelectedQuarterName = activeQuarter.name
+            }
+        }
+    }
 
     // If quarters exist, default to not selecting full course automatically if they want to choose
     LaunchedEffect(course) {
@@ -199,7 +235,12 @@ fun CourseDetailScreen(
                     userEnrollment = userEnrollment,
                     onUpdate = { newSubjects -> onCourseUpdate(course.copy(subjects = newSubjects)) },
                     onMultipleCoursesUpdate = onMultipleCoursesUpdate,
-                    accentColor = accentColor
+                    accentColor = accentColor,
+                    initialSubjectId = initialSubjectId,
+                    initialChapterId = initialChapterId,
+                    initialClassId = initialClassId,
+                    initialSelectedQuarterName = initialSelectedQuarterName,
+                    onCourseUpdate = onCourseUpdate
                 )
             }
 
@@ -346,7 +387,12 @@ fun CourseContentSection(
     userEnrollment: Enrollment?,
     onUpdate: (List<CourseSubject>) -> Unit,
     onMultipleCoursesUpdate: (List<CourseItem>) -> Unit = {},
-    accentColor: Color
+    accentColor: Color,
+    initialSubjectId: String? = null,
+    initialChapterId: String? = null,
+    initialClassId: String? = null,
+    initialSelectedQuarterName: String? = null,
+    onCourseUpdate: ((CourseItem) -> Unit)? = null
 ) {
     val mContext = LocalContext.current
     var subjectToEdit by remember { mutableStateOf<CourseSubject?>(null) }
@@ -357,6 +403,30 @@ fun CourseContentSection(
     var chapterToEdit by remember { mutableStateOf<Pair<CourseSubject, CourseChapter>?>(null) }
     var chapterToAddClassTo by remember { mutableStateOf<Pair<CourseSubject, CourseChapter>?>(null) }
     var classToEdit by remember { mutableStateOf<Triple<CourseSubject, CourseChapter, CourseClass>?>(null) }
+    var selectedChapterForView by remember { mutableStateOf<CourseChapter?>(null) }
+
+    LaunchedEffect(initialSubjectId, initialChapterId, initialClassId) {
+        if (initialSubjectId != null && initialChapterId != null && initialClassId != null) {
+            val s = course.subjects.find { it.id == initialSubjectId }
+            val ch = s?.chapters?.find { it.id == initialChapterId }
+            val c = ch?.classes?.find { it.id == initialClassId }
+            if (s != null && ch != null && c != null) {
+                selectedSubjectForView = s
+                selectedChapterForView = ch
+                selectedClassForView = c
+            }
+        }
+    }
+
+    val currentSubject = course.subjects.find { it.id == selectedSubjectForView?.id } ?: selectedSubjectForView
+    val currentChapter = currentSubject?.chapters?.find { it.id == selectedChapterForView?.id } ?: selectedChapterForView
+    val currentClass = currentChapter?.classes?.find { it.id == selectedClassForView?.id } ?: selectedClassForView
+
+    val quartersList = if (course.quarters.isNotEmpty()) course.quarters.map { it.name } else listOf("Quarter 1", "Quarter 2", "Quarter 3", "Quarter 4")
+    var selectedQuarterName by remember(course, initialSelectedQuarterName) {
+        mutableStateOf(initialSelectedQuarterName ?: quartersList.firstOrNull() ?: "Quarter 1")
+    }
+    var showRoutineDialog by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
 
     val syncSubjectToAllCourses = { updatedSubject: CourseSubject ->
@@ -395,12 +465,43 @@ fun CourseContentSection(
     }
 
     if (selectedClassForView != null) {
+        val subject = currentSubject ?: selectedSubjectForView!!
+        val clazz = currentClass ?: selectedClassForView!!
         ClassDetailView(
-            clazz = selectedClassForView!!,
-            subject = selectedSubjectForView!!,
+            clazz = clazz,
+            subject = subject,
             mentors = mentors,
             accentColor = accentColor,
+            courseName = course.title,
             onBack = { selectedClassForView = null }
+        )
+    } else if (selectedChapterForView != null) {
+        val subject = currentSubject ?: selectedSubjectForView!!
+        val chapter = currentChapter ?: selectedChapterForView!!
+        ChapterDetailScreen(
+            subject = subject,
+            chapter = chapter,
+            mentors = mentors,
+            isTeacher = isTeacher,
+            userEnrollment = userEnrollment,
+            accentColor = accentColor,
+            onBack = { selectedChapterForView = null },
+            onAddClassClick = { chapterToAddClassTo = Pair(subject, chapter) },
+            onEditClassClick = { clazz -> classToEdit = Triple(subject, chapter, clazz) },
+            onDeleteClassClick = { clazz ->
+                val updatedChapter = chapter.copy(classes = chapter.classes.filter { it.id != clazz.id })
+                selectedChapterForView = updatedChapter
+                
+                val updatedSubject = subject.copy(chapters = subject.chapters.map { if (it.id == chapter.id) updatedChapter else it })
+                selectedSubjectForView = updatedSubject
+                
+                val updatedSubjects = course.subjects.map { if (it.id == subject.id) updatedSubject else it }
+                onUpdate(updatedSubjects)
+                syncSubjectToAllCourses(updatedSubject)
+            },
+            onViewClassDetail = { clazz ->
+                selectedClassForView = clazz
+            }
         )
     } else if (selectedSubjectForView == null) {
         Column(modifier = Modifier.fillMaxWidth()) {
@@ -418,6 +519,95 @@ fun CourseContentSection(
             }
             Spacer(modifier = Modifier.height(12.dp))
 
+            // 1. "রুটিন দেখে নাও →" Banner Button
+            Card(
+                onClick = { showRoutineDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF3B82F6))
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.DateRange,
+                            contentDescription = "Routine",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "রুটিন দেখে নাও",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    Text(
+                        text = "→",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                }
+            }
+
+            // 2. Selectable Quarter Tabs
+            if (course.isQuarterOn && course.quarters.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    quartersList.forEach { qName ->
+                        val isSelected = selectedQuarterName == qName
+                        
+                        val cardBgColor = if (isSelected) Color(0xFF3B82F6) else Color(0xFFF1F5F9)
+                        val cardTextColor = if (isSelected) Color.White else Color(0xFF475569)
+                        val cardBorderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFE2E8F0)
+
+                        Card(
+                            onClick = { selectedQuarterName = qName },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                            border = BorderStroke(1.dp, cardBorderColor),
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = qName,
+                                    color = cardTextColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "✔ আনলক",
+                                    color = if (isSelected) Color.White.copy(alpha = 0.9f) else Color(0xFF10B981),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 3. Subjects Grid
             if (course.subjects.isEmpty()) {
                 Text("এখনো কোনো বিষয়বস্তু যোগ করা হয়নি।", color = Color.Gray, fontSize = 14.sp)
             } else {
@@ -455,14 +645,20 @@ fun CourseContentSection(
                                             coil.compose.AsyncImage(
                                                 model = subject.iconUrl,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(48.dp).clip(RoundedCornerShape(8.dp)),
+                                                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
                                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
                                             )
                                         } else {
-                                            Icon(Icons.Default.MenuBook, contentDescription = null, tint = Color.White, modifier = Modifier.size(48.dp))
+                                            Icon(Icons.Default.MenuBook, contentDescription = null, tint = Color.White, modifier = Modifier.size(56.dp))
                                         }
                                         Spacer(modifier = Modifier.height(16.dp))
-                                        Text(subject.title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                        Text(
+                                            text = subject.title, 
+                                            color = Color.White, 
+                                            fontWeight = FontWeight.Bold, 
+                                            fontSize = 16.sp,
+                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                        )
                                     }
                                 }
                             }
@@ -475,7 +671,7 @@ fun CourseContentSection(
             }
         }
     } else {
-        val subject = selectedSubjectForView!!
+        val subject = currentSubject ?: selectedSubjectForView!!
         Column(modifier = Modifier.fillMaxWidth()) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -497,121 +693,285 @@ fun CourseContentSection(
             }
             Spacer(modifier = Modifier.height(12.dp))
 
-            if (subject.chapters.isEmpty()) {
-                Text("কোনো অধ্যায় নেই।", color = Color.Gray, fontSize = 14.sp)
-            } else {
-                subject.chapters.forEach { chapter ->
-                    var isChapterExpanded by remember { mutableStateOf(false) }
-                    Card(
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
-                        shape = RoundedCornerShape(8.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+            // 1. Quarters Selectable Tabs inside subject details
+            if (course.isQuarterOn && course.quarters.isNotEmpty()) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    quartersList.forEach { qName ->
+                        val isSelected = selectedQuarterName == qName
+                        val cardBgColor = if (isSelected) Color(0xFF3B82F6) else Color(0xFFF1F5F9)
+                        val cardTextColor = if (isSelected) Color.White else Color(0xFF475569)
+                        val cardBorderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFE2E8F0)
+
+                        Card(
+                            onClick = { selectedQuarterName = qName },
+                            shape = RoundedCornerShape(12.dp),
+                            colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                            border = BorderStroke(1.dp, cardBorderColor),
+                            modifier = Modifier.padding(vertical = 2.dp)
+                        ) {
                             Row(
-                                modifier = Modifier.fillMaxWidth().clickable { isChapterExpanded = !isChapterExpanded },
+                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Text(
+                                    text = qName,
+                                    color = cardTextColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "✔ আনলক",
+                                    color = if (isSelected) Color.White.copy(alpha = 0.9f) else Color(0xFF10B981),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 2. Learning Resources Banner (Screenshot 2 style)
+            Card(
+                onClick = { /* View learning resources if needed */ },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
+                shape = RoundedCornerShape(14.dp),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E3A8A)) // deep blue/teal
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.MenuBook,
+                            contentDescription = "Resources",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = "বিষয়ভিত্তিক লার্নিং রিসোর্স দেখো",
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp
+                        )
+                    }
+                    Text(
+                        text = "→",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    )
+                }
+            }
+
+            // Filter chapters by active selected Quarter
+            val chaptersToShow = if (course.isQuarterOn && course.quarters.isNotEmpty()) {
+                subject.chapters.filter { (it.quarter.ifBlank { "Quarter 1" }) == selectedQuarterName }
+            } else {
+                subject.chapters
+            }
+
+            if (chaptersToShow.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp)
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("এই কোয়ার্টারে কোনো অধ্যায় যোগ করা হয়নি।", color = Color.Gray, fontSize = 14.sp)
+                }
+            } else {
+                chaptersToShow.forEach { chapter ->
+                    var isStatusMenuExpanded by remember { mutableStateOf(false) }
+                    
+                    // Display Badge according to Teaching Status
+                    val displayStatus = if (chapter.classes.isEmpty()) "পড়ানো হবে" else chapter.teachingStatus
+                    val (statusBgColor, statusTextColor) = when (displayStatus) {
+                        "পড়ানো শেষ" -> Pair(Color(0xFFD1FAE5), Color(0xFF065F46))
+                        "পড়ানো হচ্ছে" -> Pair(Color(0xFFDBEAFE), Color(0xFF1E40AF))
+                        else -> Pair(Color(0xFFF1F5F9), Color(0xFF475569)) // পড়ানো হবে
+                    }
+
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 12.dp),
+                        shape = RoundedCornerShape(16.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween
                             ) {
-                                Text(chapter.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, modifier = Modifier.weight(1f))
-                                val isMainCourse = subject.sourceCourseId == null || subject.sourceCourseId == course.id
-                                if (isTeacher && isMainCourse) {
-                                    IconButton(onClick = { chapterToAddClassTo = Pair(subject, chapter) }) {
-                                        Icon(Icons.Default.Add, contentDescription = "Add Class", tint = accentColor, modifier = Modifier.size(20.dp))
-                                    }
-                                    IconButton(onClick = { chapterToEdit = Pair(subject, chapter) }) {
-                                        Icon(Icons.Default.Edit, contentDescription = "Edit Chapter", tint = Color.Gray, modifier = Modifier.size(20.dp))
-                                    }
-                                    IconButton(onClick = {
-                                        val updatedSubject = subject.copy(chapters = subject.chapters.filter { it.id != chapter.id })
-                                        val updatedSubjects = course.subjects.map {
-                                            if (it.id == subject.id) updatedSubject else it
-                                        }
-                                        onUpdate(updatedSubjects)
-                                        syncSubjectToAllCourses(updatedSubject)
-                                    }) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete Chapter", tint = Color.Red, modifier = Modifier.size(20.dp))
-                                    }
-                                }
-                                Icon(if (isChapterExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown, contentDescription = null)
-                            }
-
-                            if (isChapterExpanded) {
-                                if (chapter.classes.isEmpty()) {
-                                    Text("কোনো ক্লাস নেই।", color = Color.Gray, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
-                                } else {
-                                    chapter.classes.forEach { clazz ->
-                                        val isFullCoursePurchased = userEnrollment != null && userEnrollment.purchased_quarters.isEmpty()
-                                        val isQuarterPurchased = userEnrollment != null && clazz.quarterId.isNotEmpty() && userEnrollment.purchased_quarters.split(",").contains(clazz.quarterId)
-                                        val canViewClass = isTeacher || clazz.isFree || isFullCoursePurchased || isQuarterPurchased
-
+                                // Status Badge & Optional Dropdown Trigger
+                                Box {
+                                    Card(
+                                        onClick = { 
+                                            if (isTeacher) {
+                                                isStatusMenuExpanded = true 
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        colors = CardDefaults.cardColors(containerColor = statusBgColor),
+                                        border = BorderStroke(1.dp, statusTextColor.copy(alpha = 0.2f))
+                                    ) {
                                         Row(
-                                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp).clickable { 
-                                                if (canViewClass) {
-                                                    selectedClassForView = clazz 
-                                                } else {
-                                                    Toast.makeText(mContext, "এই ক্লাসটি দেখার জন্য আপনাকে সঠিক কোয়ার্টার এনরোল করতে হবে", Toast.LENGTH_SHORT).show()
-                                                }
-                                            }.padding(vertical = 4.dp),
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
-                                            if (canViewClass) {
-                                                Icon(if (isClassUpcoming(clazz)) Icons.Default.DateRange else Icons.Default.PlayCircle, contentDescription = "Class", tint = if (isClassUpcoming(clazz)) accentColor else Color.Gray, modifier = Modifier.size(20.dp))
-                                            } else {
-                                                Icon(Icons.Default.Lock, contentDescription = "Locked", tint = Color.LightGray, modifier = Modifier.size(20.dp))
+                                            Text(
+                                                text = displayStatus,
+                                                color = statusTextColor,
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 12.sp
+                                            )
+                                            if (isTeacher) {
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Icon(
+                                                    imageVector = Icons.Default.KeyboardArrowDown,
+                                                    contentDescription = "Change Status",
+                                                    tint = statusTextColor,
+                                                    modifier = Modifier.size(14.dp)
+                                                )
                                             }
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Column(modifier = Modifier.weight(1f)) {
-                                                 Text(
-                                                     text = "${clazz.type}: ${clazz.title}", 
-                                                     fontSize = 14.sp, 
-                                                     fontWeight = FontWeight.Medium,
-                                                     color = if (canViewClass) Color.DarkGray else Color.LightGray
-                                                 )
-                                                 if (isClassUpcoming(clazz)) {
-                                                     Spacer(modifier = Modifier.height(4.dp))
-                                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                                         Box(
-                                                             modifier = Modifier
-                                                                 .background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                                                                 .padding(horizontal = 6.dp, vertical = 2.dp)
-                                                         ) {
-                                                             Text(
-                                                                 text = "আসন্ন ক্লাস", 
-                                                                 color = accentColor, 
-                                                                 fontSize = 11.sp, 
-                                                                 fontWeight = FontWeight.Bold
-                                                             )
-                                                         }
-                                                         if (clazz.date.isNotBlank() || clazz.time.isNotBlank()) {
-                                                             Spacer(modifier = Modifier.width(8.dp))
-                                                             Text(
-                                                                 text = "${clazz.date} • ${clazz.time}", 
-                                                                 color = Color.Gray, 
-                                                                 fontSize = 11.sp
-                                                             )
-                                                         }
-                                                     }
-                                                 }
-                                             }
-                                            if (isTeacher && (subject.sourceCourseId == null || subject.sourceCourseId == course.id)) {
-                                                IconButton(onClick = { classToEdit = Triple(subject, chapter, clazz) }) {
-                                                    Icon(Icons.Default.Edit, contentDescription = "Edit Class", tint = Color.Gray, modifier = Modifier.size(20.dp))
-                                                }
-                                                IconButton(onClick = {
-                                                    val updatedChapter = chapter.copy(classes = chapter.classes.filter { it.id != clazz.id })
+                                        }
+                                    }
+                                    
+                                    // Dropdown Menu for Teachers to manually override Status (Screenshot 3)
+                                    DropdownMenu(
+                                        expanded = isStatusMenuExpanded,
+                                        onDismissRequest = { isStatusMenuExpanded = false }
+                                    ) {
+                                        listOf("পড়ানো হবে", "পড়ানো হচ্ছে", "পড়ানো শেষ").forEach { targetStatus ->
+                                            DropdownMenuItem(
+                                                text = { Text(targetStatus, fontWeight = FontWeight.Bold) },
+                                                onClick = {
+                                                    isStatusMenuExpanded = false
+                                                    val updatedChapter = chapter.copy(teachingStatus = targetStatus)
                                                     val updatedSubject = subject.copy(chapters = subject.chapters.map { if (it.id == chapter.id) updatedChapter else it })
                                                     val updatedSubjects = course.subjects.map { if (it.id == subject.id) updatedSubject else it }
                                                     onUpdate(updatedSubjects)
                                                     syncSubjectToAllCourses(updatedSubject)
-                                                }) {
-                                                    Icon(Icons.Default.Delete, contentDescription = "Delete Class", tint = Color.Red, modifier = Modifier.size(20.dp))
+                                                    
+                                                    if (selectedChapterForView?.id == chapter.id) {
+                                                        selectedChapterForView = updatedChapter
+                                                    }
                                                 }
-                                            }
+                                            )
+                                        }
+                                    }
+                                }
+                                
+                                // Classes Count & Action Icons Row
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Class Count Badge (e.g., "২ ক্লাস")
+                                    Row(
+                                        modifier = Modifier
+                                            .background(Color(0xFFEFF6FF), RoundedCornerShape(8.dp))
+                                            .padding(horizontal = 8.dp, vertical = 6.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.ListAlt,
+                                            contentDescription = null,
+                                            tint = Color(0xFF3B82F6),
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "${chapter.classes.size} ক্লাস",
+                                            color = Color(0xFF1D4ED8),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 12.sp
+                                        )
+                                    }
+                                    
+                                    // Edit/Delete for Teachers
+                                    if (isTeacher) {
+                                        IconButton(
+                                            onClick = { chapterToEdit = Pair(subject, chapter) },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Edit,
+                                                contentDescription = "Edit Chapter",
+                                                tint = Color.Gray,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                        IconButton(
+                                            onClick = {
+                                                val updatedSubject = subject.copy(chapters = subject.chapters.filter { it.id != chapter.id })
+                                                val updatedSubjects = course.subjects.map { if (it.id == subject.id) updatedSubject else it }
+                                                onUpdate(updatedSubjects)
+                                                syncSubjectToAllCourses(updatedSubject)
+                                            },
+                                            modifier = Modifier.size(32.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Delete,
+                                                contentDescription = "Delete Chapter",
+                                                tint = Color.Red,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                        }
+                                    }
+                                    
+                                    // Enter Chapter details circle go button
+                                    Card(
+                                        onClick = { selectedChapterForView = chapter },
+                                        shape = CircleShape,
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                            Icon(
+                                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                                contentDescription = "Open Chapter",
+                                                tint = Color(0xFF475569),
+                                                modifier = Modifier.size(16.dp).rotate(180f)
+                                            )
                                         }
                                     }
                                 }
                             }
+                            
+                            Spacer(modifier = Modifier.height(12.dp))
+                            
+                            // Chapter Title Click takes user inside chapter
+                            Text(
+                                text = chapter.title,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedChapterForView = chapter }
+                            )
                         }
                     }
                 }
@@ -625,7 +985,7 @@ fun CourseContentSection(
             initialSubject = initialSubj,
             isTeacher = isTeacher,
             channelId = course.channel_id,
-            courseId = course.id,
+            course = course,
             onDismiss = {
                 isAddingSubject = false
                 subjectToEdit = null
@@ -700,21 +1060,58 @@ fun CourseContentSection(
 
     if (subjectToAddChapterTo != null) {
         var newTitle by remember { mutableStateOf("") }
+        var selectedQuarterForNewChapter by remember { mutableStateOf(quartersList.firstOrNull() ?: "Quarter 1") }
+        var quarterDropdownExpanded by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { subjectToAddChapterTo = null },
             title = { Text("নতুন অধ্যায় (Chapter) যোগ করুন") },
             text = {
-                OutlinedTextField(
-                    value = newTitle,
-                    onValueChange = { newTitle = it },
-                    label = { Text("অধ্যায়ের নাম") },
-                    singleLine = true
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = newTitle,
+                        onValueChange = { newTitle = it },
+                        label = { Text("অধ্যায়ের নাম") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (course.isQuarterOn && course.quarters.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("কোয়ার্টার নির্বাচন করুন:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(modifier = Modifier.fillMaxWidth().clickable { quarterDropdownExpanded = true }) {
+                            OutlinedTextField(
+                                value = selectedQuarterForNewChapter,
+                                onValueChange = {},
+                                enabled = false,
+                                label = { Text("কোয়ার্টার") },
+                                modifier = Modifier.fillMaxWidth(),
+                                trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) }
+                            )
+                            DropdownMenu(
+                                expanded = quarterDropdownExpanded,
+                                onDismissRequest = { quarterDropdownExpanded = false }
+                            ) {
+                                quartersList.forEach { qName ->
+                                    DropdownMenuItem(
+                                        text = { Text(qName) },
+                                        onClick = {
+                                            selectedQuarterForNewChapter = qName
+                                            quarterDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
                     if (newTitle.isNotBlank()) {
-                        val newChapter = CourseChapter(title = newTitle)
+                        val newChapter = CourseChapter(
+                            title = newTitle,
+                            quarter = if (course.isQuarterOn) selectedQuarterForNewChapter else "Quarter 1"
+                        )
                         val updatedSubject = subjectToAddChapterTo!!.copy(chapters = subjectToAddChapterTo!!.chapters + newChapter)
                         val updatedSubjects = course.subjects.map {
                             if (it.id == subjectToAddChapterTo!!.id) updatedSubject else it
@@ -735,21 +1132,58 @@ fun CourseContentSection(
         val subject = chapterToEdit!!.first
         val chapter = chapterToEdit!!.second
         var editTitle by remember { mutableStateOf(chapter.title) }
+        var selectedQuarterForEditChapter by remember { mutableStateOf(chapter.quarter.ifBlank { quartersList.firstOrNull() ?: "Quarter 1" }) }
+        var quarterDropdownExpanded by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { chapterToEdit = null },
             title = { Text("অধ্যায় (Chapter) এডিট করুন") },
             text = {
-                OutlinedTextField(
-                    value = editTitle,
-                    onValueChange = { editTitle = it },
-                    label = { Text("অধ্যায়ের নাম") },
-                    singleLine = true
-                )
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    OutlinedTextField(
+                        value = editTitle,
+                        onValueChange = { editTitle = it },
+                        label = { Text("অধ্যায়ের নাম") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (course.isQuarterOn && course.quarters.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("কোয়ার্টার নির্বাচন করুন:", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Box(modifier = Modifier.fillMaxWidth().clickable { quarterDropdownExpanded = true }) {
+                            OutlinedTextField(
+                                value = selectedQuarterForEditChapter,
+                                onValueChange = {},
+                                enabled = false,
+                                label = { Text("কোয়ার্টার") },
+                                modifier = Modifier.fillMaxWidth(),
+                                trailingIcon = { Icon(Icons.Default.KeyboardArrowDown, contentDescription = null) }
+                            )
+                            DropdownMenu(
+                                expanded = quarterDropdownExpanded,
+                                onDismissRequest = { quarterDropdownExpanded = false }
+                            ) {
+                                quartersList.forEach { qName ->
+                                    DropdownMenuItem(
+                                        text = { Text(qName) },
+                                        onClick = {
+                                            selectedQuarterForEditChapter = qName
+                                            quarterDropdownExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             },
             confirmButton = {
                 TextButton(onClick = {
                     if (editTitle.isNotBlank()) {
-                        val updatedChapter = chapter.copy(title = editTitle)
+                        val updatedChapter = chapter.copy(
+                            title = editTitle,
+                            quarter = if (course.isQuarterOn) selectedQuarterForEditChapter else "Quarter 1"
+                        )
                         val updatedSubject = subject.copy(chapters = subject.chapters.map { if (it.id == chapter.id) updatedChapter else it })
                         val updatedSubjects = course.subjects.map {
                             if (it.id == subject.id) updatedSubject else it
@@ -861,7 +1295,7 @@ fun CourseContentSection(
                                 DatePickerDialog(
                                     mContext,
                                     { _, year, month, day ->
-                                        newDate = "$day/${month + 1}/$year"
+                                        newDate = String.format(java.util.Locale.US, "%02d/%02d/%04d", day, month + 1, year)
                                     },
                                     calendar.get(Calendar.YEAR),
                                     calendar.get(Calendar.MONTH),
@@ -1028,6 +1462,12 @@ fun CourseContentSection(
                                 val selectedQuarterId = newQuarter
                                 val selectedMentorId = mentors.find { it.name == newMentor }?.id ?: ""
                                 
+                                val finalPdfLinks = if (newPdfTitle.isNotBlank() && newPdfUrl.isNotBlank()) {
+                                    pdfLinks + PdfLink(newPdfTitle, newPdfUrl)
+                                } else {
+                                    pdfLinks
+                                }
+
                                 val newClass = existingClass?.copy(
                                     type = selectedType,
                                     title = newTitle,
@@ -1039,7 +1479,7 @@ fun CourseContentSection(
                                     liveLink = newLiveLink,
                                     recordedLink = newRecordedLink,
                                     homeworkLink = newHomeworkLink,
-                                    pdfLinks = pdfLinks
+                                    pdfLinks = finalPdfLinks
                                 ) ?: CourseClass(
                                     type = selectedType,
                                     title = newTitle,
@@ -1051,7 +1491,7 @@ fun CourseContentSection(
                                     liveLink = newLiveLink,
                                     recordedLink = newRecordedLink,
                                     homeworkLink = newHomeworkLink,
-                                    pdfLinks = pdfLinks
+                                    pdfLinks = finalPdfLinks
                                 )
                                 val updatedSubject = subject.copy(chapters = subject.chapters.map { ch ->
                                     if (ch.id == chapter.id) {
@@ -1060,7 +1500,8 @@ fun CourseContentSection(
                                         } else {
                                             ch.classes + newClass
                                         }
-                                        ch.copy(classes = updatedClasses)
+                                        val newStatus = if (ch.teachingStatus == "পড়ানো হবে") "পড়ানো হচ্ছে" else ch.teachingStatus
+                                        ch.copy(classes = updatedClasses, teachingStatus = newStatus)
                                     } else ch
                                 })
                                 val updatedSubjects = course.subjects.map { subj ->
@@ -1110,13 +1551,45 @@ fun AddEditSubjectDialog(
     initialSubject: CourseSubject?,
     isTeacher: Boolean,
     channelId: String?,
-    courseId: String,
+    course: CourseItem,
     onDismiss: () -> Unit,
     onSave: (CourseSubject, List<CourseItem>) -> Unit
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
     var newTitle by remember { mutableStateOf(initialSubject?.title ?: "") }
     var newColorHex by remember { mutableStateOf(initialSubject?.colorHex ?: "#FF6B6B") }
     var newIconUrl by remember { mutableStateOf(initialSubject?.iconUrl ?: "") }
+    var isUploadingLogo by remember { mutableStateOf(false) }
+    
+    val logoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                isUploadingLogo = true
+                Toast.makeText(context, "লোগো আপলোড হচ্ছে...", Toast.LENGTH_SHORT).show()
+                try {
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                    val bytes = inputStream?.readBytes()
+                    if (bytes != null) {
+                        val uploadedUrl = ImgBBClient.uploadImage(bytes)
+                        if (uploadedUrl != null) {
+                            newIconUrl = uploadedUrl
+                            Toast.makeText(context, "লোগো সফলভাবে আপলোড হয়েছে!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "লোগো আপলোড ব্যর্থ হয়েছে।", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "ত্রুটি: ${e.message}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    isUploadingLogo = false
+                }
+            }
+        }
+    }
     
     val colors = listOf("#EF4444", "#F97316", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899", "#64748B")
     
@@ -1130,7 +1603,18 @@ fun AddEditSubjectDialog(
                     val courses = supabase.from("courses")
                         .select { filter { eq("channel_id", channelId) } }
                         .decodeList<CourseItem>()
-                    otherCourses = courses.filter { it.id != courseId }
+                    
+                    val currentIsQuarterActive = course.isQuarterOn && course.quarters.isNotEmpty()
+                    val currentQuartersCount = if (currentIsQuarterActive) course.quarters.size else 0
+
+                    otherCourses = courses.filter { otherCourse ->
+                        if (otherCourse.id == course.id) return@filter false
+                        
+                        val otherIsQuarterActive = otherCourse.isQuarterOn && otherCourse.quarters.isNotEmpty()
+                        val otherQuartersCount = if (otherIsQuarterActive) otherCourse.quarters.size else 0
+                        
+                        currentIsQuarterActive == otherIsQuarterActive && currentQuartersCount == otherQuartersCount
+                    }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
@@ -1152,14 +1636,41 @@ fun AddEditSubjectDialog(
                 OutlinedTextField(value = newTitle, onValueChange = { newTitle = it }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                Text("লোগো/আইকন URL (ঐচ্ছিক)", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 14.sp)
+                Text("বিষয়ের লোগো/আইকন", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = newIconUrl, onValueChange = { newIconUrl = it }, modifier = Modifier.fillMaxWidth())
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = newIconUrl, 
+                        onValueChange = { newIconUrl = it }, 
+                        placeholder = { Text("লোগো URL লিখুন বা আপলোড করুন") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = { logoPickerLauncher.launch("image/*") },
+                        enabled = !isUploadingLogo,
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                    ) {
+                        if (isUploadingLogo) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                        } else {
+                            Icon(Icons.Default.Upload, contentDescription = "Upload Logo")
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("আপলোড")
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 Text("বিষয়ের রঙ", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), 
+                    horizontalArrangement = Arrangement.SpaceEvenly
+                ) {
                     colors.forEach { hex ->
                         Box(
                             modifier = Modifier
@@ -1167,12 +1678,42 @@ fun AddEditSubjectDialog(
                                 .clip(CircleShape)
                                 .background(Color(android.graphics.Color.parseColor(hex)))
                                 .clickable { newColorHex = hex }
-                                .border(if (newColorHex == hex) 3.dp else 0.dp, if (newColorHex == hex) Color.Black else Color.Transparent, CircleShape)
+                                .border(if (newColorHex.uppercase() == hex.uppercase()) 3.dp else 0.dp, if (newColorHex.uppercase() == hex.uppercase()) Color.Black else Color.Transparent, CircleShape)
                         )
                     }
                 }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    OutlinedTextField(
+                        value = newColorHex,
+                        onValueChange = { 
+                            newColorHex = it
+                        },
+                        label = { Text("নিজের মতো কাস্টম কালার কোড (HEX)") },
+                        modifier = Modifier.weight(1f)
+                    )
+                    
+                    // Color Preview
+                    val previewColor = try {
+                        Color(android.graphics.Color.parseColor(newColorHex))
+                    } catch (e: Exception) {
+                        Color.Gray
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(previewColor)
+                            .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
+                    )
+                }
+                Spacer(modifier = Modifier.height(16.dp))
                 
-                val isMainCourse = initialSubject == null || initialSubject.sourceCourseId == null || initialSubject.sourceCourseId == courseId
+                val isMainCourse = initialSubject == null || initialSubject.sourceCourseId == null || initialSubject.sourceCourseId == course.id
                 if (otherCourses.isNotEmpty() && isMainCourse) {
                     Spacer(modifier = Modifier.height(24.dp))
                     Text("যেসব কোর্সে এই বিষয়টি যুক্ত থাকবে", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 14.sp)
@@ -1212,8 +1753,8 @@ fun AddEditSubjectDialog(
                             title = newTitle, 
                             colorHex = newColorHex, 
                             iconUrl = newIconUrl,
-                            sourceCourseId = initialSubject.sourceCourseId ?: courseId
-                        ) ?: CourseSubject(title = newTitle, colorHex = newColorHex, iconUrl = newIconUrl, sourceCourseId = courseId)
+                            sourceCourseId = initialSubject.sourceCourseId ?: course.id
+                        ) ?: CourseSubject(title = newTitle, colorHex = newColorHex, iconUrl = newIconUrl, sourceCourseId = course.id)
                         val selectedCourses = otherCourses.filter { selectedOtherCourseIds.contains(it.id) }
                         onSave(finalSubject, selectedCourses)
                     },
@@ -1348,6 +1889,7 @@ fun ClassDetailView(
     subject: CourseSubject,
     mentors: List<Mentor>,
     accentColor: Color,
+    courseName: String = "",
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
@@ -1355,6 +1897,22 @@ fun ClassDetailView(
     var isLoadingVideo by remember { mutableStateOf(false) }
     var currentVideoUrl by remember { mutableStateOf<String?>(null) }
     var showQualitySelector by remember { mutableStateOf(false) }
+
+    val downloadStates by OfflineDownloadManager.downloadStates.collectAsState()
+    var downloadsList by remember { mutableStateOf(emptyList<DownloadRecord>()) }
+    
+    // PDF Viewer dialog states
+    var activePdfToView by remember { mutableStateOf<File?>(null) }
+    var activePdfTitle by remember { mutableStateOf("") }
+    var isDownloadingTempPdf by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        downloadsList = OfflineDownloadManager.getDownloadRecords(context)
+    }
+
+    LaunchedEffect(downloadStates) {
+        downloadsList = OfflineDownloadManager.getDownloadRecords(context)
+    }
 
     LaunchedEffect(clazz.recordedLink) {
         if (clazz.recordedLink.isNotBlank()) {
@@ -1539,22 +2097,52 @@ fun ClassDetailView(
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                     val context = LocalContext.current
-                    Button(onClick = {
-                        val dlUrl = currentVideoUrl ?: videoOptions?.links?.firstOrNull()?.url
-                        if (dlUrl != null) {
-                            val request = android.app.DownloadManager.Request(android.net.Uri.parse(dlUrl))
-                                .setTitle(clazz.title)
-                                .setDescription("Downloading video...")
-                                .setNotificationVisibility(android.app.DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                                .setDestinationInExternalPublicDir(android.os.Environment.DIRECTORY_DOWNLOADS, "Class_${clazz.title}.mp4")
-                            val downloadManager = context.getSystemService(Context.DOWNLOAD_SERVICE) as android.app.DownloadManager
-                            downloadManager.enqueue(request)
-                            Toast.makeText(context, "Download started...", Toast.LENGTH_SHORT).show()
+                    val dlUrl = currentVideoUrl ?: videoOptions?.links?.firstOrNull()?.url
+                    val isDownloaded = remember(downloadsList, dlUrl) {
+                        downloadsList.any { it.url == dlUrl }
+                    }
+                    val downloadState = downloadStates[dlUrl ?: ""]
+
+                    Button(
+                        onClick = {
+                            if (dlUrl != null && !isDownloaded && downloadState !is DownloadState.Downloading) {
+                                OfflineDownloadManager.downloadPermanently(
+                                    context = context,
+                                    url = dlUrl,
+                                    title = clazz.title,
+                                    fileType = "video",
+                                    courseName = courseName,
+                                    className = clazz.title
+                                )
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDownloaded) Color(0xFF10B981) else accentColor
+                        ),
+                        enabled = dlUrl != null
+                    ) {
+                        when {
+                            isDownloaded -> {
+                                Icon(Icons.Default.CheckCircle, contentDescription = "Downloaded")
+                                Spacer(Modifier.width(8.dp))
+                                Text("ডাউনলোডকৃত ✔️")
+                            }
+                            downloadState is DownloadState.Downloading -> {
+                                val pct = (downloadState.progress * 100).toInt()
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text("ডাউনলোড হচ্ছে ($pct%)")
+                            }
+                            else -> {
+                                Icon(Icons.Default.Download, contentDescription = "Download")
+                                Spacer(Modifier.width(8.dp))
+                                Text("ডাউনলোড ভিডিও")
+                            }
                         }
-                    }) {
-                        Icon(Icons.Default.Download, contentDescription = "Download")
-                        Spacer(Modifier.width(8.dp))
-                        Text("Download Video")
                     }
                 }
             } else {
@@ -1705,6 +2293,12 @@ fun ClassDetailView(
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     clazz.pdfLinks.forEach { pdf ->
+                        val downloadedRecord = remember(downloadsList, pdf.url) {
+                            downloadsList.find { it.url == pdf.url }
+                        }
+                        val isDownloaded = downloadedRecord != null
+                        val downloadState = downloadStates[pdf.url]
+
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -1714,23 +2308,132 @@ fun ClassDetailView(
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(48.dp)
-                                    .background(Color.White, RoundedCornerShape(12.dp))
-                                    .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp)),
+                                    .size(44.dp)
+                                    .background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(10.dp)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.MenuBook, contentDescription = "PDF", tint = Color(0xFF64748B), modifier = Modifier.size(24.dp))
+                                Icon(
+                                    imageVector = Icons.Default.MenuBook,
+                                    contentDescription = "PDF",
+                                    tint = accentColor,
+                                    modifier = Modifier.size(22.dp)
+                                )
                             }
-                            Spacer(modifier = Modifier.width(16.dp))
-                            Column {
-                                Text(pdf.title, fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
-                                Text("লেকচার স্লাইড দেখুন", fontSize = 12.sp, color = Color(0xFF64748B))
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = pdf.title,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                Text(
+                                    text = if (isDownloaded) "অফলাইন (ডাউনলোডকৃত)" else "অনলাইন ডকুমেন্ট",
+                                    fontSize = 11.sp,
+                                    color = if (isDownloaded) Color(0xFF10B981) else Color(0xFF64748B),
+                                    fontWeight = if (isDownloaded) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            // View Button
+                            Button(
+                                onClick = {
+                                    if (isDownloaded) {
+                                        activePdfToView = File(downloadedRecord!!.localPath)
+                                        activePdfTitle = pdf.title
+                                    } else {
+                                        isDownloadingTempPdf = true
+                                        OfflineDownloadManager.downloadToCache(
+                                            context = context,
+                                            url = pdf.url,
+                                            title = pdf.title,
+                                            onComplete = { tempFile ->
+                                                isDownloadingTempPdf = false
+                                                activePdfToView = tempFile
+                                                activePdfTitle = pdf.title
+                                            },
+                                            onError = { errMsg ->
+                                                isDownloadingTempPdf = false
+                                                Toast.makeText(context, "ডাউনলোড ব্যর্থ হয়েছে: $errMsg", Toast.LENGTH_SHORT).show()
+                                            }
+                                        )
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.height(36.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = accentColor.copy(alpha = 0.15f),
+                                    contentColor = accentColor
+                                ),
+                                shape = RoundedCornerShape(18.dp)
+                            ) {
+                                if (isDownloadingTempPdf && activePdfTitle == pdf.title) {
+                                    CircularProgressIndicator(
+                                        color = accentColor,
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 1.5.dp
+                                    )
+                                } else {
+                                    Text("ভিউ", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(8.dp))
+
+                            // Download Button / Status
+                            if (isDownloaded) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Downloaded",
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            } else {
+                                IconButton(
+                                    onClick = {
+                                        if (downloadState !is DownloadState.Downloading) {
+                                            OfflineDownloadManager.downloadPermanently(
+                                                context = context,
+                                                url = pdf.url,
+                                                title = pdf.title,
+                                                fileType = "pdf",
+                                                courseName = courseName,
+                                                className = clazz.title
+                                            )
+                                        }
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    if (downloadState is DownloadState.Downloading) {
+                                        val pct = (downloadState.progress * 100).toInt()
+                                        CircularProgressIndicator(
+                                            color = accentColor,
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Download,
+                                            contentDescription = "Download",
+                                            tint = Color(0xFF64748B)
+                                        )
+                                    }
+                                }
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
                     }
                 }
             }
+        }
+
+        if (activePdfToView != null) {
+            PdfViewerDialog(
+                file = activePdfToView!!,
+                title = activePdfTitle,
+                onClose = { activePdfToView = null }
+            )
         }
     }
 }
@@ -1943,4 +2646,442 @@ fun CountdownDivider() {
         fontWeight = FontWeight.Bold,
         modifier = Modifier.offset(y = (-4).dp)
     )
+}
+
+@Composable
+fun RoutineDialog(
+    routineUrl: String,
+    isTeacher: Boolean,
+    onDismiss: () -> Unit,
+    onSaveRoutine: (String) -> Unit
+) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    var isUploading by remember { mutableStateOf(false) }
+    var currentRoutineUrl by remember { mutableStateOf(routineUrl) }
+
+    val routinePickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                isUploading = true
+                Toast.makeText(context, "রুটিন ছবি আপলোড হচ্ছে...", Toast.LENGTH_SHORT).show()
+                try {
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                    val bytes = inputStream?.readBytes()
+                    if (bytes != null) {
+                        val uploadedUrl = ImgBBClient.uploadImage(bytes)
+                        if (uploadedUrl != null) {
+                            currentRoutineUrl = uploadedUrl
+                            onSaveRoutine(uploadedUrl)
+                            Toast.makeText(context, "রুটিন সফলভাবে আপলোড হয়েছে!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "আপলোড ব্যর্থ হয়েছে।", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "ত্রুটি: ${e.message}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    isUploading = false
+                }
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = Color.White
+        ) {
+            Column(
+                modifier = Modifier
+                    .padding(20.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "ক্লাস রুটিন",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E293B)
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close")
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+
+                if (currentRoutineUrl.isNotBlank()) {
+                    coil.compose.AsyncImage(
+                        model = currentRoutineUrl,
+                        contentDescription = "Routine",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 400.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(180.dp)
+                            .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "কোনো রুটিন ছবি আপলোড করা হয়নি।",
+                            color = Color.Gray,
+                            fontSize = 14.sp
+                        )
+                    }
+                }
+
+                if (isTeacher) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Button(
+                        onClick = { routinePickerLauncher.launch("image/*") },
+                        enabled = !isUploading,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                    ) {
+                        if (isUploading) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
+                        } else {
+                            Icon(Icons.Default.Upload, contentDescription = "Upload")
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("নতুন রুটিন ছবি আপলোড করুন")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ChapterDetailScreen(
+    subject: CourseSubject,
+    chapter: CourseChapter,
+    mentors: List<Mentor>,
+    isTeacher: Boolean,
+    userEnrollment: Enrollment?,
+    accentColor: Color,
+    onBack: () -> Unit,
+    onAddClassClick: () -> Unit,
+    onEditClassClick: (CourseClass) -> Unit,
+    onDeleteClassClick: (CourseClass) -> Unit,
+    onViewClassDetail: (CourseClass) -> Unit
+) {
+    val mContext = LocalContext.current
+    
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 20.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Card(
+                onClick = onBack,
+                shape = CircleShape,
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                modifier = Modifier.size(48.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = "Back",
+                        tint = Color(0xFF1E293B),
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(Color(0xFF3B82F6), RoundedCornerShape(12.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.ListAlt,
+                    contentDescription = "List",
+                    tint = Color.White,
+                    modifier = Modifier.size(26.dp)
+                )
+            }
+            
+            Spacer(modifier = Modifier.width(16.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = chapter.title,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B),
+                    lineHeight = 22.sp
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = "অধ্যায় বিস্তারিত - ${subject.title}",
+                    fontSize = 12.sp,
+                    color = Color(0xFF64748B),
+                    fontWeight = FontWeight.Medium
+                )
+            }
+            
+            if (isTeacher) {
+                Card(
+                    onClick = onAddClassClick,
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF3B82F6)),
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add Class",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(8.dp))
+        
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 16.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(16.dp)
+                    .background(Color(0xFF3B82F6), CircleShape)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = "ক্লাস ও উপকরণসমূহ",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF1E293B)
+            )
+        }
+        
+        if (chapter.classes.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 32.dp)
+                    .background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
+                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                    .padding(24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Default.MenuBook,
+                        contentDescription = null,
+                        tint = Color.LightGray,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "কোনো ক্লাস বা উপকরণ যোগ করা হয়নি।",
+                        color = Color(0xFF64748B),
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        } else {
+            chapter.classes.forEachIndexed { index, clazz ->
+                val isFullCoursePurchased = userEnrollment != null && userEnrollment.purchased_quarters.isEmpty()
+                val isQuarterPurchased = userEnrollment != null && clazz.quarterId.isNotEmpty() && userEnrollment.purchased_quarters.split(",").contains(clazz.quarterId)
+                val canViewClass = isTeacher || clazz.isFree || isFullCoursePurchased || isQuarterPurchased
+                
+                val cardBorderColor = if (index % 2 == 0) Color(0xFFDBEAFE) else Color(0xFFD1FAE5)
+                val cardBgColor = if (index % 2 == 0) Color(0xFFEFF6FF) else Color(0xFFECFDF5)
+                
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                        .clickable {
+                            if (canViewClass) {
+                                onViewClassDetail(clazz)
+                            } else {
+                                Toast.makeText(mContext, "এই ক্লাসটি দেখার জন্য আপনাকে সঠিক কোয়ার্টার এনরোল করতে হবে", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = cardBgColor),
+                    border = BorderStroke(1.dp, cardBorderColor)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column {
+                                Text(
+                                    text = clazz.type,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF64748B)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFFD1FAE5), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = if (clazz.recordedLink.isNotBlank()) "রেকর্ডেড" else "লাইভ",
+                                        color = Color(0xFF065F46),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                            
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                if (isTeacher) {
+                                    IconButton(
+                                        onClick = { onEditClassClick(clazz) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Edit,
+                                            contentDescription = "Edit Class",
+                                            tint = Color(0xFF64748B)
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = { onDeleteClassClick(clazz) },
+                                        modifier = Modifier.size(36.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete Class",
+                                            tint = Color.Red
+                                        )
+                                    }
+                                }
+                                
+                                Card(
+                                    onClick = {
+                                        if (canViewClass) {
+                                            onViewClassDetail(clazz)
+                                        } else {
+                                            Toast.makeText(mContext, "এই ক্লাসটি দেখার জন্য আপনাকে সঠিক কোয়ার্টার এনরোল করতে হবে", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    shape = CircleShape,
+                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    modifier = Modifier.size(40.dp),
+                                    elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                ) {
+                                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                            contentDescription = "Enter class",
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(18.dp).rotate(180f)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                        
+                        Text(
+                            text = clazz.title,
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B)
+                        )
+                        
+                        if (clazz.date.isNotBlank() || clazz.time.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "${clazz.date} • ${clazz.time}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B),
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                        
+                        val mentorObj = mentors.find { it.id == clazz.mentorId }
+                        if (mentorObj != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Row(
+                                modifier = Modifier
+                                    .background(Color.White, RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                if (mentorObj.image_url.isNotBlank()) {
+                                    coil.compose.AsyncImage(
+                                        model = mentorObj.image_url,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                    )
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = null,
+                                        tint = Color.Gray,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = mentorObj.name.uppercase(),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E293B)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

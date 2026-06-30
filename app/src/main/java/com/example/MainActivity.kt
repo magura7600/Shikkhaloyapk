@@ -27,9 +27,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import com.example.ui.CustomBottomNavigation
+import com.example.ui.BottomNavItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.border
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.rememberScrollState
@@ -72,7 +76,7 @@ data class TodoItem(
 data class UserProfile(
     val user_id: String,
     val email: String,
-    val role: String, // "teacher" or "student"
+    val role: String, // "teacher", "student", or "admin"
     val full_name: String,
     val institution: String,
     val contact: String,
@@ -80,7 +84,8 @@ data class UserProfile(
     val profile_image_url: String? = null,
     val handle: String? = null,
     val description: String? = null,
-    val cover_image_url: String? = null
+    val cover_image_url: String? = null,
+    val is_banned: Boolean = false
 )
 
 // --- SUPABASE CLIENT ---
@@ -98,6 +103,7 @@ val supabase = createSupabaseClient(
 
 // --- APP UI STATE ---
 sealed interface AppState {
+    object Splash : AppState
     object Login : AppState
     data class Onboarding(val email: String, val userId: String) : AppState
     data class Dashboard(val email: String, val userId: String, val profile: UserProfile) : AppState
@@ -114,6 +120,9 @@ class MainActivity : ComponentActivity() {
         // OneSignal Initialization
         OneSignal.initWithContext(this, "9b18010c-9761-4d89-abfc-ae8a437f4943")
 
+        // Clear temporary PDF cache
+        OfflineDownloadManager.clearTemporaryCache(this)
+
         // Request notification permission
         lifecycleScope.launch {
             OneSignal.Notifications.requestPermission(true)
@@ -122,16 +131,16 @@ class MainActivity : ComponentActivity() {
         setContent {
             MaterialTheme(
                 colorScheme = lightColorScheme(
-                    primary = Color(0xFF6366F1), // Indigo
+                    primary = Color(0xFF1E3A8A), // Navy Blue
                     onPrimary = Color.White,
-                    primaryContainer = Color(0xFFEEF2FF),
-                    onPrimaryContainer = Color(0xFF3730A3),
-                    secondary = Color(0xFF10B981), // Emerald
+                    primaryContainer = Color(0xFFEFF6FF),
+                    onPrimaryContainer = Color(0xFF1E3A8A),
+                    secondary = Color(0xFF0F766E), // Teal Green
                     onSecondary = Color.White,
                     secondaryContainer = Color(0xFFECFDF5),
                     onSecondaryContainer = Color(0xFF065F46),
-                    tertiary = Color(0xFF3B82F6), // Blue
-                    background = Color(0xFFFAFAFA),
+                    tertiary = Color(0xFFF4B400), // Gold / Yellow
+                    background = Color(0xFFF8FAFC), // Off-white
                     surface = Color.White,
                     error = Color(0xFFEF4444)
                 )
@@ -159,13 +168,38 @@ fun MainAppContent() {
     val sharedPrefs = remember { context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE) }
     val coroutineScope = rememberCoroutineScope()
     
-    var appState by remember { mutableStateOf<AppState>(AppState.Login) }
+    var appState by remember { mutableStateOf<AppState>(AppState.Splash) }
     var showGoogleDialog by remember { mutableStateOf(false) }
+    var activeUpdateToPrompt by remember { mutableStateOf<AppUpdate?>(null) }
+    var activeNoticeToPrompt by remember { mutableStateOf<AppNotice?>(null) }
 
-    // Read stored profile cache and check DB for real-time sync
     LaunchedEffect(Unit) {
+        val startTime = System.currentTimeMillis()
+        
+        // Check for updates
+        try {
+            val update = AppUpdateManager.checkForUpdate(context)
+            if (update != null) {
+                activeUpdateToPrompt = update
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        
+        // Check for notices
+        try {
+            val notice = AppNoticeManager.getActiveNotice()
+            if (notice != null) {
+                activeNoticeToPrompt = notice
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        // Read cached credentials & sync with Supabase profiles
         val cachedUserId = sharedPrefs.getString("user_id", null)
         val cachedEmail = sharedPrefs.getString("email", null)
+        var nextState: AppState = AppState.Login
 
         if (cachedUserId != null && cachedEmail != null) {
             var dbProfile: UserProfile? = null
@@ -179,19 +213,28 @@ fun MainAppContent() {
                         }.decodeSingleOrNull<UserProfile>()
                 }
             } catch (e: Exception) {
-                // If it fails, dbProfile stays null
+                e.printStackTrace()
             }
 
-            if (dbProfile != null) {
-                appState = AppState.Dashboard(
+            nextState = if (dbProfile != null) {
+                AppState.Dashboard(
                     email = cachedEmail,
                     userId = cachedUserId,
                     profile = dbProfile!!
                 )
             } else {
-                appState = AppState.Onboarding(cachedEmail, cachedUserId)
+                AppState.Onboarding(cachedEmail, cachedUserId)
             }
         }
+
+        // Enforce beautiful minimum splash duration of 2500ms
+        val elapsed = System.currentTimeMillis() - startTime
+        val remaining = 2500 - elapsed
+        if (remaining > 0) {
+            kotlinx.coroutines.delay(remaining)
+        }
+
+        appState = nextState
     }
 
     val handleLoginSuccess: (String, String) -> Unit = { email, userId ->
@@ -229,51 +272,68 @@ fun MainAppContent() {
         }
     }
 
-    Crossfade(targetState = appState, label = "ScreenTransition") { state ->
-        when (state) {
-            is AppState.Login -> {
-                LoginScreen(
-                    onLoginSuccess = handleLoginSuccess,
-                    onGoogleClick = { showGoogleDialog = true }
-                )
-            }
-            is AppState.Onboarding -> {
-                OnboardingScreen(
-                    email = state.email,
-                    userId = state.userId,
-                    onProfileComplete = { profile ->
-                        // Cache profile details
-                        sharedPrefs.edit()
-                            .putString("role", profile.role)
-                            .putString("full_name", profile.full_name)
-                            .putString("institution", profile.institution)
-                            .putString("contact", profile.contact)
-                            .putString("uid_code", profile.uid_code)
-                            .apply()
+    val isUserBanned = (appState as? AppState.Dashboard)?.profile?.is_banned == true
 
-                        appState = AppState.Dashboard(state.email, state.userId, profile)
-                    }
-                )
+    if (isUserBanned) {
+        val state = appState as AppState.Dashboard
+        BannedScreen(
+            email = state.email,
+            uid = state.profile.uid_code,
+            onLogout = {
+                sharedPrefs.edit().clear().apply()
+                appState = AppState.Login
             }
-            is AppState.Dashboard -> {
-                DashboardScreen(
-                    email = state.email,
-                    userId = state.userId,
-                    profile = state.profile,
-                    onLogout = {
-                        // Clear login and profile cache
-                        sharedPrefs.edit().clear().apply()
-                        appState = AppState.Login
-                    },
-                    onProfileUpdate = { updatedProfile ->
-                        sharedPrefs.edit()
-                            .putString("full_name", updatedProfile.full_name)
-                            .putString("institution", updatedProfile.institution)
-                            .putString("contact", updatedProfile.contact)
-                            .apply()
-                        appState = AppState.Dashboard(state.email, state.userId, updatedProfile)
-                    }
-                )
+        )
+    } else {
+        Crossfade(targetState = appState, label = "ScreenTransition") { state ->
+            when (state) {
+                is AppState.Splash -> {
+                    ShikkhaloySplashScreen()
+                }
+                is AppState.Login -> {
+                    LoginScreen(
+                        onLoginSuccess = handleLoginSuccess,
+                        onGoogleClick = { showGoogleDialog = true }
+                    )
+                }
+                is AppState.Onboarding -> {
+                    OnboardingScreen(
+                        email = state.email,
+                        userId = state.userId,
+                        onProfileComplete = { profile ->
+                            // Cache profile details
+                            sharedPrefs.edit()
+                                .putString("role", profile.role)
+                                .putString("full_name", profile.full_name)
+                                .putString("institution", profile.institution)
+                                .putString("contact", profile.contact)
+                                .putString("uid_code", profile.uid_code)
+                                .apply()
+
+                            appState = AppState.Dashboard(state.email, state.userId, profile)
+                        }
+                    )
+                }
+                is AppState.Dashboard -> {
+                    DashboardScreen(
+                        email = state.email,
+                        userId = state.userId,
+                        profile = state.profile,
+                        onLogout = {
+                            // Clear login and profile cache
+                            sharedPrefs.edit().clear().apply()
+                            appState = AppState.Login
+                        },
+                        onProfileUpdate = { updatedProfile ->
+                            sharedPrefs.edit()
+                                .putString("full_name", updatedProfile.full_name)
+                                .putString("institution", updatedProfile.institution)
+                                .putString("contact", updatedProfile.contact)
+                                .apply()
+                            appState = AppState.Dashboard(state.email, state.userId, updatedProfile)
+                        }
+                    )
+                }
             }
         }
     }
@@ -387,6 +447,22 @@ fun MainAppContent() {
                     Text("বাতিল করুন")
                 }
             }
+        )
+    }
+
+    if (activeUpdateToPrompt != null) {
+        UpdatePromptDialog(
+            update = activeUpdateToPrompt!!,
+            accentColor = Color(0xFF6366F1),
+            onDismiss = { activeUpdateToPrompt = null }
+        )
+    }
+
+    if (activeNoticeToPrompt != null) {
+        EmergencyNoticeDialog(
+            notice = activeNoticeToPrompt!!,
+            accentColor = Color(0xFF6366F1),
+            onDismiss = { activeNoticeToPrompt = null }
         )
     }
 }
@@ -715,8 +791,9 @@ fun OnboardingScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var selectedRole by remember { mutableStateOf<String?>(null) } // "teacher" or "student"
-    var fullName by remember { mutableStateOf("") }
+    val isAdminEmail = email.equals("fahimmia017740@gmail.com", ignoreCase = true)
+    var selectedRole by remember { mutableStateOf<String?>(if (isAdminEmail) "admin" else null) } // "teacher", "student", or "admin"
+    var fullName by remember { mutableStateOf(if (isAdminEmail) "Fahim Mia" else "") }
     var institution by remember { mutableStateOf("") }
     var contactInfo by remember { mutableStateOf("") }
     var isSavingProfile by remember { mutableStateOf(false) }
@@ -778,14 +855,14 @@ fun OnboardingScreen(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(bottom = 24.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             // Teacher Card
             Card(
                 modifier = Modifier
                     .weight(1f)
                     .clickable { selectedRole = "teacher" },
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(
                     width = if (selectedRole == "teacher") 2.dp else 1.dp,
                     color = if (selectedRole == "teacher") MaterialTheme.colorScheme.primary else Color.LightGray
@@ -795,12 +872,12 @@ fun OnboardingScreen(
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .background(if (selectedRole == "teacher") MaterialTheme.colorScheme.primary else Color(0xFFF3F4F6)),
                         contentAlignment = Alignment.Center
@@ -809,20 +886,20 @@ fun OnboardingScreen(
                             imageVector = Icons.Default.CoPresent,
                             contentDescription = "Teacher",
                             tint = if (selectedRole == "teacher") Color.White else Color.Gray,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "শিক্ষক (Teacher)",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 11.sp,
                         color = if (selectedRole == "teacher") MaterialTheme.colorScheme.primary else Color.DarkGray
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "ক্লাস তৈরি করুন, অ্যাসাইনমেন্ট ও কুইজ দিন",
-                        fontSize = 10.sp,
+                        text = "ক্লাস তৈরি, কুইজ প্রদান",
+                        fontSize = 8.sp,
                         color = Color.Gray,
                         textAlign = TextAlign.Center
                     )
@@ -834,7 +911,7 @@ fun OnboardingScreen(
                 modifier = Modifier
                     .weight(1f)
                     .clickable { selectedRole = "student" },
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(
                     width = if (selectedRole == "student") 2.dp else 1.dp,
                     color = if (selectedRole == "student") MaterialTheme.colorScheme.secondary else Color.LightGray
@@ -844,12 +921,12 @@ fun OnboardingScreen(
                 )
             ) {
                 Column(
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(56.dp)
+                            .size(44.dp)
                             .clip(CircleShape)
                             .background(if (selectedRole == "student") MaterialTheme.colorScheme.secondary else Color(0xFFF3F4F6)),
                         contentAlignment = Alignment.Center
@@ -858,20 +935,69 @@ fun OnboardingScreen(
                             imageVector = Icons.Default.AutoStories,
                             contentDescription = "Student",
                             tint = if (selectedRole == "student") Color.White else Color.Gray,
-                            modifier = Modifier.size(28.dp)
+                            modifier = Modifier.size(20.dp)
                         )
                     }
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "শিক্ষার্থী (Student)",
                         fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
+                        fontSize = 11.sp,
                         color = if (selectedRole == "student") MaterialTheme.colorScheme.secondary else Color.DarkGray
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
-                        text = "ক্লাসে যুক্ত হোন, হোমওয়ার্ক জমা দিন",
-                        fontSize = 10.sp,
+                        text = "ক্লাসে যোগদান ও পড়া",
+                        fontSize = 8.sp,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+
+            // Admin Card
+            Card(
+                modifier = Modifier
+                    .weight(1f)
+                    .clickable { selectedRole = "admin" },
+                shape = RoundedCornerShape(12.dp),
+                border = BorderStroke(
+                    width = if (selectedRole == "admin") 2.dp else 1.dp,
+                    color = if (selectedRole == "admin") Color.Red else Color.LightGray
+                ),
+                colors = CardDefaults.cardColors(
+                    containerColor = if (selectedRole == "admin") Color(0xFFFEF2F2) else Color.White
+                )
+            ) {
+                Column(
+                    modifier = Modifier.padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(44.dp)
+                            .clip(CircleShape)
+                            .background(if (selectedRole == "admin") Color.Red else Color(0xFFF3F4F6)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AdminPanelSettings,
+                            contentDescription = "Admin",
+                            tint = if (selectedRole == "admin") Color.White else Color.Gray,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "এডমিন (Admin)",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        color = if (selectedRole == "admin") Color.Red else Color.DarkGray
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = "অ্যাপ ও অ্যাকাউন্ট নিয়ন্ত্রণ",
+                        fontSize = 8.sp,
                         color = Color.Gray,
                         textAlign = TextAlign.Center
                     )
@@ -919,13 +1045,14 @@ fun OnboardingScreen(
                 coroutineScope.launch {
                     isSavingProfile = true
                     val generatedUid = "SL-" + (100000..999999).random()
+                    val resolvedRole = if (email.equals("fahimmia017740@gmail.com", ignoreCase = true)) "admin" else (selectedRole ?: "student")
                     val profile = UserProfile(
                         user_id = userId,
                         email = email,
-                        role = selectedRole!!,
+                        role = resolvedRole,
                         full_name = fullName,
-                        institution = "",
-                        contact = "",
+                        institution = institution,
+                        contact = contactInfo,
                         uid_code = generatedUid
                     )
 
@@ -949,7 +1076,11 @@ fun OnboardingScreen(
             shape = RoundedCornerShape(12.dp),
             enabled = !isSavingProfile,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (selectedRole == "student") MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary
+                containerColor = when (selectedRole) {
+                    "student" -> MaterialTheme.colorScheme.secondary
+                    "admin" -> Color.Red
+                    else -> MaterialTheme.colorScheme.primary
+                }
             )
         ) {
             if (isSavingProfile) {
@@ -979,9 +1110,16 @@ fun DashboardScreen(
     var currentScreen by remember { mutableStateOf("dashboard") }
     var selectedChannel by remember { mutableStateOf<UserProfile?>(null) }
     var selectedCourse by remember { mutableStateOf<CourseItem?>(null) }
+    var initialSubjectId by remember { mutableStateOf<String?>(null) }
+    var initialChapterId by remember { mutableStateOf<String?>(null) }
+    var initialClassId by remember { mutableStateOf<String?>(null) }
     var showMentorsDialog by remember { mutableStateOf(false) }
+    var showPublishUpdateDialog by remember { mutableStateOf(false) }
+    var showPublishNoticeDialog by remember { mutableStateOf(false) }
     var mentors by remember { mutableStateOf(listOf<Mentor>()) }
     val isTeacher = profile.role == "teacher"
+    val isAdmin = profile.role == "admin"
+    val isManagementUser = isTeacher
     var teacherChannel by remember { mutableStateOf<UserProfile?>(null) }
     var isLoadingChannel by remember { mutableStateOf(isTeacher) }
     var courses by remember { mutableStateOf(listOf<CourseItem>()) }
@@ -991,8 +1129,15 @@ fun DashboardScreen(
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
 
+    var focusCourseId by remember { mutableStateOf<String?>(null) }
+    
     // Sync OneSignal User identity and purchased course tags so they only receive notifications of courses they bought
     LaunchedEffect(enrollments, profile.user_id) {
+        val myEnrolledCourseIds = enrollments.filter { it.user_id == profile.user_id }.map { it.course_id }
+        if (focusCourseId == null && myEnrolledCourseIds.isNotEmpty()) {
+            focusCourseId = myEnrolledCourseIds.firstOrNull()
+        }
+        
         try {
             // Set User Identity in OneSignal to track this user
             OneSignal.login(profile.user_id)
@@ -1089,20 +1234,93 @@ fun DashboardScreen(
             if (currentScreen == "dashboard") {
                 TopAppBar(
                     title = { 
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Language,
-                                contentDescription = "App Logo",
-                                tint = accentColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Shikkhaloy", 
-                                fontWeight = FontWeight.Bold, 
-                                color = Color(0xFF4A5568),
-                                fontSize = 18.sp
-                            ) 
+                        if (!isManagementUser) {
+                            val myEnrolledCourses = courses.filter { course -> 
+                                enrollments.any { it.user_id == profile.user_id && it.course_id == course.id }
+                            }
+                            if (myEnrolledCourses.isNotEmpty()) {
+                                var expanded by remember { mutableStateOf(false) }
+                                val currentFocusCourse = myEnrolledCourses.find { it.id == focusCourseId } ?: myEnrolledCourses.firstOrNull()
+                                
+                                if (currentFocusCourse != null) {
+                                    Box {
+                                        Row(
+                                            verticalAlignment = Alignment.CenterVertically,
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(20.dp))
+                                                .clickable { expanded = true }
+                                                .background(Color(0xFFF3F4F6))
+                                                .padding(horizontal = 16.dp, vertical = 8.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Default.Language,
+                                                contentDescription = "Course Icon",
+                                                tint = accentColor,
+                                                modifier = Modifier.size(18.dp)
+                                            )
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(
+                                                currentFocusCourse.title, 
+                                                fontWeight = FontWeight.Bold, 
+                                                color = Color(0xFF1E293B),
+                                                fontSize = 15.sp,
+                                                maxLines = 1,
+                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                                modifier = Modifier.widthIn(max = 140.dp)
+                                            ) 
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand", modifier = Modifier.size(18.dp), tint = Color(0xFF64748B))
+                                        }
+                                        DropdownMenu(
+                                            expanded = expanded,
+                                            onDismissRequest = { expanded = false },
+                                            modifier = Modifier.background(Color.White)
+                                        ) {
+                                            myEnrolledCourses.forEach { course ->
+                                                DropdownMenuItem(
+                                                    text = { Text(course.title, fontSize = 14.sp, color = if (course.id == focusCourseId) accentColor else Color.Black) },
+                                                    onClick = {
+                                                        focusCourseId = course.id
+                                                        expanded = false
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            } else {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Language,
+                                        contentDescription = "App Logo",
+                                        tint = accentColor,
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        "Shikkhaloy", 
+                                        fontWeight = FontWeight.Bold, 
+                                        color = Color(0xFF4A5568),
+                                        fontSize = 18.sp
+                                    ) 
+                                }
+                            }
+                        } else {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Language,
+                                    contentDescription = "App Logo",
+                                    tint = accentColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    "Shikkhaloy", 
+                                    fontWeight = FontWeight.Bold, 
+                                    color = Color(0xFF4A5568),
+                                    fontSize = 18.sp
+                                ) 
+                            }
                         }
                     },
                     actions = {
@@ -1110,7 +1328,7 @@ fun DashboardScreen(
                             Icon(Icons.Outlined.Notifications, contentDescription = "Notifications", tint = Color.DarkGray)
                         }
                         IconButton(onClick = {
-                            if (isTeacher) {
+                            if (isManagementUser) {
                                 selectedTab = 1
                             } else {
                                 selectedTab = 4
@@ -1150,76 +1368,52 @@ fun DashboardScreen(
         },
         bottomBar = {
             if (currentScreen == "dashboard") {
-                if (!isTeacher) {
-                NavigationBar(
-                    containerColor = Color.White,
-                    tonalElevation = 8.dp
-                ) {
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Outlined.Home, contentDescription = "Home") },
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0; currentScreen = "dashboard" },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accentColor, indicatorColor = accentColor.copy(alpha=0.1f))
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Outlined.MenuBook, contentDescription = "Books") },
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1; currentScreen = "dashboard" },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accentColor, indicatorColor = accentColor.copy(alpha=0.1f))
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Outlined.Explore, contentDescription = "Explore") },
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2; currentScreen = "dashboard" },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accentColor, indicatorColor = accentColor.copy(alpha=0.1f))
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Outlined.AutoAwesome, contentDescription = "Sparkle") },
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3; currentScreen = "dashboard" },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accentColor, indicatorColor = accentColor.copy(alpha=0.1f))
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Outlined.Settings, contentDescription = "Settings") },
-                        selected = selectedTab == 4,
-                        onClick = { selectedTab = 4; currentScreen = "dashboard" },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accentColor, indicatorColor = accentColor.copy(alpha=0.1f))
-                    )
-                }
+                if (!isManagementUser) {
+                val studentNavItems = listOf(
+                    BottomNavItem("", Icons.Outlined.Home, Color(0xFF4CAF50)),
+                    BottomNavItem("", Icons.Outlined.MenuBook, Color(0xFF2196F3)),
+                    BottomNavItem("", Icons.Outlined.Explore, Color(0xFFFF9800)),
+                    BottomNavItem("", Icons.Outlined.AutoAwesome, Color(0xFF9C27B0)),
+                    BottomNavItem("", Icons.Outlined.Settings, Color(0xFF607D8B))
+                )
+                CustomBottomNavigation(
+                    items = studentNavItems,
+                    selectedIndex = selectedTab,
+                    onItemSelected = { index ->
+                        selectedTab = index
+                        currentScreen = "dashboard"
+                    }
+                )
             } else {
-                NavigationBar(
-                    containerColor = Color.White,
-                    tonalElevation = 8.dp
-                ) {
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Outlined.Home, contentDescription = "Home") },
-                        label = { Text("চ্যানেল") },
-                        selected = selectedTab == 0,
-                        onClick = { selectedTab = 0; currentScreen = "dashboard" },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accentColor, indicatorColor = accentColor.copy(alpha=0.1f))
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Outlined.MenuBook, contentDescription = "Course") },
-                        label = { Text("কোর্স") },
-                        selected = selectedTab == 3,
-                        onClick = { selectedTab = 3; currentScreen = "dashboard" },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accentColor, indicatorColor = accentColor.copy(alpha=0.1f))
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Outlined.Dashboard, contentDescription = "Management") },
-                        label = { Text("ম্যানেজমেন্ট") },
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2; currentScreen = "dashboard" },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accentColor, indicatorColor = accentColor.copy(alpha=0.1f))
-                    )
-                    NavigationBarItem(
-                        icon = { Icon(Icons.Outlined.Settings, contentDescription = "Settings") },
-                        label = { Text("সেটিংস") },
-                        selected = selectedTab == 1,
-                        onClick = { selectedTab = 1; currentScreen = "dashboard" },
-                        colors = NavigationBarItemDefaults.colors(selectedIconColor = accentColor, indicatorColor = accentColor.copy(alpha=0.1f))
-                    )
+                val teacherNavItems = listOf(
+                    BottomNavItem("চ্যানেল", Icons.Outlined.Home, Color(0xFF4CAF50)),
+                    BottomNavItem("কোর্স", Icons.Outlined.MenuBook, Color(0xFF2196F3)),
+                    BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, Color(0xFFFF9800)),
+                    BottomNavItem("সেটিংস", Icons.Outlined.Settings, Color(0xFF607D8B))
+                )
+                
+                val visualIndex = when (selectedTab) {
+                    0 -> 0
+                    3 -> 1
+                    2 -> 2
+                    1 -> 3
+                    else -> 0
                 }
+                
+                CustomBottomNavigation(
+                    items = teacherNavItems,
+                    selectedIndex = visualIndex,
+                    onItemSelected = { index ->
+                        selectedTab = when (index) {
+                            0 -> 0
+                            1 -> 3
+                            2 -> 2
+                            3 -> 1
+                            else -> 0
+                        }
+                        currentScreen = "dashboard"
+                    }
+                )
             }
             }
         },
@@ -1320,6 +1514,9 @@ fun DashboardScreen(
                     courses = courses,
                     onCourseClick = { course ->
                         selectedCourse = course
+                        initialSubjectId = null
+                        initialChapterId = null
+                        initialClassId = null
                         currentScreen = "course_detail"
                     },
                     onBack = { currentScreen = "dashboard" }
@@ -1331,6 +1528,9 @@ fun DashboardScreen(
                     mentors = mentors,
                     userEnrollment = enrollments.find { it.course_id == selectedCourse!!.id && it.user_id == profile.user_id },
                     isLiked = courseInteractions.any { it.course_id == selectedCourse!!.id && it.user_id == profile.user_id && it.is_like },
+                    initialSubjectId = initialSubjectId,
+                    initialChapterId = initialChapterId,
+                    initialClassId = initialClassId,
                     onEnroll = { purchasedQuarters ->
                         coroutineScope.launch {
                             try {
@@ -1400,7 +1600,12 @@ fun DashboardScreen(
                         Toast.makeText(context, "Multiple courses updated!", Toast.LENGTH_SHORT).show()
                     },
                     accentColor = accentColor,
-                    onBack = { currentScreen = "dashboard" }
+                    onBack = { 
+                        currentScreen = "dashboard" 
+                        initialSubjectId = null
+                        initialChapterId = null
+                        initialClassId = null
+                    }
                 )
             } else {
                 if (isTeacher) {
@@ -1417,6 +1622,9 @@ fun DashboardScreen(
                             },
                             onCourseClick = { course ->
                                 selectedCourse = course
+                                initialSubjectId = null
+                                initialChapterId = null
+                                initialClassId = null
                                 currentScreen = "course_detail"
                             }
                         )
@@ -1447,6 +1655,9 @@ fun DashboardScreen(
                             courses = courses.filter { it.channel_id == profile.user_id },
                             onCourseClick = { course ->
                                 selectedCourse = course
+                                initialSubjectId = null
+                                initialChapterId = null
+                                initialClassId = null
                                 currentScreen = "course_detail"
                             }
                         )
@@ -1463,7 +1674,18 @@ fun DashboardScreen(
                     }
                 } else {
                     if (selectedTab == 0) {
-                        StudentDashboardContent(accentColor = accentColor)
+                        StudentDashboardContent(
+                            accentColor = accentColor,
+                            courses = courses,
+                            focusCourseId = focusCourseId,
+                            onClassClick = { classInfo, chapter, subject, c ->
+                                selectedCourse = c
+                                initialSubjectId = subject.id
+                                initialChapterId = chapter.id
+                                initialClassId = classInfo.id
+                                currentScreen = "course_detail"
+                            }
+                        )
                     } else if (selectedTab == 1) {
                         StudentCoursesScreen(
                             accentColor = accentColor,
@@ -1472,6 +1694,9 @@ fun DashboardScreen(
                             profile = profile,
                             onCourseClick = { course ->
                                 selectedCourse = course
+                                initialSubjectId = null
+                                initialChapterId = null
+                                initialClassId = null
                                 currentScreen = "course_detail"
                             }
                         )
@@ -1487,6 +1712,9 @@ fun DashboardScreen(
                             },
                             onCourseClick = { course ->
                                 selectedCourse = course
+                                initialSubjectId = null
+                                initialChapterId = null
+                                initialClassId = null
                                 currentScreen = "course_detail"
                             }
                         )
@@ -1534,154 +1762,542 @@ fun DashboardScreen(
             accentColor = accentColor
         )
     }
+
+    if (showPublishUpdateDialog) {
+        PublishUpdateDialog(
+            accentColor = accentColor,
+            onDismiss = { showPublishUpdateDialog = false },
+            onPublished = {
+                Toast.makeText(context, "নতুন আপডেট সফলভাবে রিলিজ করা হয়েছে! 🎉", Toast.LENGTH_LONG).show()
+            }
+        )
+    }
+
+    if (showPublishNoticeDialog) {
+        PublishNoticeDialog(
+            accentColor = accentColor,
+            onDismiss = { showPublishNoticeDialog = false },
+            onPublished = {
+                Toast.makeText(context, "জরুরি নোটিশ সফলভাবে প্রচার করা হয়েছে! 📢", Toast.LENGTH_LONG).show()
+            }
+        )
+    }
 }
 
 @Composable
-fun StudentDashboardContent(accentColor: Color) {
+fun StudentDashboardContent(
+    accentColor: Color,
+    courses: List<CourseItem>,
+    focusCourseId: String?,
+    onClassClick: (CourseClass, CourseChapter, CourseSubject, CourseItem) -> Unit
+) {
+    var selectedDate by remember { mutableStateOf(java.time.LocalDate.now()) }
+    var isCalendarExpanded by remember { mutableStateOf(false) }
+    var viewingMonth by remember { mutableStateOf(java.time.YearMonth.from(selectedDate)) }
+    val focusCourse = courses.find { it.id == focusCourseId }
+    
+    // Extract classes for the selected date
+    val classDates = remember(focusCourse) {
+        val dates = mutableSetOf<java.time.LocalDate>()
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy")
+        focusCourse?.subjects?.forEach { subject ->
+            subject.chapters.forEach { chapter ->
+                chapter.classes.forEach { courseClass ->
+                    try {
+                        dates.add(java.time.LocalDate.parse(courseClass.date, formatter))
+                    } catch (e: Exception) {}
+                }
+            }
+        }
+        dates
+    }
+    
+    val classesForDate = remember(focusCourse, selectedDate) {
+        val classList = mutableListOf<Triple<CourseClass, CourseChapter, CourseSubject>>()
+        val formatter = java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy")
+        
+        focusCourse?.subjects?.forEach { subject ->
+            subject.chapters.forEach { chapter ->
+                chapter.classes.forEach { courseClass ->
+                    try {
+                        val classDate = java.time.LocalDate.parse(courseClass.date, formatter)
+                        if (classDate == selectedDate) {
+                            classList.add(Triple(courseClass, chapter, subject))
+                        }
+                    } catch (e: Exception) {}
+                }
+            }
+        }
+        classList.sortedBy { it.first.time }
+    }
+
+    val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
+        colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+    )
+    
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
+        modifier = Modifier.fillMaxSize().background(bgGradient),
+        verticalArrangement = Arrangement.spacedBy(24.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 80.dp)
     ) {
         // Class Routine Card
         item {
             Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFEBE6D8)),
-                shape = RoundedCornerShape(20.dp)
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(
+                        elevation = 16.dp,
+                        shape = RoundedCornerShape(24.dp),
+                        spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
+                        ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                    ),
+                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                shape = RoundedCornerShape(24.dp),
+                border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF818CF8), Color(0xFFC084FC))))
             ) {
                 Column(modifier = Modifier.padding(24.dp)) {
                     Text(
                         "Class Routine",
-                        fontSize = 22.sp,
+                        fontSize = 24.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF4A5568)
+                        color = Color(0xFF1E293B)
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         "Check your daily class schedule",
-                        fontSize = 14.sp,
-                        color = Color(0xFF718096)
+                        fontSize = 15.sp,
+                        color = Color(0xFF64748B)
                     )
-                    Spacer(modifier = Modifier.height(20.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
                     Button(
-                        onClick = { },
-                        colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                        shape = RoundedCornerShape(12.dp),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                        onClick = { isCalendarExpanded = !isCalendarExpanded },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = accentColor,
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
                     ) {
-                        Icon(Icons.Outlined.CalendarToday, contentDescription = "Calendar", modifier = Modifier.size(18.dp))
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text("Class Calendar", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Icon(Icons.Default.ArrowForward, contentDescription = "Go", modifier = Modifier.size(18.dp))
+                        Icon(Icons.Outlined.CalendarToday, contentDescription = "Calendar", modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(if (isCalendarExpanded) "Hide Calendar" else "Weekly Routine", fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Spacer(modifier = Modifier.weight(1f))
+                        Icon(Icons.Default.ArrowForward, contentDescription = "Go", modifier = Modifier.size(20.dp))
                     }
                 }
             }
         }
 
-        // May 2026 Title
+        // Calendar Area
         item {
-            Text(
-                "May 2026",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF4A5568)
-            )
-        }
-
-        // Calendar Strip
-        item {
+            val monthFormatter = java.time.format.DateTimeFormatter.ofPattern("MMMM yyyy")
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .background(Color.White, RoundedCornerShape(16.dp))
-                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(Icons.Default.ChevronLeft, contentDescription = "Prev", tint = Color.Gray, modifier = Modifier
-                    .size(32.dp)
-                    .background(Color(0xFFF3F4F6), CircleShape)
-                    .padding(4.dp))
-                
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Saturday", fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-                    Text("30", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                Text(
+                    viewingMonth.format(monthFormatter),
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF1E293B)
+                )
+                if (isCalendarExpanded) {
+                    Row {
+                        IconButton(
+                            onClick = { viewingMonth = viewingMonth.minusMonths(1) },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .padding(4.dp)
+                        ) {
+                            Icon(Icons.Default.ChevronLeft, contentDescription = "Prev Month", tint = Color.Gray)
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = { viewingMonth = viewingMonth.plusMonths(1) },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Color.White, RoundedCornerShape(8.dp))
+                                .padding(4.dp)
+                        ) {
+                            Icon(Icons.Default.ChevronRight, contentDescription = "Next Month", tint = Color.Gray)
+                        }
+                    }
                 }
-
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier
-                        .background(Color(0xFF9D2053), RoundedCornerShape(12.dp))
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+            }
+            Spacer(modifier = Modifier.height(16.dp))
+            
+            if (isCalendarExpanded) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF60A5FA), Color(0xFF3B82F6))))
                 ) {
-                    Text("Sunday", fontSize = 10.sp, color = Color.White, fontWeight = FontWeight.Medium)
-                    Text("31", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                            listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach { day ->
+                                Text(
+                                    text = day,
+                                    fontSize = 12.sp,
+                                    color = Color.Gray,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(1f),
+                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        val firstDayOfMonth = viewingMonth.atDay(1)
+                        val daysInMonth = viewingMonth.lengthOfMonth()
+                        val firstDayOfWeek = firstDayOfMonth.dayOfWeek.value % 7 // Sunday = 0
+                        
+                        val totalDays = firstDayOfWeek + daysInMonth
+                        val weeks = Math.ceil(totalDays / 7.0).toInt()
+                        
+                        var dayCounter = 1
+                        for (i in 0 until weeks) {
+                            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                for (j in 0..6) {
+                                    if (i == 0 && j < firstDayOfWeek || dayCounter > daysInMonth) {
+                                        Box(modifier = Modifier.weight(1f))
+                                    } else {
+                                        val date = viewingMonth.atDay(dayCounter)
+                                        val isSelected = date == selectedDate
+                                        val hasClass = classDates.contains(date)
+                                        
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .height(48.dp)
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .clickable { 
+                                                    selectedDate = date 
+                                                }
+                                                .then(if (isSelected) Modifier.background(accentColor.copy(alpha = 0.1f)) else Modifier)
+                                                .then(if (isSelected) Modifier.padding(2.dp).background(Color.White, RoundedCornerShape(8.dp)) else Modifier)
+                                                .then(if (isSelected) Modifier.padding(2.dp).background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(6.dp)) else Modifier),
+                                            horizontalAlignment = Alignment.CenterHorizontally,
+                                            verticalArrangement = Arrangement.Center
+                                        ) {
+                                            Text(
+                                                text = dayCounter.toString(),
+                                                fontSize = 14.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = if (isSelected) accentColor else Color.DarkGray
+                                            )
+                                            if (hasClass) {
+                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Row(horizontalArrangement = Arrangement.Center) {
+                                                    Box(modifier = Modifier.size(4.dp).background(accentColor, CircleShape))
+                                                    Spacer(modifier = Modifier.width(2.dp))
+                                                    Box(modifier = Modifier.size(4.dp).background(accentColor, CircleShape))
+                                                }
+                                            }
+                                        }
+                                        dayCounter++
+                                    }
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
+                    }
                 }
+            } else {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color.White, RoundedCornerShape(16.dp))
+                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { 
+                        selectedDate = selectedDate.minusDays(1)
+                        viewingMonth = java.time.YearMonth.from(selectedDate)
+                    }) {
+                        Icon(Icons.Default.ChevronLeft, contentDescription = "Prev", tint = Color.Gray, modifier = Modifier
+                            .size(32.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape)
+                            .padding(4.dp))
+                    }
+                    
+                    val prevDate = selectedDate.minusDays(1)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { 
+                        selectedDate = prevDate 
+                        viewingMonth = java.time.YearMonth.from(selectedDate)
+                    }) {
+                        Text(prevDate.dayOfWeek.name.take(3).capitalize(), fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(prevDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                    }
 
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Monday", fontSize = 10.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-                    Text("1", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        modifier = Modifier
+                            .background(Color(0xFF9D2053), RoundedCornerShape(12.dp))
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text(selectedDate.dayOfWeek.name.take(3).capitalize(), fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(selectedDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                    }
+
+                    val nextDate = selectedDate.plusDays(1)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { 
+                        selectedDate = nextDate 
+                        viewingMonth = java.time.YearMonth.from(selectedDate)
+                    }) {
+                        Text(nextDate.dayOfWeek.name.take(3).capitalize(), fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(nextDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                    }
+                    
+                    IconButton(onClick = { 
+                        selectedDate = selectedDate.plusDays(1) 
+                        viewingMonth = java.time.YearMonth.from(selectedDate)
+                    }) {
+                        Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = Color.Gray, modifier = Modifier
+                            .size(32.dp)
+                            .background(Color(0xFFF1F5F9), CircleShape)
+                            .padding(4.dp))
+                    }
                 }
-                
-                Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = Color.Gray, modifier = Modifier
-                    .size(32.dp)
-                    .background(Color(0xFFF3F4F6), CircleShape)
-                    .padding(4.dp))
             }
         }
 
         // Today's Routine Title
         item {
+            val dateLabel = if (selectedDate == java.time.LocalDate.now()) "Today's Routine" else "Routine for ${selectedDate.dayOfMonth} ${selectedDate.month.name.take(3)}"
             Text(
-                "Today's Routine",
+                dateLabel,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF4A5568)
+                color = Color(0xFF1E293B)
             )
         }
 
-        // Empty state card
-        item {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFEBE6D8)),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
+        // Classes List
+        if (focusCourse == null) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().height(200.dp)
+                        .shadow(
+                            elevation = 16.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
+                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                        ),
+                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    shape = RoundedCornerShape(24.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF9CA3AF), Color(0xFFD1D5DB))))
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .size(64.dp)
-                            .background(Color(0xFFDFD8C8), RoundedCornerShape(16.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text("🐧", fontSize = 32.sp)
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("কোনো কোর্স সিলেক্ট করা নেই।", color = Color.Gray)
                     }
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text(
-                        "You have no live classes or",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Gray
-                    )
-                    Text(
-                        "exams today.",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = Color.Gray
-                    )
+                }
+            }
+        } else if (classesForDate.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().height(200.dp)
+                        .shadow(
+                            elevation = 16.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
+                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                        ),
+                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    shape = RoundedCornerShape(24.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF34D399), Color(0xFF10B981))))
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(Color(0xFFF8FAFC), RoundedCornerShape(20.dp))
+                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(20.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("🐧", fontSize = 32.sp)
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            "You have no live classes or",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF64748B)
+                        )
+                        Text(
+                            "exams on this date.",
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = Color(0xFF64748B)
+                        )
+                    }
+                }
+            }
+        } else {
+            items(classesForDate.size) { index ->
+                val (courseClass, chapter, subject) = classesForDate[index]
+                Card(
+                    modifier = Modifier.fillMaxWidth()
+                        .shadow(
+                            elevation = 16.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
+                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                        ),
+                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    shape = RoundedCornerShape(24.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF472B6), Color(0xFFEC4899))))
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(subject.title, color = accentColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Box(modifier = Modifier.size(4.dp).background(Color(0xFFCBD5E1), CircleShape))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(courseClass.type, color = Color(0xFF334155), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Box(
+                                modifier = Modifier
+                                    .background(Color(0xFFFEF2F2), RoundedCornerShape(8.dp))
+                                    .border(1.dp, Color(0xFFFECACA), RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text("মিসড", color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        Text("${chapter.title} - ${courseClass.title}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0F172A))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF64748B))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(courseClass.time, fontSize = 14.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
+                        }
+                        Spacer(modifier = Modifier.height(20.dp))
+                        Button(
+                            onClick = { onClassClick(courseClass, chapter, subject, focusCourse) },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFFF1F5F9),
+                                contentColor = accentColor
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            contentPadding = PaddingValues(vertical = 14.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                        ) {
+                            Icon(Icons.Outlined.PlayCircleOutline, contentDescription = "Play", modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("রেকর্ডেড ভিডিও দেখো", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+                    }
                 }
             }
         }
         
+        // Homework title
         item {
             Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                "Your Homework",
+                fontSize = 20.sp,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF1E293B)
+            )
+        }
+        
+        val classesWithHomework = classesForDate.filter { it.first.homeworkLink.isNotBlank() }
+        
+        if (classesWithHomework.isEmpty()) {
+            item {
+                Card(
+                    modifier = Modifier.fillMaxWidth().height(160.dp)
+                        .shadow(
+                            elevation = 16.dp,
+                            shape = RoundedCornerShape(24.dp),
+                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
+                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                        ),
+                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    shape = RoundedCornerShape(24.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFBBF24), Color(0xFFF59E0B))))
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(Color(0xFFFFF7ED), RoundedCornerShape(16.dp))
+                                .border(1.dp, Color(0xFFFFEDD5), RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.Edit, contentDescription = "Homework", modifier = Modifier.size(28.dp), tint = Color(0xFFF97316))
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("No homework today!", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                    }
+                }
+            }
+        } else {
+            items(classesWithHomework.size) { index ->
+                val (courseClass, chapter, subject) = classesWithHomework[index]
+                Card(
+                    modifier = Modifier.fillMaxWidth()
+                        .shadow(
+                            elevation = 12.dp,
+                            shape = RoundedCornerShape(20.dp),
+                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
+                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                        ),
+                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    shape = RoundedCornerShape(20.dp),
+                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF97316), Color(0xFFEA580C))))
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(56.dp)
+                                .background(Color(0xFFFFF7ED), RoundedCornerShape(16.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(Icons.Outlined.Edit, contentDescription = "Homework", tint = Color(0xFFEA580C))
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("${chapter.title} - ${courseClass.title}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(subject.title, fontSize = 13.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
+                        }
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Button(
+                            onClick = { onClassClick(courseClass, chapter, subject, focusCourse!!) },
+                            colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.1f)),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
+                        ) {
+                            Text("View", color = accentColor, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+            }
         }
     }
 }
@@ -1698,79 +2314,36 @@ fun StudentCoursesScreen(
         enrollments.any { it.user_id == profile.user_id && it.course_id == course.id }
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(24.dp)
-    ) {
-        item {
+    if (myEnrolledCourses.isEmpty()) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(64.dp)
+                    .background(Color(0xFFDFD8C8), RoundedCornerShape(16.dp)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text("🐧", fontSize = 32.sp)
+            }
+            Spacer(modifier = Modifier.height(16.dp))
             Text(
-                "My Purchased Courses",
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF4A5568)
+                "You have not purchased any courses yet.",
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Medium,
+                color = Color.Gray
             )
         }
-
-        if (myEnrolledCourses.isEmpty()) {
-            item {
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEBE6D8)),
-                    shape = RoundedCornerShape(20.dp)
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxSize(),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(64.dp)
-                                .background(Color(0xFFDFD8C8), RoundedCornerShape(16.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("🐧", fontSize = 32.sp)
-                        }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Text(
-                            "You have not purchased any courses yet.",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color.Gray
-                        )
-                    }
-                }
-            }
-        } else {
-            items(myEnrolledCourses) { course ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onCourseClick(course) },
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Text(course.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2D3748))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(course.description, fontSize = 14.sp, color = Color(0xFF718096), maxLines = 2)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Purchased", fontSize = 12.sp, color = accentColor, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                }
-            }
-        }
-        
-        item {
-            Spacer(modifier = Modifier.height(16.dp))
-        }
+    } else {
+        CourseListScreen(
+            accentColor = accentColor,
+            courses = myEnrolledCourses,
+            title = "আমার কেনা কোর্সসমূহ",
+            subtitle = "আপনার কেনা সকল কোর্স এখানে দেখুন",
+            onCourseClick = onCourseClick
+        )
     }
 }
 
@@ -1901,11 +2474,21 @@ fun SettingsScreen(
     courses: List<CourseItem> = emptyList(),
     enrollments: List<Enrollment> = emptyList()
 ) {
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
     val isTeacher = profile.role == "teacher"
+    val isAdmin = profile.role == "admin"
     var showDeviceSheet by remember { mutableStateOf(false) }
     var showProfileEditDialog by remember { mutableStateOf(false) }
     var showLanguageSheet by remember { mutableStateOf(false) }
     var showAdmissionInfoDialog by remember { mutableStateOf(false) }
+    var showDownloadsDialog by remember { mutableStateOf(false) }
+    
+    var isCheckingUpdate by remember { mutableStateOf(false) }
+    var manualUpdateToPrompt by remember { mutableStateOf<AppUpdate?>(null) }
+    var showPublishUpdateDialog by remember { mutableStateOf(false) }
+    var showPublishNoticeDialog by remember { mutableStateOf(false) }
+    var showAdminDashboardPanel by remember { mutableStateOf(false) }
 
     if (showAdmissionInfoDialog) {
         val myEnrolledCourses = courses.filter { course ->
@@ -1944,10 +2527,18 @@ fun SettingsScreen(
         )
     }
 
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    if (showAdminDashboardPanel) {
+        AdminDashboardContent(
+            accentColor = accentColor,
+            onPublishUpdateClick = { showPublishUpdateDialog = true },
+            onPublishNoticeClick = { showPublishNoticeDialog = true },
+            onBack = { showAdminDashboardPanel = false }
+        )
+    } else {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
         item {
             Text(
                 text = "Settings",
@@ -2028,7 +2619,93 @@ fun SettingsScreen(
                             title = "Offline Downloads",
                             subtitle = "Manage downloaded course materials",
                             accentColor = accentColor,
-                            onClick = { }
+                            onClick = { showDownloadsDialog = true }
+                        )
+                    }
+                }
+            }
+        }
+
+        if (isAdmin) {
+            item {
+                Text(
+                    text = "প্রশাসনিক প্যানেল (Administration)",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF718096),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+                )
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBFDBFE)),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(vertical = 8.dp)
+                    ) {
+                        SettingItem(
+                            icon = Icons.Default.AdminPanelSettings,
+                            title = "প্রশাসক ড্যাশবোর্ড (Admin Dashboard)",
+                            subtitle = "ইউজার কন্ট্রোল, নোটিশ ও ডাটাবেজ নিয়ন্ত্রণ করুন",
+                            accentColor = accentColor,
+                            onClick = { showAdminDashboardPanel = true }
+                        )
+                    }
+                }
+            }
+        }
+
+        item {
+            Text(
+                text = "এপ আপডেট (App Updates)",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF718096),
+                modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
+            )
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+            ) {
+                Column(
+                    modifier = Modifier.padding(vertical = 8.dp)
+                ) {
+                    SettingItem(
+                        icon = Icons.Outlined.SystemUpdate,
+                        title = if (isCheckingUpdate) "আপডেট চেক করা হচ্ছে..." else "চেক আপডেট (Check Update)",
+                        subtitle = "এপ্লিকেশন এর নতুন আপডেট চেক করুন",
+                        accentColor = accentColor,
+                        onClick = {
+                            if (!isCheckingUpdate) {
+                                isCheckingUpdate = true
+                                coroutineScope.launch {
+                                    val update = AppUpdateManager.checkForUpdate(context)
+                                    isCheckingUpdate = false
+                                    if (update != null) {
+                                        manualUpdateToPrompt = update
+                                    } else {
+                                        Toast.makeText(
+                                            context,
+                                            "আপনার এপটি সম্পূর্ণ আপ-টু-ডেট আছে! (v${AppUpdateManager.getCurrentVersionName(context)})",
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            }
+                        }
+                    )
+                    if (isAdmin) {
+                        Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
+                        SettingItem(
+                            icon = Icons.Outlined.CloudUpload,
+                            title = "আপডেট পাবলিশ করুন (Publish Update)",
+                            subtitle = "শিক্ষার্থীদের জন্য নতুন আপডেট রিলিজ করুন",
+                            accentColor = accentColor,
+                            onClick = { showPublishUpdateDialog = true }
                         )
                     }
                 }
@@ -2076,6 +2753,7 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
+    }
 
     if (showDeviceSheet) {
         DeviceManagementDialog(
@@ -2097,6 +2775,41 @@ fun SettingsScreen(
             onDismiss = { showProfileEditDialog = false },
             onProfileUpdate = onProfileUpdate,
             accentColor = accentColor
+        )
+    }
+
+    if (showDownloadsDialog) {
+        OfflineDownloadsDialog(
+            onDismiss = { showDownloadsDialog = false },
+            accentColor = accentColor
+        )
+    }
+
+    if (manualUpdateToPrompt != null) {
+        UpdatePromptDialog(
+            update = manualUpdateToPrompt!!,
+            accentColor = accentColor,
+            onDismiss = { manualUpdateToPrompt = null }
+        )
+    }
+
+    if (showPublishUpdateDialog) {
+        PublishUpdateDialog(
+            accentColor = accentColor,
+            onDismiss = { showPublishUpdateDialog = false },
+            onPublished = {
+                // Clear state or trigger checks
+            }
+        )
+    }
+
+    if (showPublishNoticeDialog) {
+        PublishNoticeDialog(
+            accentColor = accentColor,
+            onDismiss = { showPublishNoticeDialog = false },
+            onPublished = {
+                // Published
+            }
         )
     }
 }

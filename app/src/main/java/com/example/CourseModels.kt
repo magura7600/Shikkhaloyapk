@@ -67,7 +67,9 @@ data class Mentor(
 data class CourseChapter(
     val id: String = UUID.randomUUID().toString(),
     val title: String = "",
-    val classes: List<CourseClass> = emptyList()
+    val classes: List<CourseClass> = emptyList(),
+    val quarter: String = "Quarter 1",
+    val teachingStatus: String = "পড়ানো হবে"
 )
 
 @Serializable
@@ -97,5 +99,6 @@ data class CourseItem(
     val quarters: List<CourseQuarter> = emptyList(),
     val subjects: List<CourseSubject> = emptyList(),
     val studentsCount: Int = 0, 
-    val rating: Float = 0f
+    val rating: Float = 0f,
+    val routineUrl: String = ""
 )
