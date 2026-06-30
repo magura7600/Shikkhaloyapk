@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.draw.shadow
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.window.Dialog
@@ -111,6 +112,7 @@ fun CourseDetailScreen(
 
     // Check automatic quarter selection based on current date
     var initialSelectedQuarterName by remember { mutableStateOf<String?>(null) }
+    var selectedSubjectForView by remember { mutableStateOf<CourseSubject?>(null) }
     LaunchedEffect(course.quarters) {
         if (course.quarters.isNotEmpty()) {
             val currentDate = java.time.LocalDate.now()
@@ -146,9 +148,15 @@ fun CourseDetailScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("কোর্স বিস্তারিত", fontWeight = FontWeight.Bold) },
+                title = { Text(selectedSubjectForView?.title ?: course.title, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
+                    IconButton(onClick = {
+                        if (selectedSubjectForView != null) {
+                            selectedSubjectForView = null
+                        } else {
+                            onBack()
+                        }
+                    }) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
@@ -240,7 +248,9 @@ fun CourseDetailScreen(
                     initialChapterId = initialChapterId,
                     initialClassId = initialClassId,
                     initialSelectedQuarterName = initialSelectedQuarterName,
-                    onCourseUpdate = onCourseUpdate
+                    onCourseUpdate = onCourseUpdate,
+                    selectedSubjectForView = selectedSubjectForView,
+                    onSelectedSubjectChange = { selectedSubjectForView = it }
                 )
             }
 
@@ -392,12 +402,13 @@ fun CourseContentSection(
     initialChapterId: String? = null,
     initialClassId: String? = null,
     initialSelectedQuarterName: String? = null,
-    onCourseUpdate: ((CourseItem) -> Unit)? = null
+    onCourseUpdate: ((CourseItem) -> Unit)? = null,
+    selectedSubjectForView: CourseSubject?,
+    onSelectedSubjectChange: (CourseSubject?) -> Unit
 ) {
     val mContext = LocalContext.current
     var subjectToEdit by remember { mutableStateOf<CourseSubject?>(null) }
     var isAddingSubject by remember { mutableStateOf(false) }
-    var selectedSubjectForView by remember { mutableStateOf<CourseSubject?>(null) }
     var selectedClassForView by remember { mutableStateOf<CourseClass?>(null) }
     var subjectToAddChapterTo by remember { mutableStateOf<CourseSubject?>(null) }
     var chapterToEdit by remember { mutableStateOf<Pair<CourseSubject, CourseChapter>?>(null) }
@@ -411,7 +422,7 @@ fun CourseContentSection(
             val ch = s?.chapters?.find { it.id == initialChapterId }
             val c = ch?.classes?.find { it.id == initialClassId }
             if (s != null && ch != null && c != null) {
-                selectedSubjectForView = s
+                onSelectedSubjectChange(s)
                 selectedChapterForView = ch
                 selectedClassForView = c
             }
@@ -493,7 +504,7 @@ fun CourseContentSection(
                 selectedChapterForView = updatedChapter
                 
                 val updatedSubject = subject.copy(chapters = subject.chapters.map { if (it.id == chapter.id) updatedChapter else it })
-                selectedSubjectForView = updatedSubject
+                onSelectedSubjectChange(updatedSubject)
                 
                 val updatedSubjects = course.subjects.map { if (it.id == subject.id) updatedSubject else it }
                 onUpdate(updatedSubjects)
@@ -622,7 +633,7 @@ fun CourseContentSection(
                                 modifier = Modifier
                                     .weight(1f)
                                     .aspectRatio(1f)
-                                    .clickable { selectedSubjectForView = subject },
+                                    .clickable { onSelectedSubjectChange(subject) },
                                 colors = CardDefaults.cardColors(containerColor = bgColor),
                                 shape = RoundedCornerShape(16.dp)
                             ) {
@@ -678,12 +689,6 @@ fun CourseContentSection(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconButton(onClick = { selectedSubjectForView = null }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = accentColor)
-                    }
-                    Text(subject.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2D3748))
-                }
                 val isMainCourse = subject.sourceCourseId == null || subject.sourceCourseId == course.id
                 if (isTeacher && isMainCourse) {
                     IconButton(onClick = { subjectToAddChapterTo = subject }) {
@@ -813,9 +818,10 @@ fun CourseContentSection(
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(bottom = 12.dp),
+                            .padding(bottom = 12.dp)
+                            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color(0xFF64748B).copy(alpha = 0.2f)),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
                         border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
@@ -1050,7 +1056,7 @@ fun CourseContentSection(
                 }
                 
                 if (selectedSubjectForView?.id == updatedSubject.id) {
-                    selectedSubjectForView = updatedSubject
+                    onSelectedSubjectChange(updatedSubject)
                 }
                 isAddingSubject = false
                 subjectToEdit = null

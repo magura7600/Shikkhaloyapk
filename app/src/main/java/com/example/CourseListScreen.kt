@@ -64,7 +64,7 @@ fun CourseListScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF8FAFC)),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 100.dp)
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 80.dp, bottom = 100.dp)
     ) {
         item {
             Text(
@@ -105,7 +105,7 @@ fun CourseListScreen(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(130.dp)
+                            .height(100.dp)
                             .background(
                                 Brush.horizontalGradient(bannerColors[colorIndex])
                             ),
@@ -119,7 +119,7 @@ fun CourseListScreen(
                         )
                     }
 
-                    Column(modifier = Modifier.padding(20.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         // Title and Progress icon
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
@@ -168,46 +168,42 @@ fun CourseListScreen(
                             trackColor = Color(0xFFF1F5F9)
                         )
 
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(12.dp))
 
                         // Footer row
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text(
-                                text = course.pricingOption,
-                                color = accentColor,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            HorizontalDivider(
-                                modifier = Modifier.height(12.dp).width(1.dp),
-                                color = Color(0xFFE2E8F0)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF94A3B8))
-                                Spacer(modifier = Modifier.width(4.dp))
+                            Column {
                                 Text(
-                                    text = "${course.studentsCount} Enrollments",
-                                    color = Color(0xFF64748B),
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium
+                                    text = course.pricingOption,
+                                    color = accentColor,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp
                                 )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF94A3B8))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text(
+                                        text = "${course.studentsCount} Students",
+                                        color = Color(0xFF64748B),
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
                             }
-
-                            Spacer(modifier = Modifier.weight(1f))
 
                             Button(
                                 onClick = { onCourseClick(course) },
                                 colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                                 shape = RoundedCornerShape(12.dp),
-                                contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp),
+                                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp, pressedElevation = 2.dp)
                             ) {
-                                Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text("Continue", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp, maxLines = 1, softWrap = false)
                             }
                         }
                     }

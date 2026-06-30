@@ -51,7 +51,7 @@ fun ExploreFeedScreen(
         allChannels.filter { it.full_name.contains(searchQuery, ignoreCase = true) }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(modifier = Modifier.fillMaxSize().padding(top = 80.dp, start = 16.dp, end = 16.dp)) {
         // Channels Story-like row
         if (searchQuery.isBlank() && allChannels.isNotEmpty()) {
             androidx.compose.foundation.lazy.LazyRow(
@@ -133,7 +133,8 @@ fun ExploreFeedScreen(
         // Feed List
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(bottom = 100.dp)
         ) {
             if (filteredCourses.isNotEmpty()) {
                 items(filteredCourses) { course ->

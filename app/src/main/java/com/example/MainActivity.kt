@@ -146,13 +146,18 @@ class MainActivity : ComponentActivity() {
                 )
             ) {
                 Scaffold(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    containerColor = Color.Transparent
                 ) { innerPadding ->
+                    val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
+                        colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+                    )
                     Surface(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(innerPadding),
-                        color = MaterialTheme.colorScheme.background
+                            .padding(innerPadding)
+                            .background(bgGradient),
+                        color = Color.Transparent
                     ) {
                         MainAppContent()
                     }
@@ -1226,10 +1231,15 @@ fun DashboardScreen(
         }
     }
     
-    val bgColor = Color(0xFFFBF8F1)
+    val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
+        colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+    )
+    
+    val bgColor = Color.Transparent
     val accentColor = Color(0xFF4C51F7)
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             if (currentScreen == "dashboard") {
                 TopAppBar(
@@ -1361,7 +1371,7 @@ fun DashboardScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = bgColor
+                        containerColor = Color.Transparent
                     )
                 )
             }
@@ -1434,16 +1444,13 @@ fun DashboardScreen(
                     Icon(Icons.Default.Add, contentDescription = "Add Course")
                 }
             }
-        },
-        containerColor = bgColor
+        }
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .then(if (currentScreen == "dashboard") Modifier.padding(horizontal = 16.dp) else Modifier)
+                // Content will draw behind transparent TopAppBar and BottomAppBar
         ) {
-            if (currentScreen == "dashboard") Spacer(modifier = Modifier.height(16.dp))
             if (currentScreen == "add_course") {
                 AddCourseScreen(
                     profile = profile,
@@ -1836,9 +1843,9 @@ fun StudentDashboardContent(
     )
     
     LazyColumn(
-        modifier = Modifier.fillMaxSize().background(bgGradient),
+        modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(24.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 80.dp)
+        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 80.dp, bottom = 100.dp)
     ) {
         // Class Routine Card
         item {
@@ -1851,7 +1858,7 @@ fun StudentDashboardContent(
                         spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
                         ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
                     ),
-                colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
                 shape = RoundedCornerShape(24.dp),
                 border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF818CF8), Color(0xFFC084FC))))
             ) {
@@ -2092,7 +2099,7 @@ fun StudentDashboardContent(
                             spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
                             ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
                     shape = RoundedCornerShape(24.dp),
                     border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF9CA3AF), Color(0xFFD1D5DB))))
                 ) {
@@ -2111,7 +2118,7 @@ fun StudentDashboardContent(
                             spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
                             ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
                     shape = RoundedCornerShape(24.dp),
                     border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF34D399), Color(0xFF10B981))))
                 ) {
@@ -2156,7 +2163,7 @@ fun StudentDashboardContent(
                             spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
                             ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
                     shape = RoundedCornerShape(24.dp),
                     border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF472B6), Color(0xFFEC4899))))
                 ) {
@@ -2229,7 +2236,7 @@ fun StudentDashboardContent(
                             spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
                             ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
                     shape = RoundedCornerShape(24.dp),
                     border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFBBF24), Color(0xFFF59E0B))))
                 ) {
@@ -2263,7 +2270,7 @@ fun StudentDashboardContent(
                             spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
                             ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color.White.copy(alpha = 0.8f)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
                     shape = RoundedCornerShape(20.dp),
                     border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF97316), Color(0xFFEA580C))))
                 ) {
@@ -2361,7 +2368,8 @@ fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAd
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 80.dp, bottom = 100.dp)
     ) {
         item {
             Text(
@@ -2537,11 +2545,12 @@ fun SettingsScreen(
     } else {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 80.dp, bottom = 100.dp)
         ) {
         item {
             Text(
-                text = "Settings",
+                text = "সেটিংস",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF4A5568)
@@ -2561,8 +2570,8 @@ fun SettingsScreen(
                 ) {
                     SettingItem(
                         icon = Icons.Outlined.Person,
-                        title = "Profile Settings",
-                        subtitle = "Update your profile information",
+                        title = "প্রোফাইল সেটিংস",
+                        subtitle = "আপনার প্রোফাইলের তথ্য আপডেট করুন",
                         accentColor = accentColor,
                         onClick = { showProfileEditDialog = true }
                     )
@@ -2570,8 +2579,8 @@ fun SettingsScreen(
                         Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
                         SettingItem(
                             icon = Icons.Outlined.Info,
-                            title = "Admission Info",
-                            subtitle = "View current admission details",
+                            title = "ভর্তির তথ্য",
+                            subtitle = "আপনার ভর্তি হওয়া কোর্সের বিবরণ দেখুন",
                             accentColor = accentColor,
                             onClick = { showAdmissionInfoDialog = true }
                         )
@@ -2582,7 +2591,7 @@ fun SettingsScreen(
 
         item {
             Text(
-                text = "Preferences",
+                text = "পছন্দসমূহ",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF718096),
@@ -2599,16 +2608,16 @@ fun SettingsScreen(
                 ) {
                     SettingItem(
                         icon = Icons.Outlined.Language,
-                        title = "Change Language",
-                        subtitle = "English, বাংলা",
+                        title = "ভাষা পরিবর্তন",
+                        subtitle = "বাংলা, English",
                         accentColor = accentColor,
                         onClick = { showLanguageSheet = true }
                     )
                     Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
                     SettingItem(
                         icon = Icons.Outlined.Palette,
-                        title = "Change Theme",
-                        subtitle = "Light, Dark, System",
+                        title = "থিম পরিবর্তন",
+                        subtitle = "লাইট, ডার্ক, সিস্টেম",
                         accentColor = accentColor,
                         onClick = { }
                     )
@@ -2616,8 +2625,8 @@ fun SettingsScreen(
                         Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
                         SettingItem(
                             icon = Icons.Outlined.Download,
-                            title = "Offline Downloads",
-                            subtitle = "Manage downloaded course materials",
+                            title = "অফলাইন ডাউনলোড",
+                            subtitle = "ডাউনলোড করা ক্লাস ভিডিও ও পিডিএফ",
                             accentColor = accentColor,
                             onClick = { showDownloadsDialog = true }
                         )
@@ -2629,7 +2638,7 @@ fun SettingsScreen(
         if (isAdmin) {
             item {
                 Text(
-                    text = "প্রশাসনিক প্যানেল (Administration)",
+                    text = "প্রশাসনিক প্যানেল",
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF718096),
@@ -2647,7 +2656,7 @@ fun SettingsScreen(
                     ) {
                         SettingItem(
                             icon = Icons.Default.AdminPanelSettings,
-                            title = "প্রশাসক ড্যাশবোর্ড (Admin Dashboard)",
+                            title = "অ্যাডমিন ড্যাশবোর্ড",
                             subtitle = "ইউজার কন্ট্রোল, নোটিশ ও ডাটাবেজ নিয়ন্ত্রণ করুন",
                             accentColor = accentColor,
                             onClick = { showAdminDashboardPanel = true }
@@ -2659,7 +2668,7 @@ fun SettingsScreen(
 
         item {
             Text(
-                text = "এপ আপডেট (App Updates)",
+                text = "এপ আপডেট",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF718096),
@@ -2676,7 +2685,7 @@ fun SettingsScreen(
                 ) {
                     SettingItem(
                         icon = Icons.Outlined.SystemUpdate,
-                        title = if (isCheckingUpdate) "আপডেট চেক করা হচ্ছে..." else "চেক আপডেট (Check Update)",
+                        title = if (isCheckingUpdate) "আপডেট চেক করা হচ্ছে..." else "এপ আপডেট চেক করুন",
                         subtitle = "এপ্লিকেশন এর নতুন আপডেট চেক করুন",
                         accentColor = accentColor,
                         onClick = {
@@ -2702,8 +2711,8 @@ fun SettingsScreen(
                         Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
                         SettingItem(
                             icon = Icons.Outlined.CloudUpload,
-                            title = "আপডেট পাবলিশ করুন (Publish Update)",
-                            subtitle = "শিক্ষার্থীদের জন্য নতুন আপডেট রিলিজ করুন",
+                            title = "আপডেট পাবলিশ করুন",
+                            subtitle = "ব্যবহারকারীদের জন্য নতুন আপডেট রিলিজ করুন",
                             accentColor = accentColor,
                             onClick = { showPublishUpdateDialog = true }
                         )
@@ -2714,7 +2723,7 @@ fun SettingsScreen(
 
         item {
             Text(
-                text = "Account & Security",
+                text = "অ্যাকাউন্ট ও নিরাপত্তা",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF718096),
@@ -2730,17 +2739,9 @@ fun SettingsScreen(
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
                     SettingItem(
-                        icon = Icons.Outlined.Devices,
-                        title = "Device Management",
-                        subtitle = "Manage logged in devices",
-                        accentColor = accentColor,
-                        onClick = { showDeviceSheet = true }
-                    )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
-                    SettingItem(
                         icon = Icons.Outlined.Logout,
-                        title = "Sign Out",
-                        subtitle = "Log out from this device",
+                        title = "লগ আউট",
+                        subtitle = "এই ডিভাইস থেকে লগ আউট করুন",
                         accentColor = Color.Red,
                         onClick = onLogout,
                         isDestructive = true
@@ -2753,13 +2754,6 @@ fun SettingsScreen(
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
-    }
-
-    if (showDeviceSheet) {
-        DeviceManagementDialog(
-            onDismiss = { showDeviceSheet = false },
-            accentColor = accentColor
-        )
     }
 
     if (showLanguageSheet) {
@@ -3066,130 +3060,6 @@ fun SettingItem(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun DeviceManagementDialog(
-    onDismiss: () -> Unit,
-    accentColor: Color
-) {
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        containerColor = Color.White
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(24.dp)
-        ) {
-            Text(
-                text = "Device Management",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.DarkGray
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "You are currently logged in on 2 devices",
-                fontSize = 14.sp,
-                color = Color.Gray
-            )
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            // Current Device
-            DeviceItem(
-                deviceName = "Samsung Galaxy S22 Ultra",
-                location = "Dhaka, Bangladesh",
-                time = "Active now",
-                icon = Icons.Outlined.Smartphone,
-                isCurrent = true,
-                accentColor = accentColor
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            // Other Device
-            DeviceItem(
-                deviceName = "Windows PC (Chrome)",
-                location = "Dhaka, Bangladesh",
-                time = "Last active: 2 hours ago",
-                icon = Icons.Outlined.Computer,
-                isCurrent = false,
-                accentColor = accentColor
-            )
-            
-            Spacer(modifier = Modifier.height(32.dp))
-        }
-    }
-}
-
-@Composable
-fun DeviceItem(
-    deviceName: String,
-    location: String,
-    time: String,
-    icon: ImageVector,
-    isCurrent: Boolean,
-    accentColor: Color
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .background(Color(0xFFF3F4F6), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = "Device",
-                tint = Color.DarkGray,
-                modifier = Modifier.size(24.dp)
-            )
-        }
-        Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = deviceName,
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.DarkGray
-                )
-                if (isCurrent) {
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text("Current", fontSize = 10.sp, color = accentColor, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-            Text(
-                text = location,
-                fontSize = 13.sp,
-                color = Color.Gray
-            )
-            Text(
-                text = time,
-                fontSize = 12.sp,
-                color = if (isCurrent) Color(0xFF10B981) else Color.Gray
-            )
-        }
-        if (!isCurrent) {
-            IconButton(onClick = { /* Log out device */ }) {
-                Icon(
-                    imageVector = Icons.Outlined.Logout,
-                    contentDescription = "Log out device",
-                    tint = Color.Red
-                )
-            }
-        }
-    }
-}
 
 @Composable
 fun MentorsListDialog(

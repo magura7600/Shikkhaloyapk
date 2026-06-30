@@ -15,11 +15,11 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "com.aistudio.fbdownloader.abcd"
+    applicationId = "app.shikkhaloy.ai.com"
     minSdk = 24
     targetSdk = 36
     versionCode = 1
-    versionName = "1.0"
+    versionName = "1"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
