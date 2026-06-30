@@ -22,14 +22,10 @@ android {
     versionName = "1.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-  }
 
-  splits {
-    abi {
-      isEnable = true
-      reset()
-      include("armeabi-v7a", "arm64-v8a", "x86_64")
-      isUniversalApk = false
+    ndk {
+      abiFilters.add("armeabi-v7a")
+      abiFilters.add("arm64-v8a")
     }
   }
 
