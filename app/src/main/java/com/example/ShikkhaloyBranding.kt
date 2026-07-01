@@ -277,12 +277,12 @@ fun ShikkhaloySplashScreen() {
                 label = "PulseScale"
             )
 
-            // Custom User Provided App Logo
-            androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = R.drawable.custom_logo),
-                contentDescription = "Shikkhaloy Logo",
+            // Custom Vector logo drawn dynamically on Canvas
+            ShikkhaloyLogo(
+                showText = false,
+                iconSize = 180.dp,
+                darkTheme = true,
                 modifier = Modifier
-                    .size(180.dp)
                     .graphicsLayer(
                         scaleX = scaleAnim,
                         scaleY = scaleAnim,
