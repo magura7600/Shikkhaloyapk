@@ -30,8 +30,15 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
       
-    - name: Decode Keystore
-      run: base64 -d debug.keystore.base64 > debug.keystore
+    - name: Set up Keystore
+      run: |
+        if [ -f debug.keystore.base64 ]; then
+          echo "Decoding existing debug.keystore.base64..."
+          base64 -d debug.keystore.base64 > debug.keystore
+        else
+          echo "No debug.keystore.base64 found. Generating a new debug keystore on the fly..."
+          keytool -genkeypair -v -keystore debug.keystore -storepass android -alias androiddebugkey -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+        fi
       
     - name: Create .env file for secrets
       run: |
