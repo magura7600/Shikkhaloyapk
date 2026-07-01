@@ -11,6 +11,9 @@ plugins {
 }
 
 android {
+  androidResources {
+    ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~:ic_launcher.png:ic_launcher_round.png:ic_launcher.webp:ic_launcher_round.webp"
+  }
   namespace = "com.example"
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
@@ -87,6 +90,7 @@ googleServices {
 
 // Some unused dependencies are commented out below instead of being removed.
 // This makes it easy to add them back in the future if needed.
+
 dependencies {
   implementation(platform(libs.androidx.compose.bom))
   implementation(libs.androidx.activity.compose)
