@@ -50,11 +50,11 @@ jobs:
         echo "SUPABASE_KEY=$SUPABASE_KEY" >> .env
         echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
         
-    - name: Build Debug APK
-      run: ./gradlew assembleDebug
+    - name: Build Release APK
+      run: ./gradlew assembleRelease
       
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
-        name: Shikkhaloy-APK
-        path: app/build/outputs/apk/debug/app-debug.apk
+        name: Shikkhaloy-Release-APK
+        path: app/build/outputs/apk/release/app-release.apk
