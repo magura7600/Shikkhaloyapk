@@ -21,6 +21,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Person
@@ -250,8 +251,30 @@ fun CourseDetailScreen(
         },
         containerColor = Color(0xFFFBF8F1)
     ) { paddingValues ->
-        val isInnerActive = isClassActive || isChapterActive
-        if (isInnerActive) {
+        val isUserBanned = userEnrollment != null && userEnrollment.banned_until != null && (userEnrollment.banned_until == -1L || userEnrollment.banned_until > System.currentTimeMillis())
+        
+        if (isUserBanned) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(Color(0xFFF1F5F9)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
+                    Icon(Icons.Default.Block, contentDescription = "Banned", tint = Color.Red, modifier = Modifier.size(64.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("আপনি এই কোর্স থেকে সাময়িকভাবে বহিষ্কৃত", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("কারণ: ${userEnrollment!!.ban_reason ?: "অজানা"}", fontSize = 16.sp, color = Color.DarkGray)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    val durationText = if (userEnrollment!!.banned_until == -1L) "সারাজীবনের জন্য" else "সময়কাল: " + java.text.SimpleDateFormat("dd MMM yyyy, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date(userEnrollment!!.banned_until!!))
+                    Text(durationText, fontSize = 14.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                }
+            }
+        } else {
+            val isInnerActive = isClassActive || isChapterActive
+            if (isInnerActive) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -443,6 +466,7 @@ fun CourseDetailScreen(
                 }
             }
         }
+        } // Close else for isUserBanned
     }
 }
 }

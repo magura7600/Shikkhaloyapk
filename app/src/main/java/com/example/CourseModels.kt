@@ -18,7 +18,9 @@ data class Enrollment(
     val course_id: String,
     val price_paid: String = "",
     val purchased_quarters: String = "",
-    val created_at: String? = null
+    val created_at: String? = null,
+    val banned_until: Long? = null,
+    val ban_reason: String? = null
 )
 
 @Serializable

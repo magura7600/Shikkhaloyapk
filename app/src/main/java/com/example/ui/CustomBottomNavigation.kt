@@ -120,7 +120,7 @@ fun CustomBottomNavigation(
                         
                         if (item.title.isNotEmpty()) {
                             Text(
-                                text = item.title,
+                                text = com.example.L.translate(item.title),
                                 color = if (isSelected) item.color else Color.Gray,
                                 fontSize = 10.sp,
                                 maxLines = 1,

@@ -53,7 +53,7 @@ fun EmergencyNoticeDialog(
         },
         title = {
             Text(
-                text = notice.title,
+                text = L.translateNotice(notice.title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
                 color = Color(0xFF1E293B),
@@ -70,7 +70,7 @@ fun EmergencyNoticeDialog(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = notice.content,
+                    text = L.translateNotice(notice.content),
                     fontSize = 14.sp,
                     color = Color(0xFF475569),
                     lineHeight = 22.sp,
@@ -86,7 +86,7 @@ fun EmergencyNoticeDialog(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "ঠিক আছে, বুঝতে পেরেছি",
+                    text = "ঠিক আছে, বুঝতে পেরেছি".t(),
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
                     modifier = Modifier.padding(vertical = 4.dp)
@@ -125,11 +125,12 @@ CREATE TABLE IF NOT EXISTS app_notices (
 -- RLS (Row Level Security) পলিসি
 ALTER TABLE app_notices ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read app_notices" ON app_notices
-    FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "Allow public read app_notices" ON app_notices;
+DROP POLICY IF EXISTS "Allow authenticated insert app_notices" ON app_notices;
+DROP POLICY IF EXISTS "Allow all app_notices" ON app_notices;
 
-CREATE POLICY "Allow authenticated insert app_notices" ON app_notices
-    FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all app_notices" ON app_notices
+    FOR ALL TO public USING (true) WITH CHECK (true);
     """.trimIndent()
 
     AlertDialog(

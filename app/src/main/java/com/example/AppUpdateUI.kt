@@ -272,11 +272,12 @@ CREATE TABLE IF NOT EXISTS app_updates (
 -- RLS (Row Level Security) পলিসি
 ALTER TABLE app_updates ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Allow public read app_updates" ON app_updates
-    FOR SELECT TO public USING (true);
+DROP POLICY IF EXISTS "Allow public read app_updates" ON app_updates;
+DROP POLICY IF EXISTS "Allow authenticated insert app_updates" ON app_updates;
+DROP POLICY IF EXISTS "Allow all app_updates" ON app_updates;
 
-CREATE POLICY "Allow authenticated insert app_updates" ON app_updates
-    FOR ALL TO authenticated USING (true);
+CREATE POLICY "Allow all app_updates" ON app_updates
+    FOR ALL TO public USING (true) WITH CHECK (true);
     """.trimIndent()
 
     AlertDialog(

@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -265,11 +266,28 @@ fun ShikkhaloySplashScreen() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // Main App Logo
-            ShikkhaloyLogo(
-                iconSize = 160.dp,
-                showText = true,
-                darkTheme = true
+            // Scale Animation for custom logo
+            val scaleAnim by infiniteTransition.animateFloat(
+                initialValue = 0.9f,
+                targetValue = 1.05f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1200, easing = LinearEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "PulseScale"
+            )
+
+            // Custom User Provided App Logo
+            androidx.compose.foundation.Image(
+                painter = androidx.compose.ui.res.painterResource(id = R.drawable.custom_logo),
+                contentDescription = "Shikkhaloy Logo",
+                modifier = Modifier
+                    .size(180.dp)
+                    .graphicsLayer(
+                        scaleX = scaleAnim,
+                        scaleY = scaleAnim,
+                        alpha = alphaAnim
+                    )
             )
 
             Spacer(modifier = Modifier.height(64.dp))

@@ -11,10 +11,13 @@ import androidx.core.app.NotificationCompat
 
 class ClassNotificationReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val subjectTitle = intent.getStringExtra("subjectTitle") ?: "অজানা বিষয়"
-        val chapterTitle = intent.getStringExtra("chapterTitle") ?: "অজানা অধ্যায়"
-        val classTitle = intent.getStringExtra("classTitle") ?: "অজানা ক্লাস"
-        val mentorName = intent.getStringExtra("mentorName") ?: "অজানা শিক্ষক"
+        L.init(context)
+        val isBn = L.currentLanguage == "bn"
+
+        val subjectTitle = intent.getStringExtra("subjectTitle") ?: (if (isBn) "অজানা বিষয়" else "Unknown Subject")
+        val chapterTitle = intent.getStringExtra("chapterTitle") ?: (if (isBn) "অজানা অধ্যায়" else "Unknown Chapter")
+        val classTitle = intent.getStringExtra("classTitle") ?: (if (isBn) "অজানা ক্লাস" else "Unknown Class")
+        val mentorName = intent.getStringExtra("mentorName") ?: (if (isBn) "অজানা শিক্ষক" else "Unknown Teacher")
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         val channelId = "class_alerts"
@@ -22,10 +25,10 @@ class ClassNotificationReceiver : BroadcastReceiver() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 channelId,
-                "আসন্ন ক্লাস এলার্ট",
+                if (isBn) "আসন্ন ক্লাস এলার্ট" else "Upcoming Class Alert",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
-                description = "লাইভ ক্লাস শুরু হওয়ার এলার্ট"
+                description = if (isBn) "লাইভ ক্লাস শুরু হওয়ার এলার্ট" else "Alert for starting live class"
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -43,13 +46,13 @@ class ClassNotificationReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("লাইভ ক্লাস শুরু হচ্ছে! 🚀")
+            .setContentTitle(if (isBn) "লাইভ ক্লাস শুরু হচ্ছে! 🚀" else "Live class is starting! 🚀")
             .setContentText("$subjectTitle • $chapterTitle")
             .setStyle(NotificationCompat.BigTextStyle().bigText(
-                "বিষয়: $subjectTitle\n" +
-                "অধ্যায়: $chapterTitle\n" +
-                "ক্লাস: $classTitle\n" +
-                "শিক্ষক: $mentorName"
+                (if (isBn) "বিষয়: " else "Subject: ") + "$subjectTitle\n" +
+                (if (isBn) "অধ্যায়: " else "Chapter: ") + "$chapterTitle\n" +
+                (if (isBn) "ক্লাস: " else "Class: ") + "$classTitle\n" +
+                (if (isBn) "শিক্ষক: " else "Teacher: ") + "$mentorName"
             ))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)

@@ -29,32 +29,34 @@ import androidx.compose.ui.unit.sp
 fun AddCourseScreen(
     profile: UserProfile,
     accentColor: Color,
+    initialCourse: CourseItem? = null,
     onBack: () -> Unit,
     onCourseAdded: (CourseItem) -> Unit
 ) {
-    var courseTitle by remember { mutableStateOf("") }
-    var courseDescription by remember { mutableStateOf("") }
+    var courseTitle by remember { mutableStateOf(initialCourse?.title ?: "") }
+    var courseDescription by remember { mutableStateOf(initialCourse?.description ?: "") }
     
-    var pricingOption by remember { mutableStateOf("Fully Paid") }
+    var pricingOption by remember { mutableStateOf(initialCourse?.pricingOption ?: "Fully Paid") }
     val pricingOptions = listOf("Fully Free", "Limited Free (Trial)", "Fully Paid")
     
-    var mainPrice by remember { mutableStateOf("") }
-    var discountPrice by remember { mutableStateOf("") }
+    var mainPrice by remember { mutableStateOf(initialCourse?.mainPrice ?: "") }
+    var discountPrice by remember { mutableStateOf(initialCourse?.discountPrice ?: "") }
     
-    var bkashNumber by remember { mutableStateOf("") }
-    var nagadNumber by remember { mutableStateOf("") }
-    var rocketNumber by remember { mutableStateOf("") }
-    var paymentDetails by remember { mutableStateOf("") }
+    var bkashNumber by remember { mutableStateOf(initialCourse?.bkashNumber ?: "") }
+    var nagadNumber by remember { mutableStateOf(initialCourse?.nagadNumber ?: "") }
+    var rocketNumber by remember { mutableStateOf(initialCourse?.rocketNumber ?: "") }
+    var paymentDetails by remember { mutableStateOf(initialCourse?.paymentDetails ?: "") }
     
-    var isQuarterOn by remember { mutableStateOf(false) }
-    var quarters by remember { mutableStateOf(listOf(CourseQuarter())) }
+    var isQuarterOn by remember { mutableStateOf(initialCourse?.isQuarterOn ?: false) }
+    var quarters by remember { mutableStateOf(if (initialCourse != null && initialCourse.quarters.isNotEmpty()) initialCourse.quarters else listOf(CourseQuarter())) }
     
     val context = LocalContext.current
+    val isEditing = initialCourse != null
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("নতুন কোর্স যোগ করুন", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
+                title = { Text(if (isEditing) "কোর্স এডিট করুন" else "নতুন কোর্স যোগ করুন", fontWeight = FontWeight.Bold, fontSize = 18.sp) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -330,6 +332,8 @@ fun AddCourseScreen(
                             Toast.makeText(context, "Please enter course name", Toast.LENGTH_SHORT).show()
                         } else {
                             val newCourse = CourseItem(
+                                id = initialCourse?.id ?: java.util.UUID.randomUUID().toString(),
+                                channel_id = initialCourse?.channel_id ?: "",
                                 title = courseTitle,
                                 description = courseDescription,
                                 pricingOption = pricingOption,
@@ -340,10 +344,12 @@ fun AddCourseScreen(
                                 rocketNumber = rocketNumber,
                                 paymentDetails = paymentDetails,
                                 isQuarterOn = isQuarterOn,
-                                quarters = quarters
+                                quarters = quarters,
+                                subjects = initialCourse?.subjects ?: emptyList(),
+                                studentsCount = initialCourse?.studentsCount ?: 0
                             )
                             onCourseAdded(newCourse)
-                            Toast.makeText(context, "Course added successfully!", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, if (isEditing) "Course updated successfully!" else "Course added successfully!", Toast.LENGTH_SHORT).show()
                             onBack()
                         }
                     },
@@ -353,7 +359,7 @@ fun AddCourseScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("যোগ করুন (Add Course)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(if (isEditing) "আপডেট করুন (Update Course)" else "যোগ করুন (Add Course)", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(24.dp))
             }

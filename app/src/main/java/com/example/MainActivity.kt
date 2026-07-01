@@ -133,6 +133,8 @@ sealed interface AppState {
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         appContext = applicationContext
+        L.init(this)
+        ThemeManager.init(this)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -151,28 +153,21 @@ class MainActivity : ComponentActivity() {
         }
 
         setContent {
+            val isDark = ThemeManager.isDarkTheme()
+            val colorScheme = if (isDark) ThemeManager.DarkColorScheme else ThemeManager.LightColorScheme
             MaterialTheme(
-                colorScheme = lightColorScheme(
-                    primary = Color(0xFF1E3A8A), // Navy Blue
-                    onPrimary = Color.White,
-                    primaryContainer = Color(0xFFEFF6FF),
-                    onPrimaryContainer = Color(0xFF1E3A8A),
-                    secondary = Color(0xFF0F766E), // Teal Green
-                    onSecondary = Color.White,
-                    secondaryContainer = Color(0xFFECFDF5),
-                    onSecondaryContainer = Color(0xFF065F46),
-                    tertiary = Color(0xFFF4B400), // Gold / Yellow
-                    background = Color(0xFFF8FAFC), // Off-white
-                    surface = Color.White,
-                    error = Color(0xFFEF4444)
-                )
+                colorScheme = colorScheme
             ) {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = Color.Transparent
                 ) { innerPadding ->
                     val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
-                        colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+                        colors = if (isDark) {
+                            listOf(Color(0xFF0F172A), Color(0xFF020617))
+                        } else {
+                            listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+                        }
                     )
                     Surface(
                         modifier = Modifier
@@ -892,33 +887,41 @@ fun LoginScreen(
     val primaryText = if (isLoginTab) "স্বাগতম শিক্ষালয়ে" else "নতুন অ্যাকাউন্ট তৈরি করুন"
     val secondaryText = if (isLoginTab) "আপনার শিক্ষাগত যাত্রা সহজ করতে লগইন করুন" else "শিক্ষক বা শিক্ষার্থী হিসেবে যুক্ত হতে সাইন-আপ করুন"
 
-    Column(
+    val scrollState = rememberScrollState()
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+            .imePadding(),
+        contentAlignment = Alignment.Center
     ) {
-        // Interactive Animated Bear Logo (covers eyes for password field)
-        InteractiveBear(
-            isPasswordFocused = isPasswordFocused,
-            showPassword = showPassword,
-            emailLength = email.length,
-            isEmailFocused = isEmailFocused,
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(scrollState)
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            // Interactive Animated Bear Logo (covers eyes for password field)
+            InteractiveBear(
+                isPasswordFocused = isPasswordFocused,
+                showPassword = showPassword,
+                emailLength = email.length,
+                isEmailFocused = isEmailFocused,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
 
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "শিক্ষালয়",
+            text = "শিক্ষালয়".t(),
             fontSize = 32.sp,
             fontWeight = FontWeight.Black,
             color = Color(0xFF3730A3),
             textAlign = TextAlign.Center
         )
         Text(
-            text = "ডিজিটাল স্কুল ম্যানেজমেন্ট প্ল্যাটফর্ম",
+            text = "ডিজিটাল স্কুল ম্যানেজমেন্ট প্ল্যাটফর্ম".t(),
             fontSize = 12.sp,
             color = Color.Gray,
             fontWeight = FontWeight.Medium,
@@ -938,14 +941,14 @@ fun LoginScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = primaryText,
+                    text = primaryText.t(),
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onPrimaryContainer
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = secondaryText,
+                    text = secondaryText.t(),
                     fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
                     textAlign = TextAlign.Center
@@ -972,7 +975,7 @@ fun LoginScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "লগইন",
+                    "লগইন".t(),
                     fontWeight = FontWeight.Bold,
                     color = if (isLoginTab) MaterialTheme.colorScheme.primary else Color.Gray,
                     fontSize = 14.sp
@@ -988,7 +991,7 @@ fun LoginScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "রেজিস্ট্রেশন",
+                    "রেজিস্ট্রেশন".t(),
                     fontWeight = FontWeight.Bold,
                     color = if (!isLoginTab) MaterialTheme.colorScheme.primary else Color.Gray,
                     fontSize = 14.sp
@@ -1000,7 +1003,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = email,
             onValueChange = { email = it },
-            label = { Text("ইমেইল অ্যাড্রেস") },
+            label = { Text("ইমেইল অ্যাড্রেস".t()) },
             placeholder = { Text("example@email.com") },
             modifier = Modifier
                 .fillMaxWidth()
@@ -1016,7 +1019,7 @@ fun LoginScreen(
         OutlinedTextField(
             value = password,
             onValueChange = { password = it },
-            label = { Text("পাসওয়ার্ড") },
+            label = { Text("পাসওয়ার্ড".t()) },
             modifier = Modifier
                 .fillMaxWidth()
                 .onFocusChanged { isPasswordFocused = it.isFocused },
@@ -1106,7 +1109,7 @@ fun LoginScreen(
                 CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
             } else {
                 Text(
-                    text = if (isLoginTab) "লগইন করুন" else "রেজিস্টার করুন",
+                    text = if (isLoginTab) "লগইন করুন".t() else "রেজিস্টার করুন".t(),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold
                 )
@@ -1122,7 +1125,7 @@ fun LoginScreen(
         ) {
             HorizontalDivider(modifier = Modifier.weight(1f), color = Color.LightGray)
             Text(
-                "অথবা",
+                "অথবা".t(),
                 fontSize = 12.sp,
                 color = Color.Gray,
                 modifier = Modifier.padding(horizontal = 8.dp)
@@ -1153,7 +1156,7 @@ fun LoginScreen(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    "গুগল দিয়ে সাইন-ইন করুন",
+                    "গুগল দিয়ে সাইন-ইন করুন".t(),
                     color = Color.DarkGray,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp
@@ -1165,7 +1168,7 @@ fun LoginScreen(
         
         // Fast Demo Entry Button
         Text(
-            text = "দ্রুত ডেমো মুডে প্রবেশ করুন",
+            text = "দ্রুত ডেমো মুডে প্রবেশ করুন".t(),
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.primary,
             fontWeight = FontWeight.Bold,
@@ -1177,6 +1180,7 @@ fun LoginScreen(
                 .padding(8.dp)
         )
     }
+}
 }
 
 // --- ONBOARDING & PROFILE COMPLETION SCREEN ---
@@ -1508,6 +1512,7 @@ fun DashboardScreen(
     var currentScreen by remember { mutableStateOf("dashboard") }
     var selectedChannel by remember { mutableStateOf<UserProfile?>(null) }
     var selectedCourse by remember { mutableStateOf<CourseItem?>(null) }
+    var editingCourse by remember { mutableStateOf<CourseItem?>(null) }
     var initialSubjectId by remember { mutableStateOf<String?>(null) }
     var initialChapterId by remember { mutableStateOf<String?>(null) }
     var initialClassId by remember { mutableStateOf<String?>(null) }
@@ -1847,19 +1852,34 @@ fun DashboardScreen(
                 .fillMaxSize()
                 // Content will draw behind transparent TopAppBar and BottomAppBar
         ) {
-            if (currentScreen == "add_course") {
+            if (currentScreen == "add_course" || currentScreen == "edit_course") {
                 AddCourseScreen(
                     profile = profile,
                     accentColor = accentColor,
-                    onBack = { currentScreen = "dashboard" },
+                    initialCourse = if (currentScreen == "edit_course") editingCourse else null,
+                    onBack = { 
+                        currentScreen = "dashboard"
+                        editingCourse = null
+                    },
                     onCourseAdded = { newCourse ->
                         val courseToSave = newCourse.copy(channel_id = teacherChannel?.user_id)
                         coroutineScope.launch {
                             try {
-                                withContext(Dispatchers.IO) {
-                                    supabase.from("courses").insert(courseToSave)
+                                if (currentScreen == "edit_course") {
+                                    withContext(Dispatchers.IO) {
+                                        supabase.from("courses").update(courseToSave) {
+                                            filter { eq("id", courseToSave.id) }
+                                        }
+                                    }
+                                    courses = courses.map { if (it.id == courseToSave.id) courseToSave else it }
+                                } else {
+                                    withContext(Dispatchers.IO) {
+                                        supabase.from("courses").insert(courseToSave)
+                                    }
+                                    courses = courses + courseToSave
                                 }
-                                courses = courses + courseToSave
+                                currentScreen = "dashboard"
+                                editingCourse = null
                             } catch (e: Exception) {
                                 if (e.message?.contains("subjects") == true || e.message?.contains("schema") == true) {
                                     Toast.makeText(context, "Error: Supabase এ courses টেবিলে subjects (Type: JSONB) কলাম তৈরি করুন!", Toast.LENGTH_LONG).show()
@@ -1868,6 +1888,48 @@ fun DashboardScreen(
                                 }
                             }
                         }
+                    }
+                )
+            } else if (currentScreen == "select_course_for_students") {
+                CourseListScreen(
+                    accentColor = accentColor,
+                    courses = courses.filter { it.channel_id == profile.user_id },
+                    title = "শিক্ষার্থীদের পরিচালনা",
+                    subtitle = "শিক্ষার্থী পরিচালনা করতে একটি কোর্স নির্বাচন করুন",
+                    onCourseClick = { course ->
+                        selectedCourse = course
+                        currentScreen = "manage_students"
+                    }
+                )
+            } else if (currentScreen == "add_class_link") {
+                AddClassLinkScreen(
+                    courses = courses.filter { it.channel_id == profile.user_id },
+                    accentColor = accentColor,
+                    onCourseUpdate = { updatedCourse ->
+                        coroutineScope.launch {
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    supabase.from("courses").update(updatedCourse) {
+                                        filter { eq("id", updatedCourse.id) }
+                                    }
+                                }
+                                val newCourses = courses.map { if (it.id == updatedCourse.id) updatedCourse else it }
+                                courses = newCourses
+                                Toast.makeText(context, "ক্লাস লিংক সফলভাবে আপডেট করা হয়েছে", Toast.LENGTH_SHORT).show()
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Error updating link: ${e.message}", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    onBack = { currentScreen = "dashboard" }
+                )
+            } else if (currentScreen == "manage_students" && selectedCourse != null) {
+                ManageStudentsScreen(
+                    course = selectedCourse!!,
+                    accentColor = accentColor,
+                    onBack = { 
+                        currentScreen = "dashboard"
+                        selectedCourse = null
                     }
                 )
             } else if (currentScreen == "create_channel") {
@@ -2050,7 +2112,9 @@ fun DashboardScreen(
                                     currentScreen = "create_channel"
                                 }
                             },
-                            onMentorsClick = { showMentorsDialog = true }
+                            onAddClassLinkClick = { currentScreen = "add_class_link" },
+                            onMentorsClick = { showMentorsDialog = true },
+                            onManageStudentsClick = { currentScreen = "select_course_for_students" }
                         )
                     } else if (selectedTab == 3) {
                         CourseListScreen(
@@ -2062,6 +2126,40 @@ fun DashboardScreen(
                                 initialChapterId = null
                                 initialClassId = null
                                 currentScreen = "course_detail"
+                            },
+                            onEditCourse = { course ->
+                                editingCourse = course
+                                currentScreen = "edit_course"
+                            },
+                            onDeleteCourse = { course ->
+                                coroutineScope.launch {
+                                    try {
+                                        withContext(Dispatchers.IO) {
+                                            // Delete related enrollments
+                                            try {
+                                                supabase.from("enrollments").delete {
+                                                    filter { eq("course_id", course.id) }
+                                                }
+                                            } catch (e: Exception) { e.printStackTrace() }
+                                            
+                                            // Delete related interactions
+                                            try {
+                                                supabase.from("course_interactions").delete {
+                                                    filter { eq("course_id", course.id) }
+                                                }
+                                            } catch (e: Exception) { e.printStackTrace() }
+
+                                            // Delete the course itself
+                                            supabase.from("courses").delete {
+                                                filter { eq("id", course.id) }
+                                            }
+                                        }
+                                        courses = courses.filter { it.id != course.id }
+                                        Toast.makeText(context, "কোর্স মুছে ফেলা হয়েছে!", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "Error deleting course: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
                             }
                         )
                     } else if (selectedTab == 1) {
@@ -2828,14 +2926,14 @@ fun StudentCoursesScreen(
 }
 
 @Composable
-fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAddCourseClick: () -> Unit, onMentorsClick: () -> Unit) {
+fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAddCourseClick: () -> Unit, onMentorsClick: () -> Unit, onManageStudentsClick: () -> Unit, onAddClassLinkClick: () -> Unit) {
     val items = listOf(
         Pair("সকল কোর্স", Icons.Default.LibraryBooks),
         Pair("ক্লাস যোগ", Icons.Default.AddBox),
         Pair("ক্লাস লিংক যোগ", Icons.Default.AddLink),
         Pair("চ্যানেল", Icons.Default.LiveTv),
         Pair("হোম ওয়ার্ক", Icons.Default.Assignment),
-        Pair("কোর্স কেনাদের পরিচালনা", Icons.Default.People),
+        Pair("শিক্ষার্থীদের পরিচালনা", Icons.Default.People),
         Pair("মেন্টর তালিকা", Icons.Default.GroupAdd)
     )
 
@@ -2846,14 +2944,14 @@ fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAd
     ) {
         item {
             Text(
-                "শিক্ষক ড্যাশবোর্ড",
+                "শিক্ষক ড্যাশবোর্ড".t(),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
                 color = Color(0xFF4A5568)
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
-                "আপনার ক্লাসরুম ও কোর্সের কাজগুলো পরিচালনা করুন",
+                "আপনার ক্লাসরুম ও কোর্সের কাজগুলো পরিচালনা করুন".t(),
                 fontSize = 14.sp,
                 color = Color(0xFF718096)
             )
@@ -2868,25 +2966,29 @@ fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAd
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         TeacherDashboardCard(
-                            title = items[i].first,
+                            title = items[i].first.t(),
                             icon = items[i].second,
                             accentColor = accentColor,
                             onClick = { 
                                 if (items[i].first == "চ্যানেল") onChannelClick()
                                 else if (items[i].first == "ক্লাস যোগ") onAddCourseClick()
                                 else if (items[i].first == "মেন্টর তালিকা") onMentorsClick()
+                                else if (items[i].first == "শিক্ষার্থীদের পরিচালনা") onManageStudentsClick()
+                                else if (items[i].first == "ক্লাস লিংক যোগ") onAddClassLinkClick()
                             },
                             modifier = Modifier.weight(1f)
                         )
                         if (i + 1 < items.size) {
                             TeacherDashboardCard(
-                                title = items[i + 1].first,
+                                title = items[i + 1].first.t(),
                                 icon = items[i + 1].second,
                                 accentColor = accentColor,
                                 onClick = { 
                                     if (items[i + 1].first == "চ্যানেল") onChannelClick()
                                     else if (items[i + 1].first == "ক্লাস যোগ") onAddCourseClick()
                                     else if (items[i + 1].first == "মেন্টর তালিকা") onMentorsClick()
+                                    else if (items[i + 1].first == "শিক্ষার্থীদের পরিচালনা") onManageStudentsClick()
+                                    else if (items[i + 1].first == "ক্লাস লিংক যোগ") onAddClassLinkClick()
                                 },
                                 modifier = Modifier.weight(1f)
                             )
@@ -2962,6 +3064,7 @@ fun SettingsScreen(
     var showDeviceSheet by remember { mutableStateOf(false) }
     var showProfileEditDialog by remember { mutableStateOf(false) }
     var showLanguageSheet by remember { mutableStateOf(false) }
+    var showThemeSheet by remember { mutableStateOf(false) }
     var showAdmissionInfoDialog by remember { mutableStateOf(false) }
     var showDownloadsDialog by remember { mutableStateOf(false) }
     
@@ -2970,6 +3073,7 @@ fun SettingsScreen(
     var showPublishUpdateDialog by remember { mutableStateOf(false) }
     var showPublishNoticeDialog by remember { mutableStateOf(false) }
     var showAdminDashboardPanel by remember { mutableStateOf(false) }
+    var showLogoutDialog by remember { mutableStateOf(false) }
 
     if (showAdmissionInfoDialog) {
         val myEnrolledCourses = courses.filter { course ->
@@ -3023,10 +3127,10 @@ fun SettingsScreen(
         ) {
         item {
             Text(
-                text = "সেটিংস",
+                text = "সেটিংস".t(),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF4A5568)
+                color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -3035,7 +3139,7 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -3043,8 +3147,8 @@ fun SettingsScreen(
                 ) {
                     SettingItem(
                         icon = Icons.Outlined.Person,
-                        title = "প্রোফাইল সেটিংস",
-                        subtitle = "আপনার প্রোফাইলের তথ্য আপডেট করুন",
+                        title = "প্রোফাইল সেটিংস".t(),
+                        subtitle = "আপনার প্রোফাইলের তথ্য আপডেট করুন".t(),
                         accentColor = accentColor,
                         onClick = { showProfileEditDialog = true }
                     )
@@ -3052,8 +3156,8 @@ fun SettingsScreen(
                         Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
                         SettingItem(
                             icon = Icons.Outlined.Info,
-                            title = "ভর্তির তথ্য",
-                            subtitle = "আপনার ভর্তি হওয়া কোর্সের বিবরণ দেখুন",
+                            title = "ভর্তির তথ্য".t(),
+                            subtitle = "আপনার ভর্তি হওয়া কোর্সের বিবরণ দেখুন".t(),
                             accentColor = accentColor,
                             onClick = { showAdmissionInfoDialog = true }
                         )
@@ -3064,16 +3168,16 @@ fun SettingsScreen(
 
         item {
             Text(
-                text = "পছন্দসমূহ",
+                text = "পছন্দসমূহ".t(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF718096),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -3081,25 +3185,29 @@ fun SettingsScreen(
                 ) {
                     SettingItem(
                         icon = Icons.Outlined.Language,
-                        title = "ভাষা পরিবর্তন",
-                        subtitle = "বাংলা, English",
+                        title = "ভাষা পরিবর্তন".t(),
+                        subtitle = "বাংলা, English".t(),
                         accentColor = accentColor,
                         onClick = { showLanguageSheet = true }
                     )
                     Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
                     SettingItem(
                         icon = Icons.Outlined.Palette,
-                        title = "থিম পরিবর্তন",
-                        subtitle = "লাইট, ডার্ক, সিস্টেম",
+                        title = "থিম পরিবর্তন".t(),
+                        subtitle = when (ThemeManager.themeMode) {
+                            "light" -> "লাইট থিম".t()
+                            "dark" -> "ডার্ক থিম".t()
+                            else -> "সিস্টেম ডিফল্ট".t()
+                        },
                         accentColor = accentColor,
-                        onClick = { }
+                        onClick = { showThemeSheet = true }
                     )
                     if (!isTeacher) {
                         Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
                         SettingItem(
                             icon = Icons.Outlined.Download,
-                            title = "অফলাইন ডাউনলোড",
-                            subtitle = "ডাউনলোড করা ক্লাস ভিডিও ও পিডিএফ",
+                            title = "অফলাইন ডাউনলোড".t(),
+                            subtitle = "ডাউনলোড করা ক্লাস ভিডিও ও পিডিএফ".t(),
                             accentColor = accentColor,
                             onClick = { showDownloadsDialog = true }
                         )
@@ -3111,17 +3219,22 @@ fun SettingsScreen(
         if (isAdmin) {
             item {
                 Text(
-                    text = "প্রশাসনিক প্যানেল",
+                    text = "প্রশাসনিক প্যানেল".t(),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF718096),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                 )
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFBFDBFE)),
+                    colors = CardDefaults.cardColors(
+                        containerColor = if (ThemeManager.isDarkTheme()) Color(0xFF1E3A8A).copy(alpha = 0.4f) else Color(0xFFEFF6FF)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        1.dp,
+                        if (ThemeManager.isDarkTheme()) Color(0xFF3B82F6).copy(alpha = 0.5f) else Color(0xFFBFDBFE)
+                    ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
                     Column(
@@ -3129,8 +3242,8 @@ fun SettingsScreen(
                     ) {
                         SettingItem(
                             icon = Icons.Default.AdminPanelSettings,
-                            title = "অ্যাডমিন ড্যাশবোর্ড",
-                            subtitle = "ইউজার কন্ট্রোল, নোটিশ ও ডাটাবেজ নিয়ন্ত্রণ করুন",
+                            title = "অ্যাডমিন ড্যাশবোর্ড".t(),
+                            subtitle = "ইউজার কন্ট্রোল, নোটিশ ও ডাটাবেজ নিয়ন্ত্রণ করুন".t(),
                             accentColor = accentColor,
                             onClick = { showAdminDashboardPanel = true }
                         )
@@ -3141,16 +3254,16 @@ fun SettingsScreen(
 
         item {
             Text(
-                text = "এপ আপডেট",
+                text = "এপ আপডেট".t(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF718096),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -3158,8 +3271,8 @@ fun SettingsScreen(
                 ) {
                     SettingItem(
                         icon = Icons.Outlined.SystemUpdate,
-                        title = if (isCheckingUpdate) "আপডেট চেক করা হচ্ছে..." else "এপ আপডেট চেক করুন",
-                        subtitle = "এপ্লিকেশন এর নতুন আপডেট চেক করুন",
+                        title = if (isCheckingUpdate) "আপডেট চেক করা হচ্ছে...".t() else "এপ আপডেট চেক করুন".t(),
+                        subtitle = "এপ্লিকেশন এর নতুন আপডেট চেক করুন".t(),
                         accentColor = accentColor,
                         onClick = {
                             if (!isCheckingUpdate) {
@@ -3170,9 +3283,10 @@ fun SettingsScreen(
                                     if (update != null) {
                                         manualUpdateToPrompt = update
                                     } else {
+                                        val isBn = L.currentLanguage == "bn"
                                         Toast.makeText(
                                             context,
-                                            "আপনার এপটি সম্পূর্ণ আপ-টু-ডেট আছে! (v${AppUpdateManager.getCurrentVersionName(context)})",
+                                            if (isBn) "আপনার এপটি সম্পূর্ণ আপ-টু-ডেট আছে! (v${AppUpdateManager.getCurrentVersionName(context)})" else "Your app is fully up-to-date! (v${AppUpdateManager.getCurrentVersionName(context)})",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -3184,8 +3298,8 @@ fun SettingsScreen(
                         Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
                         SettingItem(
                             icon = Icons.Outlined.CloudUpload,
-                            title = "আপডেট পাবলিশ করুন",
-                            subtitle = "ব্যবহারকারীদের জন্য নতুন আপডেট রিলিজ করুন",
+                            title = "আপডেট পাবলিশ করুন".t(),
+                            subtitle = "ব্যবহারকারীদের জন্য নতুন আপডেট রিলিজ করুন".t(),
                             accentColor = accentColor,
                             onClick = { showPublishUpdateDialog = true }
                         )
@@ -3196,16 +3310,16 @@ fun SettingsScreen(
 
         item {
             Text(
-                text = "অ্যাকাউন্ট ও নিরাপত্তা",
+                text = "অ্যাকাউন্ট ও নিরাপত্তা".t(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF718096),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -3213,10 +3327,10 @@ fun SettingsScreen(
                 ) {
                     SettingItem(
                         icon = Icons.Outlined.Logout,
-                        title = "লগ আউট",
-                        subtitle = "এই ডিভাইস থেকে লগ আউট করুন",
+                        title = "লগ আউট".t(),
+                        subtitle = "এই ডিভাইস থেকে লগ আউট করুন".t(),
                         accentColor = Color.Red,
-                        onClick = onLogout,
+                        onClick = { showLogoutDialog = true },
                         isDestructive = true
                     )
                 }
@@ -3229,9 +3343,40 @@ fun SettingsScreen(
     }
     }
 
+    if (showLogoutDialog) {
+        AlertDialog(
+            onDismissRequest = { showLogoutDialog = false },
+            title = { Text("লগ আউট করুন".t(), fontWeight = FontWeight.Bold) },
+            text = { Text("আপনি কি নিশ্চিত যে আপনি লগ আউট করতে চান?".t()) },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        showLogoutDialog = false
+                        onLogout()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("হ্যাঁ, লগ আউট করুন".t(), color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutDialog = false }) {
+                    Text("না".t(), color = Color.Gray)
+                }
+            }
+        )
+    }
+
     if (showLanguageSheet) {
         LanguageSelectionSheet(
             onDismiss = { showLanguageSheet = false },
+            accentColor = accentColor
+        )
+    }
+
+    if (showThemeSheet) {
+        ThemeSelectionSheet(
+            onDismiss = { showThemeSheet = false },
             accentColor = accentColor
         )
     }
@@ -3287,11 +3432,12 @@ fun LanguageSelectionSheet(
     onDismiss: () -> Unit,
     accentColor: Color
 ) {
-    var selectedLanguage by remember { mutableStateOf("English") }
+    val context = LocalContext.current
+    val currentLang = L.currentLanguage
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         Column(
             modifier = Modifier
@@ -3299,43 +3445,155 @@ fun LanguageSelectionSheet(
                 .padding(24.dp)
         ) {
             Text(
-                text = "Select Language",
+                text = if (currentLang == "bn") "ভাষা পরিবর্তন করুন" else "Select Language",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.DarkGray
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(16.dp))
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { selectedLanguage = "English" }
+                    .clickable { 
+                        L.setLanguage(context, "en")
+                        onDismiss()
+                    }
                     .padding(vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RadioButton(
-                    selected = selectedLanguage == "English",
-                    onClick = { selectedLanguage = "English" },
+                    selected = currentLang == "en",
+                    onClick = { 
+                        L.setLanguage(context, "en")
+                        onDismiss()
+                    },
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("English", fontSize = 16.sp)
+                Text("English", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable { selectedLanguage = "বাংলা" }
+                    .clickable { 
+                        L.setLanguage(context, "bn")
+                        onDismiss()
+                    }
                     .padding(vertical = 12.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 RadioButton(
-                    selected = selectedLanguage == "বাংলা",
-                    onClick = { selectedLanguage = "বাংলা" },
+                    selected = currentLang == "bn",
+                    onClick = { 
+                        L.setLanguage(context, "bn")
+                        onDismiss()
+                    },
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("বাংলা (Bengali)", fontSize = 16.sp)
+                Text("বাংলা (Bengali)", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+            }
+            
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ThemeSelectionSheet(
+    onDismiss: () -> Unit,
+    accentColor: Color
+) {
+    val context = LocalContext.current
+    val currentTheme = ThemeManager.themeMode
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(24.dp)
+        ) {
+            Text(
+                text = "থিম নির্বাচন করুন".t(),
+                fontSize = 20.sp,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Light theme option
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { 
+                        ThemeManager.setThemeMode(context, "light")
+                        onDismiss()
+                    }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = currentTheme == "light",
+                    onClick = { 
+                        ThemeManager.setThemeMode(context, "light")
+                        onDismiss()
+                    },
+                    colors = RadioButtonDefaults.colors(selectedColor = accentColor)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("লাইট থিম".t(), fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+            }
+
+            // Dark theme option
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { 
+                        ThemeManager.setThemeMode(context, "dark")
+                        onDismiss()
+                    }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = currentTheme == "dark",
+                    onClick = { 
+                        ThemeManager.setThemeMode(context, "dark")
+                        onDismiss()
+                    },
+                    colors = RadioButtonDefaults.colors(selectedColor = accentColor)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("ডার্ক থিম".t(), fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+            }
+
+            // System default theme option
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { 
+                        ThemeManager.setThemeMode(context, "system")
+                        onDismiss()
+                    }
+                    .padding(vertical = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                RadioButton(
+                    selected = currentTheme == "system",
+                    onClick = { 
+                        ThemeManager.setThemeMode(context, "system")
+                        onDismiss()
+                    },
+                    colors = RadioButtonDefaults.colors(selectedColor = accentColor)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("সিস্টেম ডিফল্ট".t(), fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
             }
             
             Spacer(modifier = Modifier.height(32.dp))

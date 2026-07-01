@@ -7,6 +7,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Book
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.Science
@@ -15,7 +18,7 @@ import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.ArtTrack
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -35,8 +38,13 @@ fun CourseListScreen(
     courses: List<CourseItem>,
     title: String = "আমার কোর্সসমূহ",
     subtitle: String = "আপনার তৈরি করা সকল কোর্স এখানে দেখুন",
-    onCourseClick: (CourseItem) -> Unit = {}
+    onCourseClick: (CourseItem) -> Unit = {},
+    onEditCourse: ((CourseItem) -> Unit)? = null,
+    onDeleteCourse: ((CourseItem) -> Unit)? = null
 ) {
+    var courseToDelete by remember { mutableStateOf<CourseItem?>(null) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var deleteConfirmationText by remember { mutableStateOf("") }
 
     // Helper to get diverse banner backgrounds
     val bannerColors = listOf(
@@ -117,6 +125,23 @@ fun CourseListScreen(
                             modifier = Modifier.size(64.dp),
                             tint = bannerIconColors[colorIndex].copy(alpha = 0.5f)
                         )
+                        if (onEditCourse != null && onDeleteCourse != null) {
+                            Row(
+                                modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                IconButton(onClick = { onEditCourse(course) }, modifier = Modifier.size(32.dp).background(Color.White.copy(alpha=0.7f), RoundedCornerShape(8.dp))) {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit", tint = Color.DarkGray, modifier = Modifier.size(18.dp))
+                                }
+                                IconButton(onClick = { 
+                                    courseToDelete = course
+                                    deleteConfirmationText = ""
+                                    showDeleteDialog = true 
+                                }, modifier = Modifier.size(32.dp).background(Color.White.copy(alpha=0.7f), RoundedCornerShape(8.dp))) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red, modifier = Modifier.size(18.dp))
+                                }
+                            }
+                        }
                     }
 
                     Column(modifier = Modifier.padding(16.dp)) {
@@ -210,5 +235,47 @@ fun CourseListScreen(
                 }
             }
         }
+    }
+
+    if (showDeleteDialog && courseToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("কোর্সটি ডিলিট করুন") },
+            text = {
+                Column {
+                    Text("আপনি কি নিশ্চিত যে আপনি এই কোর্সটি ডিলিট করতে চান? এই কাজ মুছে ফেলা যাবে না।")
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("নিশ্চিত করতে কোর্সের নাম লিখুন: ${courseToDelete!!.title}", fontWeight = FontWeight.Bold, color = Color.Red)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = deleteConfirmationText,
+                        onValueChange = { deleteConfirmationText = it },
+                        label = { Text("কোর্সের নাম") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        if (deleteConfirmationText == courseToDelete!!.title) {
+                            onDeleteCourse?.invoke(courseToDelete!!)
+                            showDeleteDialog = false
+                            courseToDelete = null
+                            deleteConfirmationText = ""
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                    enabled = deleteConfirmationText == courseToDelete!!.title
+                ) {
+                    Text("ডিলিট করুন", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("বাতিল", color = Color.Gray)
+                }
+            }
+        )
     }
 }
