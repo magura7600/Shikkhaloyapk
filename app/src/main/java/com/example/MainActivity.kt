@@ -32,6 +32,17 @@ import com.example.ui.BottomNavItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Path
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Spring
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.border
 import androidx.compose.ui.window.Dialog
@@ -89,16 +100,26 @@ data class UserProfile(
 )
 
 // --- SUPABASE CLIENT ---
-val supabase = createSupabaseClient(
-    supabaseUrl = BuildConfig.SUPABASE_URL,
-    supabaseKey = BuildConfig.SUPABASE_KEY
-) {
-    install(Postgrest)
-    install(Auth)
-    defaultSerializer = KotlinXSerializer(Json { 
-        ignoreUnknownKeys = true 
-        coerceInputValues = true 
-    })
+var appContext: android.content.Context? = null
+
+val supabase by lazy {
+    val url = BuildConfig.SUPABASE_URL.ifBlank { "https://gputlynskpbbiexbpphj.supabase.co" }
+    val key = BuildConfig.SUPABASE_KEY.ifBlank { "sb_publishable_NwiSPi0Rl4VAf_B2v5Fp6g_KgwTb_Ol" }
+    createSupabaseClient(
+        supabaseUrl = if (url.startsWith("http")) url else "https://gputlynskpbbiexbpphj.supabase.co",
+        supabaseKey = key
+    ) {
+        install(Postgrest)
+        install(Auth) {
+            appContext?.let { ctx ->
+                sessionManager = SharedPreferencesSessionManager(ctx)
+            }
+        }
+        defaultSerializer = KotlinXSerializer(Json { 
+            ignoreUnknownKeys = true 
+            coerceInputValues = true 
+        })
+    }
 }
 
 // --- APP UI STATE ---
@@ -111,6 +132,7 @@ sealed interface AppState {
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        appContext = applicationContext
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -207,21 +229,49 @@ fun MainAppContent() {
         var nextState: AppState = AppState.Login
 
         if (cachedUserId != null && cachedEmail != null) {
+            val cachedRole = sharedPrefs.getString("role", null)
+            val cachedFullName = sharedPrefs.getString("full_name", null)
+            val cachedInstitution = sharedPrefs.getString("institution", "") ?: ""
+            val cachedContact = sharedPrefs.getString("contact", "") ?: ""
+            val cachedUidCode = sharedPrefs.getString("uid_code", null)
+
             var dbProfile: UserProfile? = null
-            try {
-                withContext(Dispatchers.IO) {
-                    dbProfile = supabase.from("profiles")
-                        .select {
-                            filter {
-                                eq("user_id", cachedUserId)
-                            }
-                        }.decodeSingleOrNull<UserProfile>()
+
+            if (cachedRole != null && cachedFullName != null && cachedUidCode != null) {
+                dbProfile = UserProfile(
+                    user_id = cachedUserId,
+                    email = cachedEmail,
+                    role = cachedRole,
+                    full_name = cachedFullName,
+                    institution = cachedInstitution,
+                    contact = cachedContact,
+                    uid_code = cachedUidCode
+                )
+            } else {
+                try {
+                    withContext(Dispatchers.IO) {
+                        dbProfile = supabase.from("profiles")
+                            .select {
+                                filter {
+                                    eq("user_id", cachedUserId)
+                                }
+                            }.decodeSingleOrNull<UserProfile>()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
-            } catch (e: Exception) {
-                e.printStackTrace()
             }
 
             nextState = if (dbProfile != null) {
+                // Keep sharedPrefs sync'd
+                sharedPrefs.edit()
+                    .putString("role", dbProfile!!.role)
+                    .putString("full_name", dbProfile!!.full_name)
+                    .putString("institution", dbProfile!!.institution)
+                    .putString("contact", dbProfile!!.contact)
+                    .putString("uid_code", dbProfile!!.uid_code)
+                    .apply()
+
                 AppState.Dashboard(
                     email = cachedEmail,
                     userId = cachedUserId,
@@ -266,6 +316,14 @@ fun MainAppContent() {
                 .apply()
 
             if (dbProfile != null) {
+                sharedPrefs.edit()
+                    .putString("role", dbProfile!!.role)
+                    .putString("full_name", dbProfile!!.full_name)
+                    .putString("institution", dbProfile!!.institution ?: "")
+                    .putString("contact", dbProfile!!.contact ?: "")
+                    .putString("uid_code", dbProfile!!.uid_code)
+                    .apply()
+
                 appState = AppState.Dashboard(
                     email = email,
                     userId = userId,
@@ -472,6 +530,346 @@ fun MainAppContent() {
     }
 }
 
+private fun lerp(start: Float, stop: Float, fraction: Float): Float {
+    return start + (stop - start) * fraction
+}
+
+@Composable
+fun InteractiveBear(
+    isPasswordFocused: Boolean,
+    showPassword: Boolean,
+    emailLength: Int,
+    isEmailFocused: Boolean,
+    modifier: Modifier = Modifier
+) {
+    // Smooth animation transitions
+    val coverProgress by animateFloatAsState(
+        targetValue = if (isPasswordFocused) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "coverProgress"
+    )
+
+    val peekProgress by animateFloatAsState(
+        targetValue = if (isPasswordFocused && showPassword) 1f else 0f,
+        animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessLow),
+        label = "peekProgress"
+    )
+
+    val lookXTarget = if (isEmailFocused) {
+        // Look left to right depending on email length
+        ((emailLength.coerceAtMost(25) / 25f) * 12f) - 6f
+    } else {
+        0f
+    }
+
+    val lookYTarget = if (isEmailFocused) {
+        4f // look down slightly
+    } else {
+        0f
+    }
+
+    val lookX by animateFloatAsState(
+        targetValue = lookXTarget,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "lookX"
+    )
+
+    val lookY by animateFloatAsState(
+        targetValue = lookYTarget,
+        animationSpec = spring(stiffness = Spring.StiffnessMedium),
+        label = "lookY"
+    )
+
+    Canvas(
+        modifier = modifier
+            .size(140.dp)
+            .padding(4.dp)
+    ) {
+        val width = size.width
+        val height = size.height
+
+        val centerX = width / 2f
+        val centerY = height / 2f + 12f
+
+        val headRadius = width * 0.35f
+
+        // 1. DRAW EARS
+        val earRadius = headRadius * 0.28f
+        val leftEarX = centerX - headRadius * 0.75f
+        val leftEarY = centerY - headRadius * 0.75f
+        val rightEarX = centerX + headRadius * 0.75f
+        val rightEarY = centerY - headRadius * 0.75f
+
+        // Left Ear outer
+        drawCircle(
+            color = Color(0xFF8D5B4C),
+            radius = earRadius,
+            center = Offset(leftEarX, leftEarY)
+        )
+        // Left Ear inner
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = earRadius * 0.6f,
+            center = Offset(leftEarX, leftEarY)
+        )
+
+        // Right Ear outer
+        drawCircle(
+            color = Color(0xFF8D5B4C),
+            radius = earRadius,
+            center = Offset(rightEarX, rightEarY)
+        )
+        // Right Ear inner
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = earRadius * 0.6f,
+            center = Offset(rightEarX, rightEarY)
+        )
+
+        // 2. DRAW LITTLE PURPLE HAT (styled like the logo/image)
+        val hatRadius = headRadius * 0.28f
+        val hatCenterX = centerX
+        val hatCenterY = centerY - headRadius + 4f
+        val hatPath = Path().apply {
+            arcTo(
+                rect = Rect(
+                    left = hatCenterX - hatRadius,
+                    top = hatCenterY - hatRadius,
+                    right = hatCenterX + hatRadius,
+                    bottom = hatCenterY + hatRadius
+                ),
+                startAngleDegrees = 180f,
+                sweepAngleDegrees = 180f,
+                forceMoveTo = false
+            )
+            close()
+        }
+        drawPath(
+            path = hatPath,
+            color = Color(0xFF818CF8) // indigo light purple
+        )
+        // Tiny pompom on the hat
+        drawCircle(
+            color = Color(0xFF6366F1),
+            radius = 6f,
+            center = Offset(hatCenterX, hatCenterY - hatRadius)
+        )
+
+        // 3. DRAW HEAD (Face base)
+        drawCircle(
+            color = Color(0xFF8D5B4C),
+            radius = headRadius,
+            center = Offset(centerX, centerY)
+        )
+
+        // 4. DRAW MUZZLE (Beige area for nose & mouth)
+        val muzzleWidth = headRadius * 0.8f
+        val muzzleHeight = headRadius * 0.55f
+        val muzzleX = centerX - muzzleWidth / 2f
+        val muzzleY = centerY + headRadius * 0.2f
+        drawOval(
+            color = Color(0xFFF5EBE0),
+            topLeft = Offset(muzzleX, muzzleY),
+            size = Size(muzzleWidth, muzzleHeight)
+        )
+
+        // 5. DRAW NOSE
+        val noseWidth = headRadius * 0.22f
+        val noseHeight = headRadius * 0.14f
+        val noseX = centerX - noseWidth / 2f
+        val noseY = centerY + headRadius * 0.26f
+        drawOval(
+            color = Color(0xFF2D1A18),
+            topLeft = Offset(noseX, noseY),
+            size = Size(noseWidth, noseHeight)
+        )
+
+        // 6. DRAW MOUTH (smile)
+        val mouthY = noseY + noseHeight + 2f
+        val mouthPath = Path().apply {
+            moveTo(centerX - 12f, mouthY)
+            quadraticBezierTo(centerX - 6f, mouthY + 8f, centerX, mouthY)
+            quadraticBezierTo(centerX + 6f, mouthY + 8f, centerX + 12f, mouthY)
+        }
+        drawPath(
+            path = mouthPath,
+            color = Color(0xFF2D1A18),
+            style = Stroke(width = 3.5f, cap = StrokeCap.Round)
+        )
+
+        // 7. DRAW EYES (Reacting to coverProgress & peekProgress)
+        val eyeLeftX = centerX - headRadius * 0.36f
+        val eyeRightX = centerX + headRadius * 0.36f
+        val eyeY = centerY - headRadius * 0.12f
+
+        // --- LEFT EYE ---
+        if (coverProgress < 0.95f || peekProgress > 0.05f) {
+            val currentEyeRadius = headRadius * 0.12f
+            val currentPupilRadius = headRadius * 0.07f
+
+            // Sclera (White background of eye)
+            drawCircle(
+                color = Color.White,
+                radius = currentEyeRadius,
+                center = Offset(eyeLeftX, eyeY)
+            )
+
+            val pLookX = if (peekProgress > 0.05f) 0f else lookX
+            val pLookY = if (peekProgress > 0.05f) -2f else lookY
+            
+            drawCircle(
+                color = Color(0xFF2D1A18),
+                radius = currentPupilRadius,
+                center = Offset(eyeLeftX + pLookX, eyeY + pLookY)
+            )
+
+            // Eye highlight (tiny white dot)
+            drawCircle(
+                color = Color.White,
+                radius = currentPupilRadius * 0.35f,
+                center = Offset(eyeLeftX + pLookX - 2f, eyeY + pLookY - 2f)
+            )
+        } else {
+            // Left eye is closed (happy closed arc)
+            val leftEyePath = Path().apply {
+                moveTo(eyeLeftX - 12f, eyeY + 2f)
+                quadraticBezierTo(eyeLeftX, eyeY - 6f, eyeLeftX + 12f, eyeY + 2f)
+            }
+            drawPath(
+                path = leftEyePath,
+                color = Color(0xFF2D1A18),
+                style = Stroke(width = 4f, cap = StrokeCap.Round)
+            )
+        }
+
+        // --- RIGHT EYE ---
+        if (coverProgress < 0.85f) {
+            val currentEyeRadius = headRadius * 0.12f
+            val currentPupilRadius = headRadius * 0.07f
+
+            // Sclera
+            drawCircle(
+                color = Color.White,
+                radius = currentEyeRadius,
+                center = Offset(eyeRightX, eyeY)
+            )
+
+            // Pupil
+            drawCircle(
+                color = Color(0xFF2D1A18),
+                radius = currentPupilRadius,
+                center = Offset(eyeRightX + lookX, eyeY + lookY)
+            )
+
+            // Eye highlight
+            drawCircle(
+                color = Color.White,
+                radius = currentPupilRadius * 0.35f,
+                center = Offset(eyeRightX + lookX - 2f, eyeY + lookY - 2f)
+            )
+        } else {
+            // Right eye is closed (happy squint arc)
+            val rightEyePath = Path().apply {
+                moveTo(eyeRightX - 12f, eyeY + 2f)
+                quadraticBezierTo(eyeRightX, eyeY - 6f, eyeRightX + 12f, eyeY + 2f)
+            }
+            drawPath(
+                path = rightEyePath,
+                color = Color(0xFF2D1A18),
+                style = Stroke(width = 4f, cap = StrokeCap.Round)
+            )
+        }
+
+        // 8. DRAW PAWS (Hands)
+        val defaultLeftPawX = centerX - headRadius * 0.55f
+        val defaultLeftPawY = centerY + headRadius * 0.8f
+
+        val defaultRightPawX = centerX + headRadius * 0.55f
+        val defaultRightPawY = centerY + headRadius * 0.8f
+
+        val coverLeftPawX = eyeLeftX
+        val coverLeftPawY = eyeY
+
+        val coverRightPawX = eyeRightX
+        val coverRightPawY = eyeY
+
+        val targetLeftPawX = if (peekProgress > 0.01f) {
+            lerp(coverLeftPawX, defaultLeftPawX, 0.45f) - 10f
+        } else {
+            lerp(defaultLeftPawX, coverLeftPawX, coverProgress)
+        }
+
+        val targetLeftPawY = if (peekProgress > 0.01f) {
+            lerp(coverLeftPawY, defaultLeftPawY, 0.45f) + 15f
+        } else {
+            lerp(defaultLeftPawY, coverLeftPawY, coverProgress)
+        }
+
+        val targetRightPawX = lerp(defaultRightPawX, coverRightPawX, coverProgress)
+        val targetRightPawY = lerp(defaultRightPawY, coverRightPawY, coverProgress)
+
+        val pawRadius = headRadius * 0.25f
+
+        // Draw Left Paw
+        drawCircle(
+            color = Color(0xFF8D5B4C),
+            radius = pawRadius,
+            center = Offset(targetLeftPawX, targetLeftPawY)
+        )
+        // Left Paw Pad
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = pawRadius * 0.5f,
+            center = Offset(targetLeftPawX, targetLeftPawY + 2f)
+        )
+        // Left Paw toes
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = pawRadius * 0.16f,
+            center = Offset(targetLeftPawX - 10f, targetLeftPawY - 10f)
+        )
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = pawRadius * 0.16f,
+            center = Offset(targetLeftPawX, targetLeftPawY - 14f)
+        )
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = pawRadius * 0.16f,
+            center = Offset(targetLeftPawX + 10f, targetLeftPawY - 10f)
+        )
+
+        // Draw Right Paw
+        drawCircle(
+            color = Color(0xFF8D5B4C),
+            radius = pawRadius,
+            center = Offset(targetRightPawX, targetRightPawY)
+        )
+        // Right Paw Pad
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = pawRadius * 0.5f,
+            center = Offset(targetRightPawX, targetRightPawY + 2f)
+        )
+        // Right Paw toes
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = pawRadius * 0.16f,
+            center = Offset(targetRightPawX - 10f, targetRightPawY - 10f)
+        )
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = pawRadius * 0.16f,
+            center = Offset(targetRightPawX, targetRightPawY - 14f)
+        )
+        drawCircle(
+            color = Color(0xFFF3A683),
+            radius = pawRadius * 0.16f,
+            center = Offset(targetRightPawX + 10f, targetRightPawY - 10f)
+        )
+    }
+}
+
 // --- LOGIN & SIGNUP SCREEN ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -487,6 +885,8 @@ fun LoginScreen(
     var password by remember { mutableStateOf("") }
     var showPassword by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
+    var isEmailFocused by remember { mutableStateOf(false) }
+    var isPasswordFocused by remember { mutableStateOf(false) }
 
     // Dynamic banner text based on selected tab
     val primaryText = if (isLoginTab) "স্বাগতম শিক্ষালয়ে" else "নতুন অ্যাকাউন্ট তৈরি করুন"
@@ -499,27 +899,16 @@ fun LoginScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
-        // Shikkhaloy Elegant Logo Icon
-        Box(
-            modifier = Modifier
-                .size(72.dp)
-                .clip(RoundedCornerShape(20.dp))
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(Color(0xFF6366F1), Color(0xFF4F46E5))
-                    )
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.School,
-                contentDescription = "Shikkhaloy Logo",
-                tint = Color.White,
-                modifier = Modifier.size(40.dp)
-            )
-        }
+        // Interactive Animated Bear Logo (covers eyes for password field)
+        InteractiveBear(
+            isPasswordFocused = isPasswordFocused,
+            showPassword = showPassword,
+            emailLength = email.length,
+            isEmailFocused = isEmailFocused,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         Text(
             text = "শিক্ষালয়",
@@ -613,7 +1002,9 @@ fun LoginScreen(
             onValueChange = { email = it },
             label = { Text("ইমেইল অ্যাড্রেস") },
             placeholder = { Text("example@email.com") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isEmailFocused = it.isFocused },
             singleLine = true,
             leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") },
             shape = RoundedCornerShape(12.dp)
@@ -626,7 +1017,9 @@ fun LoginScreen(
             value = password,
             onValueChange = { password = it },
             label = { Text("পাসওয়ার্ড") },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isPasswordFocused = it.isFocused },
             singleLine = true,
             leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock") },
             trailingIcon = {
@@ -697,7 +1090,7 @@ fun LoginScreen(
                         Toast.makeText(context, if (isLoginTab) "লগইন সফল হয়েছে!" else "রেজিস্ট্রেশন সফল হয়েছে!", Toast.LENGTH_SHORT).show()
                         onLoginSuccess(email, userId)
                     } catch (e: Exception) {
-                        Toast.makeText(context, "ত্রুটি: ${e.message?.take(50) ?: "লগইন ব্যর্থ হয়েছে। তথ্য যাচাই করুন।"}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "ত্রুটি: ${e.message ?: "লগইন ব্যর্থ হয়েছে। তথ্য যাচাই করুন।"}", Toast.LENGTH_LONG).show()
                     } finally {
                         loading = false
                     }
@@ -1069,7 +1462,7 @@ fun OnboardingScreen(
                         Toast.makeText(context, "প্রোফাইল সফলভাবে তৈরি হয়েছে! UID: $generatedUid", Toast.LENGTH_SHORT).show()
                         onProfileComplete(profile)
                     } catch (e: Exception) {
-                        Toast.makeText(context, "ত্রুটি: ${e.message?.take(50) ?: "প্রোফাইল সংরক্ষণ ব্যর্থ হয়েছে।"}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "ত্রুটি: ${e.message ?: "প্রোফাইল সংরক্ষণ ব্যর্থ হয়েছে।"}", Toast.LENGTH_LONG).show()
                     } finally {
                         isSavingProfile = false
                     }
@@ -1121,6 +1514,7 @@ fun DashboardScreen(
     var showMentorsDialog by remember { mutableStateOf(false) }
     var showPublishUpdateDialog by remember { mutableStateOf(false) }
     var showPublishNoticeDialog by remember { mutableStateOf(false) }
+    var showAllNotificationsDialog by remember { mutableStateOf(false) }
     var mentors by remember { mutableStateOf(listOf<Mentor>()) }
     val isTeacher = profile.role == "teacher"
     val isAdmin = profile.role == "admin"
@@ -1215,9 +1609,7 @@ fun DashboardScreen(
                 
                 try {
                     val fetchedMentors = withContext(Dispatchers.IO) {
-                        supabase.from("mentors").select {
-                            filter { eq("channel_id", profile.user_id) }
-                        }.decodeList<Mentor>()
+                        supabase.from("mentors").select().decodeList<Mentor>()
                     }
                     mentors = fetchedMentors
                 } catch(e: Exception) {
@@ -1242,7 +1634,8 @@ fun DashboardScreen(
         containerColor = Color.Transparent,
         topBar = {
             if (currentScreen == "dashboard") {
-                TopAppBar(
+                Column(modifier = Modifier.background(Color.White)) {
+                    TopAppBar(
                     title = { 
                         if (!isManagementUser) {
                             val myEnrolledCourses = courses.filter { course -> 
@@ -1334,7 +1727,7 @@ fun DashboardScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = { /* Notifications */ }) {
+                        IconButton(onClick = { showAllNotificationsDialog = true }) {
                             Icon(Icons.Outlined.Notifications, contentDescription = "Notifications", tint = Color.DarkGray)
                         }
                         IconButton(onClick = {
@@ -1371,9 +1764,12 @@ fun DashboardScreen(
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent
-                    )
+                        containerColor = Color.White
+                    ),
+                    windowInsets = WindowInsets(0, 0, 0, 0)
                 )
+                Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                }
             }
         },
         bottomBar = {
@@ -1789,6 +2185,27 @@ fun DashboardScreen(
             }
         )
     }
+
+    if (showAllNotificationsDialog) {
+        val activeNotice by produceState<AppNotice?>(initialValue = null) {
+            value = AppNoticeManager.getActiveNotice()
+        }
+        AllNotificationsDialog(
+            activeNotice = activeNotice,
+            courses = courses,
+            enrollments = enrollments,
+            profile = profile,
+            accentColor = accentColor,
+            onDismiss = { showAllNotificationsDialog = false },
+            onClassClick = { classInfo, chapter, subject, course ->
+                selectedCourse = course
+                initialSubjectId = subject.id
+                initialChapterId = chapter.id
+                initialClassId = classInfo.id
+                currentScreen = "course_detail"
+            }
+        )
+    }
 }
 
 @Composable
@@ -1801,6 +2218,13 @@ fun StudentDashboardContent(
     var selectedDate by remember { mutableStateOf(java.time.LocalDate.now()) }
     var isCalendarExpanded by remember { mutableStateOf(false) }
     var viewingMonth by remember { mutableStateOf(java.time.YearMonth.from(selectedDate)) }
+
+    // Automatically sync calendar to today's date whenever screen is active/re-entered
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        val today = java.time.LocalDate.now()
+        selectedDate = today
+        viewingMonth = java.time.YearMonth.from(today)
+    }
     val focusCourse = courses.find { it.id == focusCourseId }
     
     // Extract classes for the selected date
@@ -1876,21 +2300,50 @@ fun StudentDashboardContent(
                         color = Color(0xFF64748B)
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = { isCalendarExpanded = !isCalendarExpanded },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = accentColor,
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(16.dp),
-                        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 14.dp),
-                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.Outlined.CalendarToday, contentDescription = "Calendar", modifier = Modifier.size(20.dp))
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(if (isCalendarExpanded) "Hide Calendar" else "Weekly Routine", fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Spacer(modifier = Modifier.weight(1f))
-                        Icon(Icons.Default.ArrowForward, contentDescription = "Go", modifier = Modifier.size(20.dp))
+                        Button(
+                            onClick = { isCalendarExpanded = !isCalendarExpanded },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = accentColor,
+                                contentColor = Color.White
+                            ),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                        ) {
+                            Icon(Icons.Outlined.CalendarToday, contentDescription = "Calendar", modifier = Modifier.size(20.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(if (isCalendarExpanded) "Hide Calendar" else "Weekly Routine", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.weight(1f))
+                            Icon(Icons.Default.ArrowForward, contentDescription = "Go", modifier = Modifier.size(20.dp))
+                        }
+
+                        if (selectedDate != java.time.LocalDate.now()) {
+                            Button(
+                                onClick = {
+                                    val today = java.time.LocalDate.now()
+                                    selectedDate = today
+                                    viewingMonth = java.time.YearMonth.from(today)
+                                },
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color(0xFF1E293B)
+                                ),
+                                shape = RoundedCornerShape(16.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                            ) {
+                                Icon(Icons.Outlined.Today, contentDescription = "Today", modifier = Modifier.size(20.dp), tint = Color(0xFF1E293B))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text("Today", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
                     }
                 }
             }
@@ -1975,6 +2428,7 @@ fun StudentDashboardContent(
                                     } else {
                                         val date = viewingMonth.atDay(dayCounter)
                                         val isSelected = date == selectedDate
+                                        val isToday = date == java.time.LocalDate.now()
                                         val hasClass = classDates.contains(date)
                                         
                                         Column(
@@ -1987,7 +2441,8 @@ fun StudentDashboardContent(
                                                 }
                                                 .then(if (isSelected) Modifier.background(accentColor.copy(alpha = 0.1f)) else Modifier)
                                                 .then(if (isSelected) Modifier.padding(2.dp).background(Color.White, RoundedCornerShape(8.dp)) else Modifier)
-                                                .then(if (isSelected) Modifier.padding(2.dp).background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(6.dp)) else Modifier),
+                                                .then(if (isSelected) Modifier.padding(2.dp).background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(6.dp)) else Modifier)
+                                                .then(if (!isSelected && isToday) Modifier.border(1.5.dp, accentColor, RoundedCornerShape(8.dp)) else Modifier),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Center
                                         ) {
@@ -1995,7 +2450,7 @@ fun StudentDashboardContent(
                                                 text = dayCounter.toString(),
                                                 fontSize = 14.sp,
                                                 fontWeight = FontWeight.Bold,
-                                                color = if (isSelected) accentColor else Color.DarkGray
+                                                color = if (isSelected) accentColor else if (isToday) accentColor else Color.DarkGray
                                             )
                                             if (hasClass) {
                                                 Spacer(modifier = Modifier.height(2.dp))
@@ -2034,34 +2489,52 @@ fun StudentDashboardContent(
                     }
                     
                     val prevDate = selectedDate.minusDays(1)
+                    val isPrevToday = prevDate == java.time.LocalDate.now()
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { 
                         selectedDate = prevDate 
                         viewingMonth = java.time.YearMonth.from(selectedDate)
                     }) {
-                        Text(prevDate.dayOfWeek.name.take(3).capitalize(), fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                        Text(
+                            text = if (isPrevToday) "Today" else prevDate.dayOfWeek.name.take(3).capitalize(), 
+                            fontSize = 12.sp, 
+                            color = if (isPrevToday) accentColor else Color.Gray, 
+                            fontWeight = if (isPrevToday) FontWeight.Bold else FontWeight.Medium
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(prevDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                        Text(prevDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isPrevToday) accentColor else Color.DarkGray)
                     }
 
+                    val isSelectedToday = selectedDate == java.time.LocalDate.now()
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .background(Color(0xFF9D2053), RoundedCornerShape(12.dp))
+                            .background(accentColor, RoundedCornerShape(12.dp))
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
-                        Text(selectedDate.dayOfWeek.name.take(3).capitalize(), fontSize = 12.sp, color = Color.White, fontWeight = FontWeight.Medium)
+                        Text(
+                            text = if (isSelectedToday) "Today" else selectedDate.dayOfWeek.name.take(3).capitalize(), 
+                            fontSize = 12.sp, 
+                            color = Color.White, 
+                            fontWeight = FontWeight.Bold
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(selectedDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
 
                     val nextDate = selectedDate.plusDays(1)
+                    val isNextToday = nextDate == java.time.LocalDate.now()
                     Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.clickable { 
                         selectedDate = nextDate 
                         viewingMonth = java.time.YearMonth.from(selectedDate)
                     }) {
-                        Text(nextDate.dayOfWeek.name.take(3).capitalize(), fontSize = 12.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
+                        Text(
+                            text = if (isNextToday) "Today" else nextDate.dayOfWeek.name.take(3).capitalize(), 
+                            fontSize = 12.sp, 
+                            color = if (isNextToday) accentColor else Color.Gray, 
+                            fontWeight = if (isNextToday) FontWeight.Bold else FontWeight.Medium
+                        )
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text(nextDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                        Text(nextDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isNextToday) accentColor else Color.DarkGray)
                     }
                     
                     IconButton(onClick = { 
@@ -3093,6 +3566,7 @@ fun MentorsListDialog(
                     var education by remember { mutableStateOf("") }
                     var subjects by remember { mutableStateOf("") }
                     var experience by remember { mutableStateOf("") }
+                    var imageUrl by remember { mutableStateOf("") }
                     
                     Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                         OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("নাম * (যেমন: মোঃ সাব্বির হোসাইন)") }, modifier = Modifier.fillMaxWidth())
@@ -3102,6 +3576,8 @@ fun MentorsListDialog(
                         OutlinedTextField(value = subjects, onValueChange = { subjects = it }, label = { Text("কী কী বিষয় পড়ান? * (যেমন: বাংলা, ইংরেজি, গণিত)") }, modifier = Modifier.fillMaxWidth())
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(value = experience, onValueChange = { experience = it }, label = { Text("শিক্ষাকতার অভিজ্ঞতা (যেমন: ৫ বছরের বেশি সময়...)") }, modifier = Modifier.fillMaxWidth())
+                        Spacer(modifier = Modifier.height(8.dp))
+                        OutlinedTextField(value = imageUrl, onValueChange = { imageUrl = it }, label = { Text("মেন্টরের প্রোফাইল ছবির লিংক (Image URL - ঐচ্ছিক)") }, modifier = Modifier.fillMaxWidth())
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
@@ -3109,7 +3585,7 @@ fun MentorsListDialog(
                             Spacer(modifier = Modifier.width(8.dp))
                             Button(onClick = {
                                 if (name.isNotBlank() && subjects.isNotBlank()) {
-                                    onAddMentor(Mentor(name = name, education = education, subjects = subjects, experience = experience))
+                                    onAddMentor(Mentor(name = name, education = education, subjects = subjects, experience = experience, image_url = imageUrl))
                                     showAddMentor = false
                                 }
                             }, colors = ButtonDefaults.buttonColors(containerColor = accentColor)) {
@@ -3125,7 +3601,16 @@ fun MentorsListDialog(
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6))
                             ) {
                                 Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(40.dp).background(Color.LightGray, CircleShape).padding(8.dp))
+                                    if (mentor.image_url.isNotBlank()) {
+                                        coil.compose.AsyncImage(
+                                            model = mentor.image_url,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray),
+                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                        )
+                                    } else {
+                                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(40.dp).background(Color.LightGray, CircleShape).padding(8.dp))
+                                    }
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column {
                                         Text(mentor.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -3150,4 +3635,335 @@ fun MentorsListDialog(
             }
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun AllNotificationsDialog(
+    activeNotice: AppNotice?,
+    courses: List<CourseItem>,
+    enrollments: List<Enrollment>,
+    profile: UserProfile,
+    accentColor: Color,
+    onDismiss: () -> Unit,
+    onClassClick: (CourseClass, CourseChapter, CourseSubject, CourseItem) -> Unit
+) {
+    val context = LocalContext.current
+    val today = java.time.LocalDate.now()
+    val formatter = java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy")
+    
+    // Extract today's classes across enrolled courses
+    val todayClasses = remember(courses, enrollments, profile.user_id) {
+        val list = mutableListOf<Triple<CourseItem, CourseClass, CourseSubject>>()
+        courses.forEach { course ->
+            val isEnrolled = enrollments.any { it.user_id == profile.user_id && it.course_id == course.id }
+            if (isEnrolled || enrollments.isEmpty() || profile.role == "teacher") {
+                course.subjects.forEach { subject ->
+                    subject.chapters.forEach { chapter ->
+                        chapter.classes.forEach { courseClass ->
+                            try {
+                                val classDate = java.time.LocalDate.parse(courseClass.date.trim(), formatter)
+                                if (classDate == today) {
+                                    list.add(Triple(course, courseClass, subject))
+                                }
+                            } catch (e: Exception) {}
+                        }
+                    }
+                }
+            }
+        }
+        list
+    }
+
+    // Extract upcoming classes as helpful suggestions
+    val upcomingClasses = remember(courses, enrollments, profile.user_id) {
+        val list = mutableListOf<Triple<CourseItem, CourseClass, CourseSubject>>()
+        courses.forEach { course ->
+            val isEnrolled = enrollments.any { it.user_id == profile.user_id && it.course_id == course.id }
+            if (isEnrolled || enrollments.isEmpty() || profile.role == "teacher") {
+                course.subjects.forEach { subject ->
+                    subject.chapters.forEach { chapter ->
+                        chapter.classes.forEach { courseClass ->
+                            try {
+                                val classDate = java.time.LocalDate.parse(courseClass.date.trim(), formatter)
+                                if (classDate.isAfter(today)) {
+                                    list.add(Triple(course, courseClass, subject))
+                                }
+                            } catch (e: Exception) {}
+                        }
+                    }
+                }
+            }
+        }
+        list.sortedBy { 
+            try {
+                java.time.LocalDate.parse(it.second.date.trim(), formatter).toEpochDay()
+            } catch(e: Exception) { 
+                Long.MAX_VALUE 
+            }
+        }.take(3)
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(24.dp),
+        modifier = Modifier.fillMaxWidth().padding(16.dp),
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(40.dp)
+                        .background(accentColor.copy(alpha = 0.1f), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = "Notification Center",
+                        tint = accentColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "নোটিফিকেশন সেন্টার",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 20.sp,
+                    color = Color(0xFF0F172A)
+                )
+            }
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 380.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                // 1. IMPORTANT NOTICES
+                Text(
+                    text = "গুরুত্বপূর্ণ নোটিশ ও ঘোষণা",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color(0xFF64748B),
+                    modifier = Modifier.padding(vertical = 8.dp)
+                )
+                
+                if (activeNotice != null) {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                        shape = RoundedCornerShape(16.dp),
+                        border = BorderStroke(1.dp, Color(0xFFFCA5A5))
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Campaign,
+                                    contentDescription = "Urgent",
+                                    tint = Color(0xFFEF4444),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = activeNotice.title,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF991B1B)
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = activeNotice.content,
+                                fontSize = 13.sp,
+                                color = Color(0xFF7F1D1D)
+                            )
+                        }
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "No Alerts",
+                                tint = Color(0xFF10B981),
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "এই মুহূর্তে কোনো জরুরি নোটিশ নেই।",
+                                fontSize = 13.sp,
+                                color = Color(0xFF64748B)
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+                Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // 2. DAILY SCHEDULED NOTIFICATIONS
+                Text(
+                    text = "আজকের ক্লাস নোটিফিকেশন",
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 14.sp,
+                    color = Color(0xFF64748B),
+                    modifier = Modifier.padding(vertical = 4.dp)
+                )
+
+                if (todayClasses.isNotEmpty()) {
+                    todayClasses.forEach { (course, courseClass, subject) ->
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp),
+                            colors = CardDefaults.cardColors(containerColor = Color(0xFFEFF6FF)),
+                            shape = RoundedCornerShape(16.dp),
+                            border = BorderStroke(1.dp, Color(0xFFBFDBFE))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.Notifications,
+                                        contentDescription = "Class",
+                                        tint = accentColor,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        text = "আজকের লাইভ ক্লাস!",
+                                        fontWeight = FontWeight.ExtraBold,
+                                        fontSize = 13.sp,
+                                        color = accentColor
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Text(
+                                        text = courseClass.time,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF1E40AF),
+                                        modifier = Modifier
+                                            .background(Color(0xFFDBEAFE), RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "${course.title} • ${subject.title}",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 13.sp,
+                                    color = Color(0xFF1E293B)
+                                )
+                                Text(
+                                    text = "ক্লাসে যোগদান করতে নিচের বাটনে চাপ দিন।",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF475569)
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Button(
+                                    onClick = {
+                                        onDismiss()
+                                        val chapter = course.subjects.flatMap { it.chapters }.find { ch -> ch.classes.any { it.id == courseClass.id } }
+                                        if (chapter != null) {
+                                            onClassClick(courseClass, chapter, subject, course)
+                                        } else {
+                                            Toast.makeText(context, "ক্লাসটি বিস্তারিত দেখতে কোর্স ট্যাবে যান।", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                                    shape = RoundedCornerShape(10.dp),
+                                    contentPadding = PaddingValues(vertical = 6.dp)
+                                ) {
+                                    Text("ক্লাসে যোগ দাও", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Event,
+                                    contentDescription = "No classes",
+                                    tint = Color(0xFF94A3B8),
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "আজকে আপনার কোনো লাইভ ক্লাস নেই।",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                            
+                            if (upcomingClasses.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = "আসন্ন ক্লাসসমূহ:",
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF475569)
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                upcomingClasses.forEach { (course, courseClass, subject) ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(vertical = 4.dp)
+                                    ) {
+                                        Box(
+                                            modifier = Modifier.size(6.dp).background(accentColor, CircleShape)
+                                        )
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Column {
+                                            Text(
+                                                text = "${course.title} • ${subject.title}",
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.SemiBold,
+                                                color = Color(0xFF334155)
+                                            )
+                                            Text(
+                                                text = "তারিখ: ${courseClass.date} • সময়: ${courseClass.time}",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF64748B)
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text("বন্ধ করো", color = accentColor, fontWeight = FontWeight.Bold)
+            }
+        }
+    )
 }

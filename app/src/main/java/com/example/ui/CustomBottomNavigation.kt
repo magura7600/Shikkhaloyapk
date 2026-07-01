@@ -34,15 +34,15 @@ fun CustomBottomNavigation(
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 24.dp, vertical = 16.dp),
+            .padding(horizontal = 8.dp, vertical = 4.dp),
         contentAlignment = Alignment.Center
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(32.dp))
+                .clip(RoundedCornerShape(24.dp))
                 .background(Color(0xFF2D2D2D))
-                .padding(vertical = 12.dp, horizontal = 16.dp),
+                .padding(vertical = 6.dp, horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -78,7 +78,7 @@ fun CustomBottomNavigation(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(48.dp),
+                                .height(38.dp),
                             contentAlignment = Alignment.Center
                         ) {
                             if (isSelected) {

@@ -32,6 +32,14 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material.icons.filled.FastRewind
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.FullscreenExit
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -71,6 +79,12 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.material.icons.filled.Brightness5
+import androidx.compose.material.icons.filled.VolumeUp
+import androidx.compose.material.icons.filled.AspectRatio
 
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
@@ -109,6 +123,11 @@ fun CourseDetailScreen(
     var selectFullCourse by remember { mutableStateOf(true) }
     val mContext = LocalContext.current
     val isTeacher = course.channel_id == profile.user_id
+    
+    var selectedChapterForView by remember { mutableStateOf<CourseChapter?>(null) }
+    var selectedClassForView by remember { mutableStateOf<CourseClass?>(null) }
+    val isClassActive = selectedClassForView != null
+    val isChapterActive = selectedChapterForView != null
 
     // Check automatic quarter selection based on current date
     var initialSelectedQuarterName by remember { mutableStateOf<String?>(null) }
@@ -147,94 +166,98 @@ fun CourseDetailScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text(selectedSubjectForView?.title ?: course.title, fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = {
-                        if (selectedSubjectForView != null) {
-                            selectedSubjectForView = null
-                        } else {
-                            onBack()
+            if (!isClassActive && !isChapterActive) {
+                TopAppBar(
+                    title = { Text(selectedSubjectForView?.title ?: course.title, fontWeight = FontWeight.Bold) },
+                    navigationIcon = {
+                        IconButton(onClick = {
+                            if (selectedSubjectForView != null) {
+                                selectedSubjectForView = null
+                            } else {
+                                onBack()
+                            }
+                        }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                         }
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-            )
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
+                )
+            }
         },
         bottomBar = {
-            if (!isTeacher) {
-                Surface(
-                    color = Color.White,
-                    shadowElevation = 8.dp,
-                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp)
+            if (!isClassActive && !isChapterActive) {
+                if (!isTeacher) {
+                    Surface(
+                        color = Color.White,
+                        shadowElevation = 8.dp,
+                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                     ) {
-                        if (course.pricingOption != "Fully Free") {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text("Total Price:", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Gray)
-                                Text("৳${totalPrice.toInt()}", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = accentColor)
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-                        }
-                        Button(
-                            onClick = {
-                                if (userEnrollment == null) {
-                                    val purchasedQuartersStr = if (selectFullCourse) "" else selectedQuarters.joinToString(",") { it.name }
-                                    onEnroll(purchasedQuartersStr)
-                                }
-                            },
+                        Column(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .height(50.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = if (userEnrollment != null) Color.Gray else accentColor),
-                            shape = RoundedCornerShape(12.dp),
-                            enabled = userEnrollment == null
+                                .padding(16.dp)
                         ) {
-                            Text(
-                                text = if (userEnrollment != null) "আপনি ইতিমধ্যে কোর্সটি কিনেছেন ✔️" else if (course.pricingOption == "Fully Free") "এনরোল করুন (Free)" else "পেমেন্ট করুন (Pay)", 
-                                fontSize = 16.sp, 
-                                fontWeight = FontWeight.Bold
-                            )
+                            if (course.pricingOption != "Fully Free") {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text("Total Price:", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Gray)
+                                    Text("৳${totalPrice.toInt()}", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = accentColor)
+                                }
+                                Spacer(modifier = Modifier.height(16.dp))
+                            }
+                            Button(
+                                onClick = {
+                                    if (userEnrollment == null) {
+                                        val purchasedQuartersStr = if (selectFullCourse) "" else selectedQuarters.joinToString(",") { it.name }
+                                        onEnroll(purchasedQuartersStr)
+                                    }
+                                },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(50.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = if (userEnrollment != null) Color.Gray else accentColor),
+                                shape = RoundedCornerShape(12.dp),
+                                enabled = userEnrollment == null
+                            ) {
+                                Text(
+                                    text = if (userEnrollment != null) "আপনি ইতিমধ্যে কোর্সটি কিনেছেন ✔️" else if (course.pricingOption == "Fully Free") "এনরোল করুন (Free)" else "পেমেন্ট করুন (Pay)", 
+                                    fontSize = 16.sp, 
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
                     }
-                }
-            } else {
-                Surface(
-                    color = Color.White,
-                    shadowElevation = 8.dp,
-                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                ) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                } else {
+                    Surface(
+                        color = Color.White,
+                        shadowElevation = 8.dp,
+                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
                     ) {
-                        Text("এটি আপনার তৈরি করা কোর্স", fontWeight = FontWeight.Bold, color = accentColor)
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text("এটি আপনার তৈরি করা কোর্স", fontWeight = FontWeight.Bold, color = accentColor)
+                        }
                     }
                 }
             }
         },
         containerColor = Color(0xFFFBF8F1)
     ) { paddingValues ->
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
+        val isInnerActive = isClassActive || isChapterActive
+        if (isInnerActive) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .background(Color(0xFFF1F5F9))
+            ) {
                 CourseContentSection(
                     course = course,
                     mentors = mentors,
@@ -250,9 +273,44 @@ fun CourseDetailScreen(
                     initialSelectedQuarterName = initialSelectedQuarterName,
                     onCourseUpdate = onCourseUpdate,
                     selectedSubjectForView = selectedSubjectForView,
-                    onSelectedSubjectChange = { selectedSubjectForView = it }
+                    onSelectedSubjectChange = { selectedSubjectForView = it },
+                    selectedChapterForView = selectedChapterForView,
+                    onSelectedChapterChange = { selectedChapterForView = it },
+                    selectedClassForView = selectedClassForView,
+                    onSelectedClassChange = { selectedClassForView = it }
                 )
             }
+        } else {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(paddingValues)
+                    .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                item {
+                    CourseContentSection(
+                        course = course,
+                        mentors = mentors,
+                        isTeacher = isTeacher,
+                        teacherId = profile.user_id,
+                        userEnrollment = userEnrollment,
+                        onUpdate = { newSubjects -> onCourseUpdate(course.copy(subjects = newSubjects)) },
+                        onMultipleCoursesUpdate = onMultipleCoursesUpdate,
+                        accentColor = accentColor,
+                        initialSubjectId = initialSubjectId,
+                        initialChapterId = initialChapterId,
+                        initialClassId = initialClassId,
+                        initialSelectedQuarterName = initialSelectedQuarterName,
+                        onCourseUpdate = onCourseUpdate,
+                        selectedSubjectForView = selectedSubjectForView,
+                        onSelectedSubjectChange = { selectedSubjectForView = it },
+                        selectedChapterForView = selectedChapterForView,
+                        onSelectedChapterChange = { selectedChapterForView = it },
+                        selectedClassForView = selectedClassForView,
+                        onSelectedClassChange = { selectedClassForView = it }
+                    )
+                }
 
             // Pricing & Quarters Selection
             if (course.pricingOption != "Fully Free") {
@@ -387,6 +445,7 @@ fun CourseDetailScreen(
         }
     }
 }
+}
 
 @Composable
 fun CourseContentSection(
@@ -404,17 +463,19 @@ fun CourseContentSection(
     initialSelectedQuarterName: String? = null,
     onCourseUpdate: ((CourseItem) -> Unit)? = null,
     selectedSubjectForView: CourseSubject?,
-    onSelectedSubjectChange: (CourseSubject?) -> Unit
+    onSelectedSubjectChange: (CourseSubject?) -> Unit,
+    selectedChapterForView: CourseChapter?,
+    onSelectedChapterChange: (CourseChapter?) -> Unit,
+    selectedClassForView: CourseClass?,
+    onSelectedClassChange: (CourseClass?) -> Unit
 ) {
     val mContext = LocalContext.current
     var subjectToEdit by remember { mutableStateOf<CourseSubject?>(null) }
     var isAddingSubject by remember { mutableStateOf(false) }
-    var selectedClassForView by remember { mutableStateOf<CourseClass?>(null) }
     var subjectToAddChapterTo by remember { mutableStateOf<CourseSubject?>(null) }
     var chapterToEdit by remember { mutableStateOf<Pair<CourseSubject, CourseChapter>?>(null) }
     var chapterToAddClassTo by remember { mutableStateOf<Pair<CourseSubject, CourseChapter>?>(null) }
     var classToEdit by remember { mutableStateOf<Triple<CourseSubject, CourseChapter, CourseClass>?>(null) }
-    var selectedChapterForView by remember { mutableStateOf<CourseChapter?>(null) }
 
     LaunchedEffect(initialSubjectId, initialChapterId, initialClassId) {
         if (initialSubjectId != null && initialChapterId != null && initialClassId != null) {
@@ -423,8 +484,8 @@ fun CourseContentSection(
             val c = ch?.classes?.find { it.id == initialClassId }
             if (s != null && ch != null && c != null) {
                 onSelectedSubjectChange(s)
-                selectedChapterForView = ch
-                selectedClassForView = c
+                onSelectedChapterChange(ch)
+                onSelectedClassChange(c)
             }
         }
     }
@@ -484,7 +545,7 @@ fun CourseContentSection(
             mentors = mentors,
             accentColor = accentColor,
             courseName = course.title,
-            onBack = { selectedClassForView = null }
+            onBack = { onSelectedClassChange(null) }
         )
     } else if (selectedChapterForView != null) {
         val subject = currentSubject ?: selectedSubjectForView!!
@@ -496,12 +557,12 @@ fun CourseContentSection(
             isTeacher = isTeacher,
             userEnrollment = userEnrollment,
             accentColor = accentColor,
-            onBack = { selectedChapterForView = null },
+            onBack = { onSelectedChapterChange(null) },
             onAddClassClick = { chapterToAddClassTo = Pair(subject, chapter) },
             onEditClassClick = { clazz -> classToEdit = Triple(subject, chapter, clazz) },
             onDeleteClassClick = { clazz ->
                 val updatedChapter = chapter.copy(classes = chapter.classes.filter { it.id != clazz.id })
-                selectedChapterForView = updatedChapter
+                onSelectedChapterChange(updatedChapter)
                 
                 val updatedSubject = subject.copy(chapters = subject.chapters.map { if (it.id == chapter.id) updatedChapter else it })
                 onSelectedSubjectChange(updatedSubject)
@@ -511,7 +572,7 @@ fun CourseContentSection(
                 syncSubjectToAllCourses(updatedSubject)
             },
             onViewClassDetail = { clazz ->
-                selectedClassForView = clazz
+                onSelectedClassChange(clazz)
             }
         )
     } else if (selectedSubjectForView == null) {
@@ -881,7 +942,7 @@ fun CourseContentSection(
                                                     syncSubjectToAllCourses(updatedSubject)
                                                     
                                                     if (selectedChapterForView?.id == chapter.id) {
-                                                        selectedChapterForView = updatedChapter
+                                                        onSelectedChapterChange(updatedChapter)
                                                     }
                                                 }
                                             )
@@ -949,7 +1010,7 @@ fun CourseContentSection(
                                     
                                     // Enter Chapter details circle go button
                                     Card(
-                                        onClick = { selectedChapterForView = chapter },
+                                        onClick = { onSelectedChapterChange(chapter) },
                                         shape = CircleShape,
                                         colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
                                         modifier = Modifier.size(32.dp)
@@ -976,7 +1037,7 @@ fun CourseContentSection(
                                 color = Color(0xFF1E293B),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .clickable { selectedChapterForView = chapter }
+                                    .clickable { onSelectedChapterChange(chapter) }
                             )
                         }
                     }
@@ -1775,6 +1836,27 @@ fun AddEditSubjectDialog(
     }
 }
 
+fun Context.findActivity(): android.app.Activity? {
+    var context = this
+    while (context is android.content.ContextWrapper) {
+        if (context is android.app.Activity) return context
+        context = context.baseContext
+    }
+    return null
+}
+
+private fun formatTime(ms: Long): String {
+    val totalSeconds = (ms / 1000).coerceAtLeast(0)
+    val seconds = totalSeconds % 60
+    val minutes = (totalSeconds / 60) % 60
+    val hours = totalSeconds / 3600
+    return if (hours > 0) {
+        String.format("%d:%02d:%02d", hours, minutes, seconds)
+    } else {
+        String.format("%02d:%02d", minutes, seconds)
+    }
+}
+
 @Composable
 fun VideoPlayer(
     videoOptions: VideoOptions, 
@@ -1782,12 +1864,58 @@ fun VideoPlayer(
     onQualityChanged: (VideoLink) -> Unit = {}
 ) {
     val context = LocalContext.current
-    var showQualitySelector by remember { mutableStateOf(false) }
+    val activity = remember(context) { context.findActivity() }
     
+    var showQualitySelector by remember { mutableStateOf(false) }
+    var showSpeedDialog by remember { mutableStateOf(false) }
+    
+    // Controls Visibility & Interaction States
+    var controlsVisible by remember { mutableStateOf(true) }
+    var isLocked by remember { mutableStateOf(false) }
+    var isPlaying by remember { mutableStateOf(true) }
+    var currentPosition by remember { mutableStateOf(0L) }
+    var duration by remember { mutableStateOf(0L) }
+    var playbackSpeed by remember { mutableStateOf(1.0f) }
+    
+    var isBuffering by remember { mutableStateOf(false) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
+    
+    LaunchedEffect(statusMessage) {
+        if (statusMessage != null) {
+            kotlinx.coroutines.delay(1800L)
+            statusMessage = null
+        }
+    }
+    
+    // Slider drag tracking
+    var isDraggingSlider by remember { mutableStateOf(false) }
+    var dragPosition by remember { mutableStateOf(0f) }
+
     // Non-adaptive quality tracking
     var currentNonAdaptiveQuality by remember(videoOptions) { 
         mutableStateOf(videoOptions.links.firstOrNull()?.quality ?: "Unknown") 
     }
+
+    var resizeMode by remember { mutableStateOf(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT) }
+    
+    // Gestures states
+    val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
+    val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) }
+    var currentVolume by remember { mutableStateOf(audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)) }
+    
+    var currentBrightness by remember {
+        mutableStateOf(
+            activity?.window?.attributes?.screenBrightness?.takeIf { it >= 0 } ?: 0.5f
+        )
+    }
+    
+    var showVolumeIndicator by remember { mutableStateOf(false) }
+    var showBrightnessIndicator by remember { mutableStateOf(false) }
+    
+    var showRewindFeedback by remember { mutableStateOf(false) }
+    var showForwardFeedback by remember { mutableStateOf(false) }
+    
+    val scope = rememberCoroutineScope()
     
     val httpDataSourceFactory = remember {
         androidx.media3.datasource.DefaultHttpDataSource.Factory()
@@ -1798,14 +1926,57 @@ fun VideoPlayer(
     
     val exoPlayer = remember {
         val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(httpDataSourceFactory)
+        
+        val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
+            .setUsage(androidx.media3.common.C.USAGE_MEDIA)
+            .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
+            .build()
+            
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(mediaSourceFactory)
+            .setAudioAttributes(audioAttributes, true)
             .build()
+    }
+
+    // Set playback speed
+    LaunchedEffect(playbackSpeed) {
+        exoPlayer.setPlaybackSpeed(playbackSpeed)
+    }
+
+    // Monitor playback progress
+    LaunchedEffect(exoPlayer, isPlaying) {
+        while (isPlaying) {
+            currentPosition = exoPlayer.currentPosition
+            duration = exoPlayer.duration.coerceAtLeast(0L)
+            kotlinx.coroutines.delay(250L)
+        }
+    }
+
+    // Observe player listener
+    DisposableEffect(exoPlayer) {
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onIsPlayingChanged(playing: Boolean) {
+                isPlaying = playing
+            }
+            override fun onPlaybackStateChanged(state: Int) {
+                duration = exoPlayer.duration.coerceAtLeast(0L)
+                isBuffering = state == androidx.media3.common.Player.STATE_BUFFERING
+            }
+            override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
+                super.onPlayerError(error)
+                statusMessage = "Error: ${error.message}"
+                isBuffering = false
+            }
+        }
+        exoPlayer.addListener(listener)
+        onDispose {
+            exoPlayer.removeListener(listener)
+        }
     }
 
     LaunchedEffect(videoOptions, currentNonAdaptiveQuality) {
         val currentPos = exoPlayer.currentPosition
-        val isPlaying = exoPlayer.isPlaying
+        val wasPlaying = exoPlayer.isPlaying
         
         val targetLink = videoOptions.links.find { it.quality == currentNonAdaptiveQuality } ?: videoOptions.links.firstOrNull()
         if (targetLink != null) {
@@ -1823,7 +1994,7 @@ fun VideoPlayer(
         if (currentPos > 0) {
             exoPlayer.seekTo(currentPos)
         }
-        exoPlayer.playWhenReady = if (currentPos > 0) isPlaying else true
+        exoPlayer.playWhenReady = if (currentPos > 0) wasPlaying else true
     }
 
     DisposableEffect(Unit) {
@@ -1832,56 +2003,696 @@ fun VideoPlayer(
         }
     }
 
-    Box(modifier = modifier) {
+    // Hide controls automatically, but NOT when user is interacting
+    LaunchedEffect(controlsVisible, isLocked, isDraggingSlider, showSpeedDialog, showQualitySelector) {
+        if (controlsVisible && !isLocked && !isDraggingSlider && !showSpeedDialog && !showQualitySelector) {
+            kotlinx.coroutines.delay(4500L)
+            controlsVisible = false
+        }
+    }
+
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    // Keep SystemBars behavior elegant on landscape full screen
+    DisposableEffect(isLandscape) {
+        if (isLandscape && activity != null) {
+            val window = activity.window
+            val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        } else if (activity != null) {
+            val window = activity.window
+            val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+        }
+        onDispose {}
+    }
+
+    Box(
+        modifier = modifier
+            .background(Color.Black)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = { offset ->
+                        if (!isLocked) {
+                            val halfWidth = size.width / 2
+                            if (offset.x < halfWidth) {
+                                val newPos = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
+                                exoPlayer.seekTo(newPos)
+                                currentPosition = newPos
+                                showRewindFeedback = true
+                            } else {
+                                val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(exoPlayer.duration)
+                                exoPlayer.seekTo(newPos)
+                                currentPosition = newPos
+                                showForwardFeedback = true
+                            }
+                        }
+                    },
+                    onTap = {
+                        controlsVisible = !controlsVisible
+                    }
+                )
+            }
+            .then(
+                if (!isLocked) {
+                    Modifier.pointerInput(Unit) {
+                        detectVerticalDragGestures(
+                            onDragStart = { _ -> },
+                            onDragEnd = {
+                                scope.launch {
+                                    kotlinx.coroutines.delay(800L)
+                                    showVolumeIndicator = false
+                                    showBrightnessIndicator = false
+                                }
+                            },
+                            onVerticalDrag = { change, dragAmount ->
+                                val changePercent = -dragAmount / size.height
+                                val isLeftHalf = change.position.x < (size.width / 2)
+                                if (isLeftHalf) {
+                                    if (activity != null) {
+                                        showBrightnessIndicator = true
+                                        showVolumeIndicator = false
+                                        val newBrightness = (currentBrightness + changePercent).coerceIn(0f, 1f)
+                                        currentBrightness = newBrightness
+                                        val lp = activity.window.attributes
+                                        lp.screenBrightness = newBrightness
+                                        activity.window.attributes = lp
+                                    }
+                                } else {
+                                    showVolumeIndicator = true
+                                    showBrightnessIndicator = false
+                                    val currentVolFloat = currentVolume.toFloat()
+                                    val deltaVol = changePercent * maxVolume
+                                    val newVol = (currentVolFloat + deltaVol).coerceIn(0f, maxVolume.toFloat())
+                                    currentVolume = newVol.toInt()
+                                    audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, currentVolume, 0)
+                                }
+                            }
+                        )
+                    }
+                } else Modifier
+            )
+    ) {
+        // Actual Video Player
         AndroidView(
             factory = {
                 PlayerView(context).apply {
                     player = exoPlayer
+                    useController = false // Disable default controllers
+                    this.resizeMode = resizeMode
                 }
+            },
+            update = { playerView ->
+                playerView.resizeMode = resizeMode
             },
             modifier = Modifier.fillMaxSize()
         )
-        
-        if (videoOptions.links.size > 1) {
+
+        // Buffering Indicator
+        if (isBuffering) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CircularProgressIndicator(
+                        color = Color(0xFF3B82F6),
+                        modifier = Modifier.size(48.dp),
+                        strokeWidth = 4.dp
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Text(
+                        text = "বাফারিং হচ্ছে...",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
+        }
+
+        // On-screen Transient Status Message
+        if (statusMessage != null) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 56.dp)
+                    .background(Color.Black.copy(alpha = 0.75f), RoundedCornerShape(20.dp))
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = statusMessage!!,
+                    color = Color.White,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        // Custom Overlay Indicators
+        if (showVolumeIndicator) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 24.dp)
+                    .width(64.dp)
+                    .height(180.dp)
+                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
+                    Icon(
+                        imageVector = Icons.Default.VolumeUp,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .width(6.dp)
+                            .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(3.dp)),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(currentVolume.toFloat() / maxVolume.toFloat().coerceAtLeast(1f))
+                                .background(Color(0xFF3B82F6), RoundedCornerShape(3.dp))
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${(currentVolume * 100 / maxVolume.coerceAtLeast(1))}%",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        if (showBrightnessIndicator) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 24.dp)
+                    .width(64.dp)
+                    .height(180.dp)
+                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
+                    .padding(8.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
+                    Icon(
+                        imageVector = Icons.Default.Brightness5,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .width(6.dp)
+                            .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(3.dp)),
+                        contentAlignment = Alignment.BottomCenter
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .fillMaxHeight(currentBrightness)
+                                .background(Color(0xFFFBBF24), RoundedCornerShape(3.dp))
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "${(currentBrightness * 100).toInt()}%",
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        if (showRewindFeedback) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterStart)
+                    .padding(start = 48.dp)
+                    .size(80.dp)
+                    .background(Color.White.copy(alpha = 0.2f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.FastRewind, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                    Text("-10s", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                LaunchedEffect(showRewindFeedback) {
+                    kotlinx.coroutines.delay(650L)
+                    showRewindFeedback = false
+                }
+            }
+        }
+
+        if (showForwardFeedback) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .padding(end = 48.dp)
+                    .size(80.dp)
+                    .background(Color.White.copy(alpha = 0.2f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.FastForward, contentDescription = null, tint = Color.White, modifier = Modifier.size(28.dp))
+                    Text("+10s", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                }
+                LaunchedEffect(showForwardFeedback) {
+                    kotlinx.coroutines.delay(650L)
+                    showForwardFeedback = false
+                }
+            }
+        }
+
+        // SCREEN IS LOCKED STATE
+        if (isLocked) {
+            // Semi-transparent background when controls are visible
+            if (controlsVisible) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f))
+                )
+            }
+            
+            // Only lock icon is shown
             IconButton(
-                onClick = { showQualitySelector = true },
+                onClick = { 
+                    isLocked = false
+                    controlsVisible = true
+                    Toast.makeText(context, "নিয়ন্ত্রণ প্যানেল আনলক করা হয়েছে", Toast.LENGTH_SHORT).show()
+                },
                 modifier = Modifier
                     .align(Alignment.TopEnd)
-                    .padding(8.dp)
-                    .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    .padding(12.dp)
+                    .size(48.dp)
+                    .background(Color.Red.copy(alpha = 0.7f), CircleShape)
             ) {
-                Icon(Icons.Default.Settings, contentDescription = "Quality", tint = Color.White)
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = "Unlock screen",
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+
+            // Quick helper text
+            if (controlsVisible) {
+                Text(
+                    text = "প্যানেল আনলক করতে ওপরের লাল লক বাটনে ক্লিক করুন",
+                    color = Color.White.copy(alpha = 0.8f),
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 24.dp)
+                        .background(Color.Black.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
+        } else {
+            // SCREEN IS UNLOCKED - ALL ADVANCED CONTROLS
+            if (controlsVisible) {
+                // Dim Overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.5f))
+                )
+
+                // 1. TOP CONTROL BAR (Quality, Speed, Lock)
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Back button only when in landscape full screen
+                    if (isLandscape) {
+                        IconButton(
+                            onClick = {
+                                if (activity != null) {
+                                    activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                }
+                            },
+                            modifier = Modifier
+                                .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.FullscreenExit, contentDescription = "Exit Fullscreen", tint = Color.White)
+                        }
+                    } else {
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+
+                    // Top Right Actions
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        // Aspect Ratio Toggle
+                        Button(
+                            onClick = {
+                                resizeMode = when (resizeMode) {
+                                    androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> {
+                                        statusMessage = "ভিডিও মোড: জুম"
+                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+                                    }
+                                    androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> {
+                                        statusMessage = "ভিডিও মোড: ফুল স্ক্রিন"
+                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
+                                    }
+                                    else -> {
+                                        statusMessage = "ভিডিও মোড: ফিট"
+                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.6f)),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(36.dp),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Icon(Icons.Default.AspectRatio, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            val modeText = when (resizeMode) {
+                                androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> "ফিট"
+                                androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> "জুম"
+                                else -> "ফুল স্ক্রিন"
+                            }
+                            Text(modeText, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // 1. Speed selector pill button
+                        Button(
+                            onClick = { showSpeedDialog = true },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.6f)),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                            modifier = Modifier.height(36.dp),
+                            shape = RoundedCornerShape(18.dp)
+                        ) {
+                            Icon(Icons.Default.Speed, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("গতি: ${playbackSpeed}x", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+
+                        // 2. Video quality selector pill button
+                        if (videoOptions.links.size > 1) {
+                            Button(
+                                onClick = { showQualitySelector = true },
+                                colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.6f)),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
+                                modifier = Modifier.height(36.dp),
+                                shape = RoundedCornerShape(18.dp)
+                            ) {
+                                Icon(Icons.Default.Settings, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(currentNonAdaptiveQuality, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+
+                        // 3. Lock Screen button
+                        IconButton(
+                            onClick = { 
+                                isLocked = true
+                                Toast.makeText(context, "নিয়ন্ত্রণ প্যানেল লক করা হয়েছে", Toast.LENGTH_SHORT).show()
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                        ) {
+                            Icon(Icons.Default.LockOpen, contentDescription = "Lock Controls", tint = Color.White, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+
+                // 2. CENTER PLAYBACK CONTROLS (Rewind, Play/Pause, Forward)
+                Row(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalArrangement = Arrangement.spacedBy(28.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Rewind 10s button
+                    IconButton(
+                        onClick = {
+                            val newPos = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
+                            exoPlayer.seekTo(newPos)
+                            currentPosition = newPos
+                        },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FastRewind,
+                            contentDescription = "Rewind 10s",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    // Play / Pause button
+                    IconButton(
+                        onClick = {
+                            if (exoPlayer.isPlaying) {
+                                exoPlayer.pause()
+                            } else {
+                                exoPlayer.play()
+                            }
+                        },
+                        modifier = Modifier
+                            .size(64.dp)
+                            .background(Color(0xFF3B82F6), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Play/Pause",
+                            tint = Color.White,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+
+                    // Fast Forward 10s button
+                    IconButton(
+                        onClick = {
+                            val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(exoPlayer.duration)
+                            exoPlayer.seekTo(newPos)
+                            currentPosition = newPos
+                        },
+                        modifier = Modifier
+                            .size(48.dp)
+                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.FastForward,
+                            contentDescription = "Forward 10s",
+                            tint = Color.White,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
+
+                // 3. BOTTOM SEEKBAR & TIME INFO
+                Column(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val currentText = formatTime(if (isDraggingSlider) dragPosition.toLong() else currentPosition)
+                        val totalText = formatTime(duration)
+                        
+                        Text(
+                            text = "$currentText / $totalText",
+                            color = Color.White,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 4.dp)
+                        )
+
+                        // Fullscreen Landscape/Portrait Toggle
+                        IconButton(
+                            onClick = {
+                                if (activity != null) {
+                                    activity.requestedOrientation = if (isLandscape) {
+                                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                    } else {
+                                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                        ) {
+                            Icon(
+                                imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                contentDescription = "Toggle Landscape Fullscreen",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Seek slider
+                    val sliderValue = if (isDraggingSlider) dragPosition else currentPosition.toFloat()
+                    Slider(
+                        value = sliderValue,
+                        onValueChange = {
+                            isDraggingSlider = true
+                            dragPosition = it
+                        },
+                        onValueChangeFinished = {
+                            exoPlayer.seekTo(dragPosition.toLong())
+                            currentPosition = dragPosition.toLong()
+                            isDraggingSlider = false
+                        },
+                        valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF3B82F6),
+                            activeTrackColor = Color(0xFF3B82F6),
+                            inactiveTrackColor = Color.White.copy(alpha = 0.3f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
             }
         }
     }
 
+    // Playback Speed Selector Dialog
+    if (showSpeedDialog) {
+        Dialog(onDismissRequest = { showSpeedDialog = false }) {
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "প্লেব্যাক গতি নির্ধারণ করুন",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF1E293B)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    
+                    val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
+                    speeds.forEach { speed ->
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    playbackSpeed = speed
+                                    statusMessage = if (speed == 1.0f) "গতি: স্বাভাবিক" else "গতি: ${speed}x"
+                                    showSpeedDialog = false
+                                }
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = playbackSpeed == speed, 
+                                onClick = null,
+                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF3B82F6))
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = if (speed == 1.0f) "স্বাভাবিক (১.০x)" else "${speed}x",
+                                fontSize = 15.sp,
+                                fontWeight = if (playbackSpeed == speed) FontWeight.Bold else FontWeight.Normal,
+                                color = Color(0xFF1E293B)
+                            )
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(8.dp))
+                    TextButton(
+                        onClick = { showSpeedDialog = false }, 
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("বাতিল করুন", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+    }
+
+    // Video Quality Selector Dialog
     if (showQualitySelector) {
         Dialog(onDismissRequest = { showQualitySelector = false }) {
-            Card(shape = RoundedCornerShape(16.dp)) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Select Video Quality", fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                    Spacer(modifier = Modifier.height(8.dp))
+            Card(
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.White)
+            ) {
+                Column(modifier = Modifier.padding(20.dp)) {
+                    Text(
+                        text = "ভিডিওর কোয়ালিটি নির্বাচন করুন",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp,
+                        color = Color(0xFF1E293B)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     
                     LazyColumn(modifier = Modifier.heightIn(max = 300.dp)) {
                         items(videoOptions.links) { link ->
                             Row(
-                                modifier = Modifier.fillMaxWidth().clickable {
-                                    currentNonAdaptiveQuality = link.quality
-                                    showQualitySelector = false
-                                    onQualityChanged(link)
-                                }.padding(vertical = 12.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        currentNonAdaptiveQuality = link.quality
+                                        statusMessage = "কোয়ালিটি: ${link.quality}"
+                                        showQualitySelector = false
+                                        onQualityChanged(link)
+                                    }
+                                    .padding(vertical = 12.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                RadioButton(selected = currentNonAdaptiveQuality == link.quality, onClick = null)
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(link.quality)
+                                RadioButton(
+                                    selected = currentNonAdaptiveQuality == link.quality, 
+                                    onClick = null,
+                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF3B82F6))
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = link.quality,
+                                    fontSize = 15.sp,
+                                    color = Color(0xFF1E293B),
+                                    fontWeight = if (currentNonAdaptiveQuality == link.quality) FontWeight.Bold else FontWeight.Normal
+                                )
                             }
                         }
                     }
                     
                     Spacer(modifier = Modifier.height(8.dp))
-                    TextButton(onClick = { showQualitySelector = false }, modifier = Modifier.align(Alignment.End)) {
-                        Text("Close")
+                    TextButton(
+                        onClick = { showQualitySelector = false }, 
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("বন্ধ করুন", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1910,7 +2721,7 @@ fun ClassDetailView(
     // PDF Viewer dialog states
     var activePdfToView by remember { mutableStateOf<File?>(null) }
     var activePdfTitle by remember { mutableStateOf("") }
-    var isDownloadingTempPdf by remember { mutableStateOf(false) }
+    var downloadingPdfUrl by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         downloadsList = OfflineDownloadManager.getDownloadRecords(context)
@@ -1932,7 +2743,28 @@ fun ClassDetailView(
         }
     }
 
-    Column(modifier = Modifier.fillMaxWidth()) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    if (isLandscape && clazz.recordedLink.isNotBlank() && videoOptions != null) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            VideoPlayer(
+                videoOptions = videoOptions!!, 
+                modifier = Modifier.fillMaxSize(),
+                onQualityChanged = { link ->
+                    currentVideoUrl = link.url
+                }
+            )
+        }
+        return
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .verticalScroll(rememberScrollState())
+            .padding(bottom = 32.dp)
+    ) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -2087,76 +2919,91 @@ fun ClassDetailView(
                 }
             }
         } else if (clazz.recordedLink.isNotBlank()) {
-            if (isLoadingVideo) {
-                VideoLoadingPlaceholder()
-            } else if (videoOptions != null) {
+            Column(modifier = Modifier.fillMaxWidth()) {
                 Box(modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(16.dp))) {
-                    VideoPlayer(
-                        videoOptions = videoOptions!!, 
-                        modifier = Modifier.fillMaxSize().background(Color.Black),
-                        onQualityChanged = { link ->
-                            currentVideoUrl = link.url
+                    if (isLoadingVideo) {
+                        VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
+                    } else if (videoOptions != null) {
+                        VideoPlayer(
+                            videoOptions = videoOptions!!, 
+                            modifier = Modifier.fillMaxSize().background(Color.Black),
+                            onQualityChanged = { link ->
+                                currentVideoUrl = link.url
+                            }
+                        )
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                            Text("Failed to load video", color = Color.White)
                         }
-                    )
+                    }
                 }
                 
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                    val context = LocalContext.current
-                    val dlUrl = currentVideoUrl ?: videoOptions?.links?.firstOrNull()?.url
-                    val isDownloaded = remember(downloadsList, dlUrl) {
-                        downloadsList.any { it.url == dlUrl }
-                    }
-                    val downloadState = downloadStates[dlUrl ?: ""]
-
-                    Button(
-                        onClick = {
-                            if (dlUrl != null && !isDownloaded && downloadState !is DownloadState.Downloading) {
-                                OfflineDownloadManager.downloadPermanently(
-                                    context = context,
-                                    url = dlUrl,
-                                    title = clazz.title,
-                                    fileType = "video",
-                                    courseName = courseName,
-                                    className = clazz.title
-                                )
-                            }
-                        },
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDownloaded) Color(0xFF10B981) else accentColor
-                        ),
-                        enabled = dlUrl != null
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Unified Premium Download Button directly under the Video Player!
+                // Always visible, so layout doesn't jump
+                val dlUrl = currentVideoUrl ?: videoOptions?.links?.firstOrNull()?.url
+                val isDownloaded = remember(downloadsList, dlUrl) {
+                    dlUrl != null && downloadsList.any { it.url == dlUrl }
+                }
+                val downloadState = downloadStates[dlUrl ?: ""]
+                
+                Button(
+                    onClick = {
+                        if (dlUrl != null && !isDownloaded && downloadState !is DownloadState.Downloading) {
+                            OfflineDownloadManager.downloadPermanently(
+                                context = context,
+                                url = dlUrl,
+                                title = clazz.title,
+                                fileType = "video",
+                                courseName = courseName,
+                                className = clazz.title
+                            )
+                        } else if (isDownloaded) {
+                            Toast.makeText(context, "ভিডিওটি ইতিমধ্যে ডাউনলোড করা হয়েছে!", Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isDownloaded) Color(0xFF10B981) else Color(0xFF3B82F6),
+                        disabledContainerColor = Color(0xFF94A3B8)
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = !isLoadingVideo && dlUrl != null
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        when {
-                            isDownloaded -> {
-                                Icon(Icons.Default.CheckCircle, contentDescription = "Downloaded")
-                                Spacer(Modifier.width(8.dp))
-                                Text("ডাউনলোডকৃত ✔️")
-                            }
-                            downloadState is DownloadState.Downloading -> {
-                                val pct = (downloadState.progress * 100).toInt()
-                                CircularProgressIndicator(
-                                    color = Color.White,
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text("ডাউনলোড হচ্ছে ($pct%)")
-                            }
-                            else -> {
-                                Icon(Icons.Default.Download, contentDescription = "Download")
-                                Spacer(Modifier.width(8.dp))
-                                Text("ডাউনলোড ভিডিও")
-                            }
+                        if (isLoadingVideo) {
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text("ভিডিও প্রস্তুত হচ্ছে...", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        } else if (isDownloaded) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = "Downloaded", tint = Color.White)
+                            Spacer(Modifier.width(8.dp))
+                            Text("ডাউনলোড সম্পন্ন", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        } else if (downloadState is DownloadState.Downloading) {
+                            val pct = (downloadState.progress * 100).toInt()
+                            CircularProgressIndicator(
+                                color = Color.White,
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(12.dp))
+                            Text("ডাউনলোড হচ্ছে ($pct%)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        } else {
+                            Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
+                            Spacer(Modifier.width(8.dp))
+                            Text("ডাউনলোড ভিডিও", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
-                }
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxWidth().height(200.dp).background(Color.Black, RoundedCornerShape(16.dp)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Failed to load video", color = Color.White)
                 }
             }
         } else {
@@ -2243,19 +3090,7 @@ fun ClassDetailView(
                     Text(mentorName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
                 }
                 
-                Spacer(modifier = Modifier.height(24.dp))
-                Button(
-                    onClick = { },
-                    modifier = Modifier.fillMaxWidth().height(48.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFF1F5F9)),
-                    shape = RoundedCornerShape(24.dp)
-                ) {
-                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Download", tint = Color(0xFF64748B), modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("অফলাইনে দেখতে ডাউনলোড করুন", color = Color(0xFF475569), fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                }
-                
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(16.dp))
                 
                 var isContentExpanded by remember { mutableStateOf(false) }
                 Row(
@@ -2349,18 +3184,18 @@ fun ClassDetailView(
                                         activePdfToView = File(downloadedRecord!!.localPath)
                                         activePdfTitle = pdf.title
                                     } else {
-                                        isDownloadingTempPdf = true
+                                        downloadingPdfUrl = pdf.url
                                         OfflineDownloadManager.downloadToCache(
                                             context = context,
                                             url = pdf.url,
                                             title = pdf.title,
                                             onComplete = { tempFile ->
-                                                isDownloadingTempPdf = false
+                                                downloadingPdfUrl = null
                                                 activePdfToView = tempFile
                                                 activePdfTitle = pdf.title
                                             },
                                             onError = { errMsg ->
-                                                isDownloadingTempPdf = false
+                                                downloadingPdfUrl = null
                                                 Toast.makeText(context, "ডাউনলোড ব্যর্থ হয়েছে: $errMsg", Toast.LENGTH_SHORT).show()
                                             }
                                         )
@@ -2374,7 +3209,7 @@ fun ClassDetailView(
                                 ),
                                 shape = RoundedCornerShape(18.dp)
                             ) {
-                                if (isDownloadingTempPdf && activePdfTitle == pdf.title) {
+                                if (downloadingPdfUrl == pdf.url) {
                                     CircularProgressIndicator(
                                         color = accentColor,
                                         modifier = Modifier.size(14.dp),

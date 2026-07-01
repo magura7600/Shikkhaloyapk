@@ -14,6 +14,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -21,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -83,6 +88,8 @@ fun PdfViewerDialog(
             dismissOnClickOutside = false
         )
     ) {
+        val visiblePage by remember { derivedStateOf { lazyListState.firstVisibleItemIndex + 1 } }
+        
         Scaffold(
             topBar = {
                 TopAppBar(
@@ -97,9 +104,10 @@ fun PdfViewerDialog(
                             )
                             if (pageCount > 0) {
                                 Text(
-                                    text = "Total Pages: $pageCount",
+                                    text = "পৃষ্ঠা: $visiblePage / $pageCount (জুম করতে দুই আঙ্গুল ব্যবহার করুন)",
                                     fontSize = 12.sp,
-                                    color = Color(0xFF64748B)
+                                    color = Color(0xFF3B82F6),
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
@@ -164,6 +172,8 @@ fun PdfPageItem(
     pageIndex: Int
 ) {
     var bitmap by remember { mutableStateOf<Bitmap?>(null) }
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
 
     LaunchedEffect(pageIndex) {
         withContext(Dispatchers.IO) {
@@ -172,9 +182,9 @@ fun PdfPageItem(
                 val page = pdfRenderer.openPage(pageIndex)
                 
                 // Scale factor for rendering (higher means sharper text but more memory)
-                val scale = 2.0f
-                val width = (page.width * scale).toInt()
-                val height = (page.height * scale).toInt()
+                val scaleFactor = 2.5f
+                val width = (page.width * scaleFactor).toInt()
+                val height = (page.height * scaleFactor).toInt()
                 
                 val bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                 page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
@@ -187,23 +197,57 @@ fun PdfPageItem(
         }
     }
 
+    val transformState = rememberTransformableState { zoomChange, offsetChange, _ ->
+        scale = (scale * zoomChange).coerceIn(1f, 5f)
+        if (scale > 1f) {
+            offset += offsetChange * scale
+        } else {
+            offset = androidx.compose.ui.geometry.Offset.Zero
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .wrapContentHeight(),
+            .wrapContentHeight()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onDoubleTap = {
+                        if (scale > 1f) {
+                            scale = 1f
+                            offset = androidx.compose.ui.geometry.Offset.Zero
+                        } else {
+                            scale = 2.5f
+                        }
+                    }
+                )
+            },
         colors = CardDefaults.cardColors(containerColor = Color.White),
-        shape = RoundedCornerShape(8.dp),
+        shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         if (bitmap != null) {
-            Image(
-                bitmap = bitmap!!.asImageBitmap(),
-                contentDescription = "Page ${pageIndex + 1}",
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .aspectRatio(bitmap!!.width.toFloat() / bitmap!!.height.toFloat()),
-                contentScale = ContentScale.Fit
-            )
+                    .aspectRatio(bitmap!!.width.toFloat() / bitmap!!.height.toFloat())
+                    .clip(RoundedCornerShape(12.dp))
+                    .transformable(state = transformState)
+            ) {
+                Image(
+                    bitmap = bitmap!!.asImageBitmap(),
+                    contentDescription = "Page ${pageIndex + 1}",
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .graphicsLayer(
+                            scaleX = scale,
+                            scaleY = scale,
+                            translationX = offset.x,
+                            translationY = offset.y
+                        ),
+                    contentScale = ContentScale.Fit
+                )
+            }
         } else {
             Box(
                 modifier = Modifier
