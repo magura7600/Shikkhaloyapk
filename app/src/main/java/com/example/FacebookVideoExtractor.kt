@@ -3,8 +3,6 @@ package com.example
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import com.yausername.youtubedl_android.YoutubeDL
-import com.yausername.youtubedl_android.YoutubeDLRequest
 
 data class VideoLink(
     val quality: String,
@@ -33,88 +31,6 @@ object FacebookVideoExtractor {
             }
         }
         return null
-    }
-
-    private fun getResolutionName(format: com.yausername.youtubedl_android.mapper.VideoFormat, url: String): String {
-        val formatId = format.formatId ?: ""
-        val formatNote = format.formatNote ?: ""
-        
-        val w = format.width
-        val h = format.height
-        
-        if (h > 0) {
-            return "${h}p"
-        }
-        if (w > 0) {
-            return when (w) {
-                3840 -> "2160p"
-                2560 -> "1440p"
-                1920 -> "1080p"
-                1280 -> "720p"
-                854 -> "480p"
-                640 -> "360p"
-                426 -> "240p"
-                256 -> "144p"
-                else -> "${w}p"
-            }
-        }
-        
-        extractResolutionFromText(formatId)?.let { return it }
-        extractResolutionFromText(formatNote)?.let { return it }
-        extractResolutionFromText(url)?.let { return it }
-        
-        // Try to find height/width pattern like 1280x720
-        val dimMatch = Regex("([0-9]{3,4})[xX]([0-9]{3,4})").find(format.format ?: "")
-            ?: Regex("([0-9]{3,4})[xX]([0-9]{3,4})").find(formatId)
-            ?: Regex("([0-9]{3,4})[xX]([0-9]{3,4})").find(formatNote)
-            ?: Regex("([0-9]{3,4})[xX]([0-9]{3,4})").find(url)
-            
-        if (dimMatch != null) {
-            val hVal = dimMatch.groupValues[2].toIntOrNull() ?: 0
-            if (hVal > 0) return "${hVal}p"
-            val wVal = dimMatch.groupValues[1].toIntOrNull() ?: 0
-            if (wVal > 0) return "${wVal}p"
-        }
-        
-        // Try to get from url or formatId/formatNote via _q90, _q80 etc.
-        val qMatch = Regex("_q([0-9]{2})").find(url) 
-            ?: Regex("q([0-9]{2})").find(url) 
-            ?: Regex("_q([0-9]{2})").find(formatId) 
-            ?: Regex("q([0-9]{2})").find(formatId) 
-            ?: Regex("_q([0-9]{2})").find(formatNote) 
-            ?: Regex("q([0-9]{2})").find(formatNote)
-            
-        if (qMatch != null) {
-            val qVal = qMatch.groupValues[1].toIntOrNull() ?: 0
-            return when (qVal) {
-                90 -> "1080p"
-                80 -> "720p"
-                70 -> "480p"
-                60 -> "360p"
-                50 -> "240p"
-                40 -> "240p"
-                30 -> "144p"
-                20 -> "144p"
-                else -> "${qVal * 12}p"
-            }
-        }
-        
-        // Try standard regex matching (e.g. 720p)
-        val resMatch = Regex("([0-9]{3,4})[pP]").find(formatId) 
-            ?: Regex("([0-9]{3,4})[pP]").find(formatNote) 
-            ?: Regex("([0-9]{3,4})[pP]").find(url)
-        if (resMatch != null) {
-            val matchedVal = resMatch.groupValues[1].toIntOrNull() ?: 0
-            return if (matchedVal > 0) "${matchedVal}p" else resMatch.groupValues[1] + "p"
-        }
-        
-        if (formatId.isNotBlank() && !formatId.contains("dash") && !formatId.contains("hls")) {
-            return formatId
-        }
-        if (formatNote.isNotBlank()) {
-            return formatNote
-        }
-        return "SD"
     }
 
     private fun shouldResolveRedirect(url: String): Boolean {
@@ -393,99 +309,7 @@ object FacebookVideoExtractor {
             )
         }
 
-        // 2. Try YoutubeDL first to get all exact resolutions: 360p, 480p, 540p, 720p, etc.
-        try {
-            YoutubeDL.getInstance().init(context)
-            try {
-                YoutubeDL.getInstance().updateYoutubeDL(context)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-            val request = YoutubeDLRequest(fbUrl)
-            request.addOption("-J") // Dump JSON info
-
-            val videoInfo = YoutubeDL.getInstance().getInfo(request)
-
-            val allLinks = mutableListOf<VideoLink>()
-            var adaptiveUrl: String? = videoInfo.manifestUrl
-            var bestAudioUrl: String? = null
-            var bestAudioBitrate = -1
-
-            videoInfo.formats?.forEach { format ->
-                val ext = format.ext ?: "mp4"
-                val url = format.url
-                
-                // Log all format fields to Logcat
-                android.util.Log.d(
-                    "FB_EXTRACTOR",
-                    "Format: formatId=${format.formatId}, height=${format.height}, width=${format.width}, formatNote=${format.formatNote}, ext=${format.ext}, url=${format.url}, acodec=${format.acodec}, vcodec=${format.vcodec}"
-                )
-                
-                if (adaptiveUrl == null && format.manifestUrl != null) {
-                    adaptiveUrl = format.manifestUrl
-                }
-
-                if (url != null) {
-                    if (url.contains(".m3u8") || ext == "m3u8" || url.contains(".mpd") || ext == "mpd") {
-                        if (adaptiveUrl == null) adaptiveUrl = url
-                    }
-                    
-                    if (ext != "mhtml") {
-                        val resolution = getResolutionName(format, url)
-                        val isAudioOnly = format.vcodec == "none" || format.ext == "m4a" || format.ext == "mp3" || format.formatId?.contains("audio") == true
-                        val hasVideo = !isAudioOnly
-                        val hasAudio = format.acodec != "none" && (format.acodec != null || ext == "mp4" || format.vcodec == null || !isAudioOnly)
-                        
-                        // Check for best audio (prefer audio-only, but fall back to audio-capable video)
-                        if (hasAudio) {
-                            val score = (if (isAudioOnly) 1000000 else 0) + (format.abr ?: 0)
-                            if (score > bestAudioBitrate) {
-                                bestAudioBitrate = score
-                                bestAudioUrl = url
-                            }
-                        }
-
-                        val rawHeight = format.height
-                        val numericHeight = if (rawHeight > 0) rawHeight else {
-                            val numeric = resolution.replace(Regex("[^0-9]"), "").toIntOrNull() ?: 0
-                            if (numeric > 0) numeric else {
-                                val lowerRes = resolution.lowercase()
-                                when {
-                                    lowerRes == "hd" -> 720
-                                    lowerRes == "sd" -> 480
-                                    else -> 0
-                                }
-                            }
-                        }
-                        
-                        val isHd = numericHeight >= 720 || resolution.contains("1080") || resolution.contains("720") || resolution.contains("HD")
-                        
-                        val codecInfo = if (hasAudio && hasVideo) "with audio" 
-                                        else if (hasVideo) "video only"
-                                        else if (hasAudio) "audio only"
-                                        else "unknown"
-                        val label = "$resolution ($codecInfo)"
-
-                        allLinks.add(VideoLink(label, url, isHd, hasAudio, numericHeight))
-                    }
-                }
-            }
-
-            if (allLinks.isNotEmpty()) {
-                val sortedLinks = allLinks.sortedByDescending { it.height }
-                return@withContext VideoOptions(
-                    title = videoInfo.title ?: "Facebook Video",
-                    description = videoInfo.description ?: "",
-                    links = sortedLinks,
-                    adaptiveUrl = adaptiveUrl,
-                    audioUrl = bestAudioUrl
-                )
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-
-        // 3. Fallback to direct HTML extraction from the video page (fast backup if YoutubeDL fails)
+        // 2. Direct HTML extraction from the video page (fast and lightweight)
         try {
             val directHtmlOptions = tryDirectHtmlExtraction(fbUrl)
             if (directHtmlOptions != null && directHtmlOptions.links.isNotEmpty()) {
@@ -495,7 +319,7 @@ object FacebookVideoExtractor {
             e.printStackTrace()
         }
 
-        // 4. Ultimate robust fallback: if everything fails, return the original/resolved URL as default quality
+        // 3. Ultimate robust fallback: if everything fails, return the original/resolved URL as default quality
         if (fbUrl.startsWith("http://") || fbUrl.startsWith("https://")) {
             val resolvedUrl = resolveVideoDirectUrlRedirect(fbUrl)
             val isHd = resolvedUrl.contains("hd") || resolvedUrl.contains("1080") || resolvedUrl.contains("720")

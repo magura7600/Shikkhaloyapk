@@ -138,18 +138,27 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        // OneSignal debug logging (optional but highly recommended for setup)
-        OneSignal.Debug.logLevel = LogLevel.VERBOSE
+        // Safe OneSignal and Cache Initialization
+        try {
+            // OneSignal debug logging (optional but highly recommended for setup)
+            OneSignal.Debug.logLevel = LogLevel.VERBOSE
 
-        // OneSignal Initialization
-        OneSignal.initWithContext(this, "9b18010c-9761-4d89-abfc-ae8a437f4943")
+            // OneSignal Initialization
+            OneSignal.initWithContext(this, "9b18010c-9761-4d89-abfc-ae8a437f4943")
 
-        // Clear temporary PDF cache
-        OfflineDownloadManager.clearTemporaryCache(this)
+            // Request notification permission
+            lifecycleScope.launch {
+                OneSignal.Notifications.requestPermission(true)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
-        // Request notification permission
-        lifecycleScope.launch {
-            OneSignal.Notifications.requestPermission(true)
+        try {
+            // Clear temporary PDF cache
+            OfflineDownloadManager.clearTemporaryCache(this)
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
 
         setContent {

@@ -96,7 +96,7 @@ dependencies {
   implementation(libs.androidx.compose.ui)
   
   // YouTube/Video related - check if they are actually used
-  implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
+  // implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
   
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
