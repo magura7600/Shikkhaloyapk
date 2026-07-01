@@ -4234,3 +4234,4 @@ fun AllNotificationsDialog(
         }
     )
 }
+// Logo optimized for release build
