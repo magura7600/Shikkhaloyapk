@@ -31,8 +31,13 @@ jobs:
       run: chmod +x gradlew
       
     - name: Set up Keystore
+      env:
+        RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
       run: |
-        if [ -f debug.keystore.base64 ]; then
+        if [ -n "$RELEASE_KEYSTORE_BASE64" ]; then
+          echo "Decoding release keystore..."
+          echo "$RELEASE_KEYSTORE_BASE64" | base64 -d > release.keystore
+        elif [ -f debug.keystore.base64 ]; then
           echo "Decoding existing debug.keystore.base64..."
           base64 -d debug.keystore.base64 > debug.keystore
         else
@@ -61,6 +66,11 @@ jobs:
         echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
         
     - name: Build Release APK
+      env:
+        KEYSTORE_PATH: ${{ github.workspace }}/release.keystore
+        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
       run: ./gradlew assembleRelease
       
     - name: Upload APK

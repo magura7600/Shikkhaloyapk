@@ -39,8 +39,8 @@ android {
     applicationId = "app.shikkhaloy.ai.com"
     minSdk = 26
     targetSdk = 36
-    versionCode = 4
-    versionName = "4"
+    versionCode = 7
+    versionName = "7.0"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -56,7 +56,7 @@ android {
       if (file(keystorePath).exists()) {
         storeFile = file(keystorePath)
         storePassword = System.getenv("STORE_PASSWORD")
-        keyAlias = "upload"
+        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
         keyPassword = System.getenv("KEY_PASSWORD")
       } else {
         // Fallback to debug keystore to allow building unsigned/debug-signed release APKs
