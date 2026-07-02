@@ -3370,19 +3370,35 @@ fun ClassDetailView(
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
+    // Use movableContentOf to keep VideoPlayer stable across orientation/PiP changes
+    val movableVideoPlayer = remember(videoOptions, currentVideoUrl) {
+        movableContentOf { modifier: Modifier ->
+            if (videoOptions != null) {
+                VideoPlayer(
+                    videoOptions = videoOptions!!,
+                    modifier = modifier,
+                    initialPosition = savedVideoPosition,
+                    onPositionChanged = { savedVideoPosition = it },
+                    initialPlaying = savedVideoPlaying,
+                    onPlayingChanged = { savedVideoPlaying = it },
+                    onQualityChanged = { link ->
+                        currentVideoUrl = link.url
+                    }
+                )
+            }
+        }
+    }
+
+    if (VideoPipState.isInPip) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            movableVideoPlayer(Modifier.fillMaxSize())
+        }
+        return
+    }
+
     if (isLandscape && clazz.recordedLink.isNotBlank() && videoOptions != null) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            VideoPlayer(
-                videoOptions = videoOptions!!, 
-                modifier = Modifier.fillMaxSize(),
-                initialPosition = savedVideoPosition,
-                onPositionChanged = { savedVideoPosition = it },
-                initialPlaying = savedVideoPlaying,
-                onPlayingChanged = { savedVideoPlaying = it },
-                onQualityChanged = { link ->
-                    currentVideoUrl = link.url
-                }
-            )
+            movableVideoPlayer(Modifier.fillMaxSize())
         }
         return
     }
@@ -3534,17 +3550,7 @@ fun ClassDetailView(
                     if (isLoadingVideo) {
                         VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
                     } else if (videoOptions != null) {
-                        VideoPlayer(
-                            videoOptions = videoOptions!!, 
-                            modifier = Modifier.fillMaxSize().background(Color.Black),
-                            initialPosition = savedVideoPosition,
-                            onPositionChanged = { savedVideoPosition = it },
-                            initialPlaying = savedVideoPlaying,
-                            onPlayingChanged = { savedVideoPlaying = it },
-                            onQualityChanged = { link ->
-                                currentVideoUrl = link.url
-                            }
-                        )
+                        movableVideoPlayer(Modifier.fillMaxSize().background(Color.Black))
                     } else {
                         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
                             Text("Failed to load video", color = Color.White)
