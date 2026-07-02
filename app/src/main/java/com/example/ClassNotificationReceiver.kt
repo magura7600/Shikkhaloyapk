@@ -20,7 +20,7 @@ class ClassNotificationReceiver : BroadcastReceiver() {
         val mentorName = intent.getStringExtra("mentorName") ?: (if (isBn) "অজানা শিক্ষক" else "Unknown Teacher")
 
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-        val channelId = "class_alerts"
+        val channelId = "class_alerts_v2"
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
