@@ -183,6 +183,10 @@ class MainActivity : ComponentActivity() {
 
             // OneSignal Initialization
             OneSignal.initWithContext(this, "9b18010c-9761-4d89-abfc-ae8a437f4943")
+            
+            lifecycleScope.launch {
+                OneSignal.Notifications.requestPermission(true)
+            }
 
             // Standard System Permission Request for Storage and Notifications
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
@@ -4004,6 +4008,37 @@ fun MentorsListDialog(
                     var subjects by remember { mutableStateOf("") }
                     var experience by remember { mutableStateOf("") }
                     var imageUrl by remember { mutableStateOf("") }
+                    var isUploading by remember { mutableStateOf(false) }
+                    val context = LocalContext.current
+                    val coroutineScope = rememberCoroutineScope()
+                    
+                    val photoPickerLauncher = rememberLauncherForActivityResult(
+                        contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+                    ) { uri: android.net.Uri? ->
+                        uri?.let { selectedUri ->
+                            isUploading = true
+                            coroutineScope.launch {
+                                try {
+                                    val inputStream = context.contentResolver.openInputStream(selectedUri)
+                                    val bytes = inputStream?.readBytes()
+                                    inputStream?.close()
+                                    
+                                    if (bytes != null) {
+                                        val uploadedUrl = ImgBBClient.uploadImage(bytes)
+                                        if (uploadedUrl != null) {
+                                            imageUrl = uploadedUrl
+                                        } else {
+                                            Toast.makeText(context, "ছবি আপলোড ব্যর্থ হয়েছে", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "ছবি আপলোড করতে সমস্যা হয়েছে: ${e.message}", Toast.LENGTH_SHORT).show()
+                                } finally {
+                                    isUploading = false
+                                }
+                            }
+                        }
+                    }
                     
                     Column(modifier = Modifier.padding(16.dp).verticalScroll(rememberScrollState())) {
                         OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("নাম * (যেমন: মোঃ সাব্বির হোসাইন)") }, modifier = Modifier.fillMaxWidth())
@@ -4013,8 +4048,35 @@ fun MentorsListDialog(
                         OutlinedTextField(value = subjects, onValueChange = { subjects = it }, label = { Text("কী কী বিষয় পড়ান? * (যেমন: বাংলা, ইংরেজি, গণিত)") }, modifier = Modifier.fillMaxWidth())
                         Spacer(modifier = Modifier.height(8.dp))
                         OutlinedTextField(value = experience, onValueChange = { experience = it }, label = { Text("শিক্ষাকতার অভিজ্ঞতা (যেমন: ৫ বছরের বেশি সময়...)") }, modifier = Modifier.fillMaxWidth())
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Text("মেন্টরের প্রোফাইল ছবি", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                         Spacer(modifier = Modifier.height(8.dp))
-                        OutlinedTextField(value = imageUrl, onValueChange = { imageUrl = it }, label = { Text("মেন্টরের প্রোফাইল ছবির লিংক (Image URL - ঐচ্ছিক)") }, modifier = Modifier.fillMaxWidth())
+                        
+                        Box(
+                            modifier = Modifier
+                                .size(100.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFF3F4F6))
+                                .clickable(enabled = !isUploading) { photoPickerLauncher.launch("image/*") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isUploading) {
+                                CircularProgressIndicator(color = accentColor, modifier = Modifier.size(24.dp))
+                            } else if (imageUrl.isNotBlank()) {
+                                coil.compose.AsyncImage(
+                                    model = imageUrl,
+                                    contentDescription = "Mentor Image",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            } else {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Icon(Icons.Default.Add, contentDescription = "Add Image", tint = Color.Gray)
+                                    Text("ছবি আপলোড", fontSize = 12.sp, color = Color.Gray)
+                                }
+                            }
+                        }
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
