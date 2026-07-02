@@ -145,6 +145,10 @@ dependencies {
   implementation(libs.media3.exoplayer.hls)
   implementation(libs.media3.ui)
 
+  // App Signature & Play Integrity Management
+  implementation("com.google.android.play:integrity:1.3.0")
+  implementation("com.google.android.gms:play-services-auth-api-phone:18.0.2")
+
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)
   testImplementation(libs.androidx.junit)

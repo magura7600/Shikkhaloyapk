@@ -185,6 +185,7 @@ class MainActivity : ComponentActivity() {
             OneSignal.initWithContext(this, "9b18010c-9761-4d89-abfc-ae8a437f4943")
             
             lifecycleScope.launch {
+                kotlinx.coroutines.delay(2000) // Delay to ensure no conflict with other dialogs
                 OneSignal.Notifications.requestPermission(true)
             }
 
@@ -194,7 +195,7 @@ class MainActivity : ComponentActivity() {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                     permissions.add(android.Manifest.permission.READ_MEDIA_VIDEO)
                     permissions.add(android.Manifest.permission.READ_MEDIA_IMAGES)
-                    permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
+                    // POST_NOTIFICATIONS removed from here to let OneSignal handle it
                 } else {
                     permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
                     permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
