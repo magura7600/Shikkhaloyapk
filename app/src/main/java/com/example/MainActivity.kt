@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import coil.compose.AsyncImage
 import androidx.compose.ui.layout.ContentScale
+import androidx.activity.compose.BackHandler
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -1602,6 +1603,22 @@ fun DashboardScreen(
     var courseInteractions by remember { mutableStateOf(listOf<CourseInteraction>()) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
+    var lastBackPressTime by remember { mutableStateOf(0L) }
+    val activity = context as? ComponentActivity
+
+    BackHandler {
+        if (currentScreen != "dashboard") {
+            currentScreen = "dashboard"
+        } else {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastBackPressTime < 3000) {
+                activity?.finish()
+            } else {
+                lastBackPressTime = currentTime
+                Toast.makeText(context, "আবার ক্লিক করলে এপ কেটে যাবে", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
 
     var focusCourseId by remember { mutableStateOf<String?>(null) }
     

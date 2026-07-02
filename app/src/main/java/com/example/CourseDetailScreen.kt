@@ -15,6 +15,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -152,6 +153,18 @@ fun CourseDetailScreen(
     // Check automatic quarter selection based on current date
     var initialSelectedQuarterName by remember { mutableStateOf<String?>(null) }
     var selectedSubjectForView by remember { mutableStateOf<CourseSubject?>(null) }
+
+    BackHandler(enabled = true) {
+        if (selectedClassForView != null) {
+            selectedClassForView = null
+        } else if (selectedChapterForView != null) {
+            selectedChapterForView = null
+        } else if (selectedSubjectForView != null) {
+            selectedSubjectForView = null
+        } else {
+            onBack()
+        }
+    }
     LaunchedEffect(course.quarters) {
         if (course.quarters.isNotEmpty()) {
             val currentDate = java.time.LocalDate.now()
@@ -1214,13 +1227,38 @@ fun CourseContentSection(
 
 
             // Filter chapters by active selected Quarter
+            val isCurrentQuarterLocked = isQuarterLocked(selectedQuarterName)
             val chaptersToShow = if (course.isQuarterOn && course.quarters.isNotEmpty()) {
                 subj.chapters.filter { (it.quarter.ifBlank { "Quarter 1" }) == selectedQuarterName }
             } else {
                 subj.chapters
             }
 
-            if (chaptersToShow.isEmpty()) {
+            if (isCurrentQuarterLocked) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.Lock, contentDescription = "Locked", tint = Color.Gray, modifier = Modifier.size(64.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("এই কোয়ার্টারটি লক করা আছে", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("বিস্তারিত দেখতে কোয়ার্টারটি কিনুন বা আনলক করুন।", fontSize = 14.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = onPurchaseClick,
+                            colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                        ) {
+                            Text("আনলক করুন")
+                        }
+                    }
+                }
+            } else if (chaptersToShow.isEmpty()) {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
