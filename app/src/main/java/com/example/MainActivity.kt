@@ -184,11 +184,6 @@ class MainActivity : ComponentActivity() {
             // OneSignal Initialization
             OneSignal.initWithContext(this, "9b18010c-9761-4d89-abfc-ae8a437f4943")
 
-            // Request notification permission
-            lifecycleScope.launch {
-                OneSignal.Notifications.requestPermission(true)
-            }
-
             // Standard System Permission Request for Storage and Notifications
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
                 val permissions = mutableListOf<String>()

@@ -419,9 +419,11 @@ fun OfflineVideoPlayerDialog(
             dismissOnClickOutside = false
         )
     ) {
+        val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+        val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         Scaffold(
             topBar = {
-                if (!VideoPipState.isInPip) {
+                if (!VideoPipState.isInPip && !isLandscape) {
                     TopAppBar(
                         title = {
                             Text(
@@ -448,16 +450,22 @@ fun OfflineVideoPlayerDialog(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(if (VideoPipState.isInPip) PaddingValues(0.dp) else paddingValues)
+                    .padding(if (VideoPipState.isInPip || isLandscape) PaddingValues(0.dp) else paddingValues)
                     .background(Color.Black),
                 contentAlignment = Alignment.Center
             ) {
                 VideoPlayer(
                     videoOptions = videoOptions,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(16f / 9f)
-                        .background(Color.Black)
+                    modifier = if (isLandscape) {
+                        Modifier
+                            .fillMaxSize()
+                            .background(Color.Black)
+                    } else {
+                        Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(16f / 9f)
+                            .background(Color.Black)
+                    }
                 )
             }
         }

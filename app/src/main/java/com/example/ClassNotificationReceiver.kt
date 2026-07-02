@@ -29,6 +29,13 @@ class ClassNotificationReceiver : BroadcastReceiver() {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = if (isBn) "লাইভ ক্লাস শুরু হওয়ার এলার্ট" else "Alert for starting live class"
+                enableVibration(true)
+                val defaultSoundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+                val audioAttributes = android.media.AudioAttributes.Builder()
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                    .build()
+                setSound(defaultSoundUri, audioAttributes)
             }
             notificationManager.createNotificationChannel(channel)
         }
@@ -55,6 +62,7 @@ class ClassNotificationReceiver : BroadcastReceiver() {
                 (if (isBn) "শিক্ষক: " else "Teacher: ") + "$mentorName"
             ))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
