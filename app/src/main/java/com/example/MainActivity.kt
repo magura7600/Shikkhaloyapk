@@ -2404,15 +2404,52 @@ fun DashboardScreen(
                 val mentorWithChannel = newMentor.copy(channel_id = profile.user_id)
                 coroutineScope.launch {
                     try {
-                        withContext(Dispatchers.IO) {
+                        val fetchedMentors = withContext(Dispatchers.IO) {
                             supabase.from("mentors").insert(mentorWithChannel)
+                            supabase.from("mentors").select().decodeList<Mentor>()
                         }
-                        mentors = mentors + mentorWithChannel
+                        mentors = fetchedMentors
                         Toast.makeText(context, "মেন্টর যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
                     } catch (e: Exception) {
-                        if (e.message?.contains("mentors") == true || e.message?.contains("relation") == true) {
-                            Toast.makeText(context, "Error: Supabase এ mentors টেবিল তৈরি করুন!", Toast.LENGTH_LONG).show()
-                        } else {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            },
+            onEditMentor = { editedMentor ->
+                coroutineScope.launch {
+                    try {
+                        val fetchedMentors = withContext(Dispatchers.IO) {
+                            supabase.from("mentors").update({
+                                set("name", editedMentor.name)
+                                set("education", editedMentor.education)
+                                set("subjects", editedMentor.subjects)
+                                set("experience", editedMentor.experience)
+                                set("image_url", editedMentor.image_url)
+                            }) { filter { eq("id", editedMentor.id) } }
+                            supabase.from("mentors").select().decodeList<Mentor>()
+                        }
+                        mentors = fetchedMentors
+                        Toast.makeText(context, "মেন্টর আপডেট করা হয়েছে", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
+                            Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            },
+            onDeleteMentor = { mentorToDelete ->
+                coroutineScope.launch {
+                    try {
+                        val fetchedMentors = withContext(Dispatchers.IO) {
+                            supabase.from("mentors").delete { filter { eq("id", mentorToDelete.id) } }
+                            supabase.from("mentors").select().decodeList<Mentor>()
+                        }
+                        mentors = fetchedMentors
+                        Toast.makeText(context, "মেন্টর ডিলিট করা হয়েছে", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        withContext(Dispatchers.Main) {
                             Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
                         }
                     }
@@ -3978,10 +4015,15 @@ fun SettingToggleItem(
 fun MentorsListDialog(
     mentors: List<Mentor>,
     onAddMentor: (Mentor) -> Unit,
+    onEditMentor: (Mentor) -> Unit,
+    onDeleteMentor: (Mentor) -> Unit,
     onDismiss: () -> Unit,
     accentColor: Color
 ) {
     var showAddMentor by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val coroutineScope = rememberCoroutineScope()
+    
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -4008,8 +4050,6 @@ fun MentorsListDialog(
                     var experience by remember { mutableStateOf("") }
                     var imageUrl by remember { mutableStateOf("") }
                     var isUploading by remember { mutableStateOf(false) }
-                    val context = LocalContext.current
-                    val coroutineScope = rememberCoroutineScope()
                     
                     val photoPickerLauncher = rememberLauncherForActivityResult(
                         contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
@@ -4094,25 +4134,140 @@ fun MentorsListDialog(
                 } else {
                     LazyColumn(modifier = Modifier.weight(1f).padding(horizontal = 16.dp)) {
                         items(mentors) { mentor ->
+                            var isEditing by remember { mutableStateOf(false) }
+                            var editName by remember { mutableStateOf(mentor.name) }
+                            var editEducation by remember { mutableStateOf(mentor.education) }
+                            var editSubjects by remember { mutableStateOf(mentor.subjects) }
+                            var editExperience by remember { mutableStateOf(mentor.experience) }
+                            var editImageUrl by remember { mutableStateOf(mentor.image_url) }
+                            var isEditingUploading by remember { mutableStateOf(false) }
+                            
+                            val editPhotoPickerLauncher = rememberLauncherForActivityResult(
+                                contract = androidx.activity.result.contract.ActivityResultContracts.GetContent()
+                            ) { uri: android.net.Uri? ->
+                                uri?.let { selectedUri ->
+                                    isEditingUploading = true
+                                    coroutineScope.launch {
+                                        try {
+                                            val inputStream = context.contentResolver.openInputStream(selectedUri)
+                                            val bytes = inputStream?.readBytes()
+                                            inputStream?.close()
+                                            
+                                            if (bytes != null) {
+                                                val uploadedUrl = ImgBBClient.uploadImage(bytes)
+                                                if (uploadedUrl != null) {
+                                                    editImageUrl = uploadedUrl
+                                                } else {
+                                                    Toast.makeText(context, "ছবি আপলোড ব্যর্থ হয়েছে", Toast.LENGTH_SHORT).show()
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, "ছবি আপলোড করতে সমস্যা হয়েছে: ${e.message}", Toast.LENGTH_SHORT).show()
+                                        } finally {
+                                            isEditingUploading = false
+                                        }
+                                    }
+                                }
+                            }
+
                             Card(
                                 modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6))
                             ) {
-                                Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                                    if (mentor.image_url.isNotBlank()) {
-                                        coil.compose.AsyncImage(
-                                            model = mentor.image_url,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray),
-                                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
-                                        )
-                                    } else {
-                                        Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(40.dp).background(Color.LightGray, CircleShape).padding(8.dp))
+                                if (isEditing) {
+                                    Column(modifier = Modifier.padding(16.dp)) {
+                                        OutlinedTextField(value = editName, onValueChange = { editName = it }, label = { Text("নাম") }, modifier = Modifier.fillMaxWidth())
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        OutlinedTextField(value = editEducation, onValueChange = { editEducation = it }, label = { Text("কোথায় পড়াশোনা করেছেন?") }, modifier = Modifier.fillMaxWidth())
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        OutlinedTextField(value = editSubjects, onValueChange = { editSubjects = it }, label = { Text("কী কী বিষয় পড়ান?") }, modifier = Modifier.fillMaxWidth())
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        OutlinedTextField(value = editExperience, onValueChange = { editExperience = it }, label = { Text("শিক্ষাকতার অভিজ্ঞতা") }, modifier = Modifier.fillMaxWidth())
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(60.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.LightGray)
+                                                    .clickable(enabled = !isEditingUploading) { editPhotoPickerLauncher.launch("image/*") },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                if (isEditingUploading) {
+                                                    CircularProgressIndicator(color = accentColor, modifier = Modifier.size(16.dp))
+                                                } else if (editImageUrl.isNotBlank()) {
+                                                    coil.compose.AsyncImage(
+                                                        model = editImageUrl,
+                                                        contentDescription = "Mentor Image",
+                                                        modifier = Modifier.fillMaxSize(),
+                                                        contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                                    )
+                                                } else {
+                                                    Icon(Icons.Default.Add, contentDescription = "Add Image", tint = Color.White)
+                                                }
+                                            }
+                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Text("ছবি পরিবর্তন করতে ক্লিক করুন", fontSize = 12.sp, color = Color.Gray)
+                                        }
+                                        
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                                            TextButton(onClick = { isEditing = false }) { Text("বাতিল", color = Color.Gray) }
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Button(onClick = {
+                                                if (editName.isNotBlank() && editSubjects.isNotBlank()) {
+                                                    onEditMentor(mentor.copy(name = editName, education = editEducation, subjects = editSubjects, experience = editExperience, image_url = editImageUrl))
+                                                    isEditing = false
+                                                }
+                                            }, colors = ButtonDefaults.buttonColors(containerColor = accentColor)) {
+                                                Text("সংরক্ষণ করুন")
+                                            }
+                                        }
                                     }
-                                    Spacer(modifier = Modifier.width(12.dp))
-                                    Column {
-                                        Text(mentor.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                        Text(mentor.subjects, color = Color.Gray, fontSize = 14.sp)
+                                } else {
+                                    Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                        if (mentor.image_url.isNotBlank()) {
+                                            coil.compose.AsyncImage(
+                                                model = mentor.image_url,
+                                                contentDescription = null,
+                                                modifier = Modifier.size(40.dp).clip(CircleShape).background(Color.LightGray),
+                                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                            )
+                                        } else {
+                                            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(40.dp).background(Color.LightGray, CircleShape).padding(8.dp))
+                                        }
+                                        Spacer(modifier = Modifier.width(12.dp))
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(mentor.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                            Text(mentor.subjects, color = Color.Gray, fontSize = 14.sp)
+                                        }
+                                        
+                                        var showMenu by remember { mutableStateOf(false) }
+                                        Box {
+                                            IconButton(onClick = { showMenu = true }) {
+                                                Icon(Icons.Default.MoreVert, contentDescription = "More")
+                                            }
+                                            androidx.compose.material3.DropdownMenu(
+                                                expanded = showMenu,
+                                                onDismissRequest = { showMenu = false }
+                                            ) {
+                                                androidx.compose.material3.DropdownMenuItem(
+                                                    text = { Text("এডিট করুন") },
+                                                    onClick = { 
+                                                        showMenu = false
+                                                        isEditing = true
+                                                    }
+                                                )
+                                                androidx.compose.material3.DropdownMenuItem(
+                                                    text = { Text("ডিলিট করুন", color = Color.Red) },
+                                                    onClick = { 
+                                                        showMenu = false
+                                                        onDeleteMentor(mentor)
+                                                    }
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
