@@ -84,9 +84,20 @@ fun AdminDashboardContent(
         it.uid_code.contains(searchQuery, ignoreCase = true)
     }
 
-    val sqlProfileUpdate = """
--- Profiles টেবিলে is_banned কলাম যোগ করতে নিচের কোডটি Supabase SQL Editor এ রান করুন:
+    val sqlDbUpdate = """
+-- ১. Profiles টেবিলে is_banned কলাম যোগ করতে রান করুন:
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE;
+
+-- ২. Courses টেবিলে কোয়ার্টার ও বিষয়সমূহ যোগ করতে রান করুন:
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS "isQuarterOn" BOOLEAN DEFAULT FALSE;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS "quarters" JSONB DEFAULT '[]'::jsonb;
+ALTER TABLE courses ADD COLUMN IF NOT EXISTS "subjects" JSONB DEFAULT '[]'::jsonb;
+
+-- ৩. Enrollments টেবিলে প্রয়োজনীয় কলামসমূহ যোগ করতে রান করুন:
+ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS price_paid TEXT DEFAULT '';
+ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS purchased_quarters TEXT DEFAULT '';
+ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS banned_until BIGINT;
+ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
     """.trimIndent()
 
     LazyColumn(
@@ -486,7 +497,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE;
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "ইউজার ব্যান ও আনব্যান করার জন্য 'profiles' টেবিলে 'is_banned' কলামটি থাকা আবশ্যক। নিচে দেওয়া কোডটি কপি করে আপনার Supabase SQL Editor-এ রান করে নিন:",
+                        text = "অ্যাপের নতুন ফিচারসমূহ (যেমন: ইউজার ব্যান, কোয়ার্টার, ও বিষয়ভিত্তিক ক্লাসসমূহ) সঠিকভাবে কাজ করার জন্য নিচের SQL কোডটি কপি করে আপনার Supabase SQL Editor-এ রান করে নিন:",
                         fontSize = 12.sp,
                         color = Color.DarkGray
                     )
@@ -511,7 +522,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE;
                             )
                             IconButton(
                                 onClick = {
-                                    clipboardManager.setText(AnnotatedString(sqlProfileUpdate))
+                                    clipboardManager.setText(AnnotatedString(sqlDbUpdate))
                                     Toast.makeText(context, "SQL কপি হয়েছে!", Toast.LENGTH_SHORT).show()
                                 },
                                 modifier = Modifier.size(24.dp)
@@ -526,7 +537,7 @@ ALTER TABLE profiles ADD COLUMN IF NOT EXISTS is_banned BOOLEAN DEFAULT FALSE;
                         }
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
-                            text = sqlProfileUpdate,
+                            text = sqlDbUpdate,
                             color = Color(0xFFE2E8F0),
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,

@@ -155,12 +155,21 @@ fun ExploreFeedScreen(
                                     .background(Color(0xFFE2E8F0)),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    imageVector = Icons.Default.MenuBook,
-                                    contentDescription = "Course",
-                                    modifier = Modifier.size(64.dp),
-                                    tint = Color.Gray
-                                )
+                                 if (course.bannerUrl.isNotBlank()) {
+                                     AsyncImage(
+                                         model = course.bannerUrl,
+                                         contentDescription = "Course Banner",
+                                         modifier = Modifier.fillMaxSize(),
+                                         contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                     )
+                                 } else {
+                                     Icon(
+                                         imageVector = Icons.Default.MenuBook,
+                                         contentDescription = "Course",
+                                         modifier = Modifier.size(64.dp),
+                                         tint = Color.Gray
+                                     )
+                                 }
                                 Box(
                                     modifier = Modifier
                                         .align(Alignment.BottomEnd)
@@ -177,6 +186,19 @@ fun ExploreFeedScreen(
                                 Text(course.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 2, color = Color(0xFF2D3748))
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(course.description, fontSize = 14.sp, color = Color.Gray, maxLines = 2)
+                                if (course.startDate.isNotBlank() || course.endDate.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.DateRange,
+                                            contentDescription = "Duration",
+                                            modifier = Modifier.size(14.dp),
+                                            tint = Color.Gray
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("সময়কাল: ${course.startDate} - ${course.endDate}", fontSize = 12.sp, color = Color.Gray)
+                                    }
+                                }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(course.pricingOption, fontSize = 14.sp, color = accentColor, fontWeight = FontWeight.Bold)

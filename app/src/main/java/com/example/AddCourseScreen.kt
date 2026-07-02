@@ -1,6 +1,8 @@
 package com.example
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -23,6 +25,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,13 +49,62 @@ fun AddCourseScreen(
     var bkashNumber by remember { mutableStateOf(initialCourse?.bkashNumber ?: "") }
     var nagadNumber by remember { mutableStateOf(initialCourse?.nagadNumber ?: "") }
     var rocketNumber by remember { mutableStateOf(initialCourse?.rocketNumber ?: "") }
-    var paymentDetails by remember { mutableStateOf(initialCourse?.paymentDetails ?: "") }
+    var paymentDetails by remember { mutableStateOf(initialCourse?.cleanPaymentDetails ?: "") }
     
     var isQuarterOn by remember { mutableStateOf(initialCourse?.isQuarterOn ?: false) }
     var quarters by remember { mutableStateOf(if (initialCourse != null && initialCourse.quarters.isNotEmpty()) initialCourse.quarters else listOf(CourseQuarter())) }
     
+    var fullCourseStartDate by remember { mutableStateOf(initialCourse?.startDate ?: "") }
+    var fullCourseEndDate by remember { mutableStateOf(initialCourse?.endDate ?: "") }
+    
     val context = LocalContext.current
+    
+    fun showDatePicker(onDateSelected: (String) -> Unit) {
+        val calendar = java.util.Calendar.getInstance()
+        val datePickerDialog = android.app.DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                val formattedDate = String.format("%02d/%02d/%04d", dayOfMonth, month + 1, year)
+                onDateSelected(formattedDate)
+            },
+            calendar.get(java.util.Calendar.YEAR),
+            calendar.get(java.util.Calendar.MONTH),
+            calendar.get(java.util.Calendar.DAY_OF_MONTH)
+        )
+        datePickerDialog.show()
+    }
     val isEditing = initialCourse != null
+    val coroutineScope = rememberCoroutineScope()
+    var bannerUrl by remember { mutableStateOf(initialCourse?.bannerUrl ?: "") }
+    var isUploadingBanner by remember { mutableStateOf(false) }
+
+    val bannerPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        if (uri != null) {
+            coroutineScope.launch {
+                isUploadingBanner = true
+                Toast.makeText(context, "কভার ফটো আপলোড হচ্ছে...", Toast.LENGTH_SHORT).show()
+                try {
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                    val bytes = inputStream?.readBytes()
+                    if (bytes != null) {
+                        val uploadedUrl = ImgBBClient.uploadImage(bytes)
+                        if (uploadedUrl != null) {
+                            bannerUrl = uploadedUrl
+                            Toast.makeText(context, "কভার ফটো সফলভাবে আপলোড হয়েছে!", Toast.LENGTH_SHORT).show()
+                        } else {
+                            Toast.makeText(context, "আপলোড ব্যর্থ হয়েছে।", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Toast.makeText(context, "ত্রুটি: ${e.message}", Toast.LENGTH_SHORT).show()
+                } finally {
+                    isUploadingBanner = false
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -76,7 +129,7 @@ fun AddCourseScreen(
         ) {
             // Course Banner
             item {
-                Text("Course Banner", fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                Text("Course Cover Photo", fontWeight = FontWeight.Bold, color = Color.DarkGray)
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
                     modifier = Modifier
@@ -84,15 +137,34 @@ fun AddCourseScreen(
                         .height(150.dp)
                         .clip(RoundedCornerShape(12.dp))
                         .background(Color.LightGray.copy(alpha = 0.3f))
-                        .clickable {
-                            Toast.makeText(context, "Upload Banner Clicked", Toast.LENGTH_SHORT).show()
+                        .clickable(enabled = !isUploadingBanner) {
+                            bannerPickerLauncher.launch("image/*")
                         },
                     contentAlignment = Alignment.Center
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Upload Banner", tint = Color.Gray, modifier = Modifier.size(40.dp))
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("Upload Course Banner", color = Color.Gray)
+                    if (bannerUrl.isNotBlank()) {
+                        AsyncImage(
+                            model = bannerUrl,
+                            contentDescription = "Course Cover Photo",
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = 0.4f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Change Cover Photo", color = Color.White, fontWeight = FontWeight.Bold)
+                        }
+                    } else if (isUploadingBanner) {
+                        CircularProgressIndicator(color = accentColor)
+                    } else {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Upload Cover", tint = Color.Gray, modifier = Modifier.size(40.dp))
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text("Upload Course Cover Photo", color = Color.Gray)
+                        }
                     }
                 }
             }
@@ -108,16 +180,16 @@ fun AddCourseScreen(
                     singleLine = true
                 )
             }
-            
+
             // Course Description
             item {
                 OutlinedTextField(
                     value = courseDescription,
                     onValueChange = { courseDescription = it },
                     label = { Text("Course Description") },
-                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
-                    placeholder = { Text("Write course details here...") }
+                    minLines = 3
                 )
             }
 
@@ -279,30 +351,67 @@ fun AddCourseScreen(
                                 )
                             }
                             
-                            Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                OutlinedTextField(
-                                    value = quarter.startDate,
-                                    onValueChange = { 
-                                        val newQuarters = quarters.toMutableList()
-                                        newQuarters[index] = quarter.copy(startDate = it)
-                                        quarters = newQuarters
-                                    },
-                                    label = { Text("শুরুর তারিখ") },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                OutlinedTextField(
-                                    value = quarter.endDate,
-                                    onValueChange = { 
-                                        val newQuarters = quarters.toMutableList()
-                                        newQuarters[index] = quarter.copy(endDate = it)
-                                        quarters = newQuarters
-                                    },
-                                    label = { Text("End Date") },
-                                    modifier = Modifier.weight(1f),
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                            }
+                             Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                 // Quarter Start Date
+                                 Box(
+                                     modifier = Modifier
+                                         .weight(1f)
+                                         .clickable {
+                                             showDatePicker { selectedDate ->
+                                                 val newQuarters = quarters.toMutableList()
+                                                 newQuarters[index] = quarter.copy(startDate = selectedDate)
+                                                 quarters = newQuarters
+                                             }
+                                         }
+                                 ) {
+                                     OutlinedTextField(
+                                         value = quarter.startDate,
+                                         onValueChange = {},
+                                         label = { Text("শুরুর তারিখ") },
+                                         placeholder = { Text("dd/mm/yyyy") },
+                                         readOnly = true,
+                                         enabled = false,
+                                         modifier = Modifier.fillMaxWidth(),
+                                         shape = RoundedCornerShape(12.dp),
+                                         colors = OutlinedTextFieldDefaults.colors(
+                                             disabledTextColor = Color.Black,
+                                             disabledBorderColor = Color.Gray,
+                                             disabledLabelColor = Color.Gray,
+                                             disabledPlaceholderColor = Color.Gray
+                                         )
+                                     )
+                                 }
+
+                                 // Quarter End Date
+                                 Box(
+                                     modifier = Modifier
+                                         .weight(1f)
+                                         .clickable {
+                                             showDatePicker { selectedDate ->
+                                                 val newQuarters = quarters.toMutableList()
+                                                 newQuarters[index] = quarter.copy(endDate = selectedDate)
+                                                 quarters = newQuarters
+                                             }
+                                         }
+                                 ) {
+                                     OutlinedTextField(
+                                         value = quarter.endDate,
+                                         onValueChange = {},
+                                         label = { Text("শেষের তারিখ") },
+                                         placeholder = { Text("dd/mm/yyyy") },
+                                         readOnly = true,
+                                         enabled = false,
+                                         modifier = Modifier.fillMaxWidth(),
+                                         shape = RoundedCornerShape(12.dp),
+                                         colors = OutlinedTextFieldDefaults.colors(
+                                             disabledTextColor = Color.Black,
+                                             disabledBorderColor = Color.Gray,
+                                             disabledLabelColor = Color.Gray,
+                                             disabledPlaceholderColor = Color.Gray
+                                         )
+                                     )
+                                 }
+                             }
                         }
                     }
                 }
@@ -331,6 +440,13 @@ fun AddCourseScreen(
                         if (courseTitle.isBlank()) {
                             Toast.makeText(context, "Please enter course name", Toast.LENGTH_SHORT).show()
                         } else {
+                            val originalRoutinePart = initialCourse?.realRoutineUrl ?: ""
+                            val finalRoutineUrl = "v2;$bannerUrl;$fullCourseStartDate;$fullCourseEndDate;$originalRoutinePart"
+                            val finalPaymentDetails = if (paymentDetails.isNotBlank()) {
+                                "$paymentDetails|||ROUTINE_DATA:$finalRoutineUrl"
+                            } else {
+                                "|||ROUTINE_DATA:$finalRoutineUrl"
+                            }
                             val newCourse = CourseItem(
                                 id = initialCourse?.id ?: java.util.UUID.randomUUID().toString(),
                                 channel_id = initialCourse?.channel_id ?: "",
@@ -342,7 +458,7 @@ fun AddCourseScreen(
                                 bkashNumber = bkashNumber,
                                 nagadNumber = nagadNumber,
                                 rocketNumber = rocketNumber,
-                                paymentDetails = paymentDetails,
+                                paymentDetails = finalPaymentDetails,
                                 isQuarterOn = isQuarterOn,
                                 quarters = quarters,
                                 subjects = initialCourse?.subjects ?: emptyList(),

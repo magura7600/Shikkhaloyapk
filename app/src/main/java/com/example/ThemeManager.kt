@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 
 object ThemeManager {
     var themeMode by mutableStateOf("system") // "light", "dark", "system"
+    var isPipEnabled by mutableStateOf(true)
 
     private var hasInitialized = false
     private lateinit var sharedPrefs: android.content.SharedPreferences
@@ -18,6 +19,7 @@ object ThemeManager {
         if (hasInitialized) return
         sharedPrefs = context.applicationContext.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
         themeMode = sharedPrefs.getString("selected_theme_mode", "system") ?: "system"
+        isPipEnabled = sharedPrefs.getBoolean("pip_enabled", true)
         hasInitialized = true
     }
 
@@ -25,6 +27,12 @@ object ThemeManager {
         init(context)
         themeMode = mode
         sharedPrefs.edit().putString("selected_theme_mode", mode).apply()
+    }
+
+    fun setPipEnabled(context: Context, enabled: Boolean) {
+        init(context)
+        isPipEnabled = enabled
+        sharedPrefs.edit().putBoolean("pip_enabled", enabled).apply()
     }
 
     @Composable
@@ -69,4 +77,10 @@ object ThemeManager {
         onSurface = Color(0xFFF1F5F9),
         error = Color(0xFFF87171)
     )
+}
+
+object VideoPipState {
+    var isVideoActive by mutableStateOf(false)
+    var isInPip by mutableStateOf(false)
+    var onEnterPip: (() -> Unit)? = null
 }

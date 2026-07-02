@@ -17,6 +17,8 @@ import androidx.compose.material.icons.filled.Calculate
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.ArtTrack
+import androidx.compose.material.icons.filled.DateRange
+import coil.compose.AsyncImage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -119,12 +121,21 @@ fun CourseListScreen(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = bannerIcons[colorIndex],
-                            contentDescription = null,
-                            modifier = Modifier.size(64.dp),
-                            tint = bannerIconColors[colorIndex].copy(alpha = 0.5f)
-                        )
+                        if (course.bannerUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = course.bannerUrl,
+                                contentDescription = "Course Banner",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            Icon(
+                                imageVector = bannerIcons[colorIndex],
+                                contentDescription = null,
+                                modifier = Modifier.size(64.dp),
+                                tint = bannerIconColors[colorIndex].copy(alpha = 0.5f)
+                            )
+                        }
                         if (onEditCourse != null && onDeleteCourse != null) {
                             Row(
                                 modifier = Modifier.align(Alignment.TopEnd).padding(8.dp),
@@ -179,6 +190,24 @@ fun CourseListScreen(
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis
                         )
+                        
+                        if (course.startDate.isNotBlank() || course.endDate.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = "Duration",
+                                    modifier = Modifier.size(14.dp),
+                                    tint = Color(0xFF64748B)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "সময়কাল: ${course.startDate} - ${course.endDate}",
+                                    fontSize = 12.sp,
+                                    color = Color(0xFF64748B)
+                                )
+                            }
+                        }
                         
                         Spacer(modifier = Modifier.height(16.dp))
                         

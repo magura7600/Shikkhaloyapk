@@ -12,6 +12,21 @@ data class CourseQuarter(
 )
 
 @Serializable
+data class EnrollmentRequest(
+    val id: String = UUID.randomUUID().toString(),
+    val user_id: String,
+    val course_id: String,
+    val requested_quarters: String = "",
+    val amount: String = "",
+    val payment_method: String = "",
+    val sender_number: String = "",
+    val transaction_id: String = "",
+    val status: String = "PENDING", // PENDING, APPROVED, REJECTED
+    val rejection_reason: String = "",
+    val created_at: String? = null
+)
+
+@Serializable
 data class Enrollment(
     val id: String = UUID.randomUUID().toString(),
     val user_id: String,
@@ -81,7 +96,8 @@ data class CourseSubject(
     val colorHex: String = "#FF6B6B",
     val iconUrl: String = "",
     val chapters: List<CourseChapter> = emptyList(),
-    val sourceCourseId: String? = null
+    val sourceCourseId: String? = null,
+    val learningResources: List<PdfLink> = emptyList()
 )
 
 @Serializable
@@ -100,7 +116,58 @@ data class CourseItem(
     val isQuarterOn: Boolean = false,
     val quarters: List<CourseQuarter> = emptyList(),
     val subjects: List<CourseSubject> = emptyList(),
-    val studentsCount: Int = 0, 
-    val rating: Float = 0f,
-    val routineUrl: String = ""
-)
+    @kotlinx.serialization.Transient val studentsCount: Int = 0, 
+    @kotlinx.serialization.Transient val rating: Float = 0f
+) {
+    val routineUrl: String
+        get() {
+            if (paymentDetails.contains("|||ROUTINE_DATA:")) {
+                return paymentDetails.substringAfter("|||ROUTINE_DATA:")
+            }
+            return ""
+        }
+
+    val cleanPaymentDetails: String
+        get() {
+            if (paymentDetails.contains("|||ROUTINE_DATA:")) {
+                return paymentDetails.substringBefore("|||ROUTINE_DATA:")
+            }
+            return paymentDetails
+        }
+
+    val bannerUrl: String
+        get() {
+            if (routineUrl.startsWith("v2;")) {
+                val parts = routineUrl.substring(3).split(";")
+                return if (parts.isNotEmpty()) parts[0] else ""
+            }
+            return if (routineUrl.contains(";")) routineUrl.substringBefore(";") else ""
+        }
+
+    val startDate: String
+        get() {
+            if (routineUrl.startsWith("v2;")) {
+                val parts = routineUrl.substring(3).split(";")
+                return if (parts.size >= 2) parts[1] else ""
+            }
+            return ""
+        }
+
+    val endDate: String
+        get() {
+            if (routineUrl.startsWith("v2;")) {
+                val parts = routineUrl.substring(3).split(";")
+                return if (parts.size >= 3) parts[2] else ""
+            }
+            return ""
+        }
+
+    val realRoutineUrl: String
+        get() {
+            if (routineUrl.startsWith("v2;")) {
+                val parts = routineUrl.substring(3).split(";")
+                return if (parts.size >= 4) parts.subList(3, parts.size).joinToString(";") else ""
+            }
+            return if (routineUrl.contains(";")) routineUrl.substringAfter(";") else routineUrl
+        }
+}

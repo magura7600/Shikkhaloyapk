@@ -249,7 +249,16 @@ fun CourseTabContent(
                             .background(accentColor.copy(alpha = 0.1f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Book, contentDescription = "Course", tint = accentColor, modifier = Modifier.size(32.dp))
+                        if (course.bannerUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = course.bannerUrl,
+                                contentDescription = "Course Banner",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.Book, contentDescription = "Course", tint = accentColor, modifier = Modifier.size(32.dp))
+                        }
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {

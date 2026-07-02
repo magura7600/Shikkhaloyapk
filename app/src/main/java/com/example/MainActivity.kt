@@ -131,10 +131,47 @@ sealed interface AppState {
 }
 
 class MainActivity : ComponentActivity() {
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        if (ThemeManager.isPipEnabled && VideoPipState.isVideoActive) {
+            VideoPipState.onEnterPip?.invoke()
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(
+        isInPictureInPictureMode: Boolean,
+        newConfig: android.content.res.Configuration
+    ) {
+        super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        VideoPipState.isInPip = isInPictureInPictureMode
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         appContext = applicationContext
         L.init(this)
         ThemeManager.init(this)
+
+        // Initialize Coil ImageLoader with cache for faster image loading
+        try {
+            val imageLoader = coil.ImageLoader.Builder(this)
+                .memoryCache {
+                    coil.memory.MemoryCache.Builder(this)
+                        .maxSizePercent(0.25)
+                        .build()
+                }
+                .diskCache {
+                    coil.disk.DiskCache.Builder()
+                        .directory(this.cacheDir.resolve("image_cache"))
+                        .maxSizePercent(0.1)
+                        .build()
+                }
+                .crossfade(true)
+                .build()
+            coil.Coil.setImageLoader(imageLoader)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
@@ -149,6 +186,27 @@ class MainActivity : ComponentActivity() {
             // Request notification permission
             lifecycleScope.launch {
                 OneSignal.Notifications.requestPermission(true)
+            }
+
+            // Standard System Permission Request for Storage and Notifications
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) {
+                val permissions = mutableListOf<String>()
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                    permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
+                    permissions.add(android.Manifest.permission.READ_MEDIA_VIDEO)
+                    permissions.add(android.Manifest.permission.READ_MEDIA_IMAGES)
+                } else {
+                    permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                    permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                }
+                
+                val neededPermissions = permissions.filter {
+                    androidx.core.content.ContextCompat.checkSelfPermission(this@MainActivity, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+                }
+                
+                if (neededPermissions.isNotEmpty()) {
+                    androidx.core.app.ActivityCompat.requestPermissions(this@MainActivity, neededPermissions.toTypedArray(), 101)
+                }
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -1538,6 +1596,9 @@ fun DashboardScreen(
     var courses by remember { mutableStateOf(listOf<CourseItem>()) }
     var allChannels by remember { mutableStateOf(listOf<UserProfile>()) }
     var enrollments by remember { mutableStateOf(listOf<Enrollment>()) }
+
+    var enrollmentRequests by remember { mutableStateOf(listOf<EnrollmentRequest>()) }
+
     var courseInteractions by remember { mutableStateOf(listOf<CourseInteraction>()) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -1595,8 +1656,14 @@ fun DashboardScreen(
 
             val fetchedEnrollments = withContext(Dispatchers.IO) {
                 try {
-                    supabase.from("enrollments").select().decodeList<Enrollment>()
-                } catch(e:Exception) { emptyList() }
+                    val enrolls = supabase.from("enrollments").select().decodeList<Enrollment>()
+                    try {
+                        enrollmentRequests = supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                    enrolls
+                } catch(e:Exception) { emptyList<Enrollment>() }
             }
             enrollments = fetchedEnrollments
 
@@ -1790,11 +1857,11 @@ fun DashboardScreen(
             if (currentScreen == "dashboard") {
                 if (!isManagementUser) {
                 val studentNavItems = listOf(
-                    BottomNavItem("", Icons.Outlined.Home, Color(0xFF4CAF50)),
-                    BottomNavItem("", Icons.Outlined.MenuBook, Color(0xFF2196F3)),
-                    BottomNavItem("", Icons.Outlined.Explore, Color(0xFFFF9800)),
-                    BottomNavItem("", Icons.Outlined.AutoAwesome, Color(0xFF9C27B0)),
-                    BottomNavItem("", Icons.Outlined.Settings, Color(0xFF607D8B))
+                    BottomNavItem("হোম", Icons.Outlined.Home, Color(0xFF4CAF50)),
+                    BottomNavItem("কোর্স", Icons.Outlined.MenuBook, Color(0xFF2196F3)),
+                    BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, Color(0xFFFF9800)),
+                    BottomNavItem("এক্সপ্লোর", Icons.Outlined.Explore, Color(0xFF9C27B0)),
+                    BottomNavItem("সেটিংস", Icons.Outlined.Settings, Color(0xFF607D8B))
                 )
                 CustomBottomNavigation(
                     items = studentNavItems,
@@ -1871,10 +1938,11 @@ fun DashboardScreen(
                         editingCourse = null
                     },
                     onCourseAdded = { newCourse ->
+                        val isEditMode = currentScreen == "edit_course"
                         val courseToSave = newCourse.copy(channel_id = teacherChannel?.user_id)
                         coroutineScope.launch {
                             try {
-                                if (currentScreen == "edit_course") {
+                                if (isEditMode) {
                                     withContext(Dispatchers.IO) {
                                         supabase.from("courses").update(courseToSave) {
                                             filter { eq("id", courseToSave.id) }
@@ -1890,10 +1958,11 @@ fun DashboardScreen(
                                 currentScreen = "dashboard"
                                 editingCourse = null
                             } catch (e: Exception) {
-                                if (e.message?.contains("subjects") == true || e.message?.contains("schema") == true) {
-                                    Toast.makeText(context, "Error: Supabase এ courses টেবিলে subjects (Type: JSONB) কলাম তৈরি করুন!", Toast.LENGTH_LONG).show()
+                                val msg = e.message ?: ""
+                                if (msg.contains("subjects") || msg.contains("quarters") || msg.contains("isQuarterOn")) {
+                                    Toast.makeText(context, "Error: Supabase-এ কলাম অনুপস্থিত বা ত্রুটি! (${e.message})", Toast.LENGTH_LONG).show()
                                 } else {
-                                    Toast.makeText(context, "Error saving course: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Error saving course: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
                             }
                         }
@@ -2005,6 +2074,8 @@ fun DashboardScreen(
                     initialSubjectId = initialSubjectId,
                     initialChapterId = initialChapterId,
                     initialClassId = initialClassId,
+                    pendingRequest = enrollmentRequests.find { it.course_id == selectedCourse!!.id && it.user_id == profile.user_id },
+                    onPurchaseClick = { currentScreen = "purchase_course" },
                     onEnroll = { purchasedQuarters ->
                         coroutineScope.launch {
                             try {
@@ -2060,10 +2131,11 @@ fun DashboardScreen(
                                 selectedCourse = updatedCourse
                                 Toast.makeText(context, "Course updated!", Toast.LENGTH_SHORT).show()
                             } catch (e: Exception) {
-                                if (e.message?.contains("subjects") == true || e.message?.contains("schema") == true) {
-                                    Toast.makeText(context, "Error: Supabase এ courses টেবিলে subjects (Type: JSONB) কলাম তৈরি করুন!", Toast.LENGTH_LONG).show()
+                                val msg = e.message ?: ""
+                                if (msg.contains("subjects") || msg.contains("quarters") || msg.contains("isQuarterOn")) {
+                                    Toast.makeText(context, "Error: Supabase-এ কলাম অনুপস্থিত বা ত্রুটি! (${e.message})", Toast.LENGTH_LONG).show()
                                 } else {
-                                    Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
                             }
                         }
@@ -2080,6 +2152,47 @@ fun DashboardScreen(
                         initialChapterId = null
                         initialClassId = null
                     }
+                )
+            } else if (currentScreen == "purchase_course" && selectedCourse != null) {
+                PurchaseCourseScreen(
+                    course = selectedCourse!!,
+                    profile = profile,
+                    accentColor = accentColor,
+                    onBack = { currentScreen = "course_detail" },
+                    onPurchaseSubmitted = {
+                        coroutineScope.launch {
+                            try {
+                                enrollmentRequests = supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
+                            } catch (e: Exception) { e.printStackTrace() }
+                        }
+                        currentScreen = "course_detail"
+                    }
+                )
+            } else if (currentScreen == "enrollment_requests" && teacherChannel != null) {
+                EnrollmentRequestsScreen(
+                    teacherChannel = profile,
+                    requests = enrollmentRequests,
+                    courses = courses,
+                    accentColor = accentColor,
+                    onBack = { currentScreen = "dashboard" },
+                    onUpdateRequests = {
+                        coroutineScope.launch {
+                            try {
+                                enrollmentRequests = supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
+                                val fetched = supabase.from("enrollments").select().decodeList<Enrollment>()
+                                enrollments = fetched
+                            } catch (e: Exception) { e.printStackTrace() }
+                        }
+                    }
+                )
+            } else if (currentScreen == "my_enrollments") {
+                MyEnrollmentsScreen(
+                    profile = profile,
+                    enrollments = enrollments,
+                    requests = enrollmentRequests,
+                    courses = courses,
+                    accentColor = accentColor,
+                    onBack = { currentScreen = "dashboard" }
                 )
             } else {
                 if (isTeacher) {
@@ -2123,7 +2236,8 @@ fun DashboardScreen(
                             },
                             onAddClassLinkClick = { currentScreen = "add_class_link" },
                             onMentorsClick = { showMentorsDialog = true },
-                            onManageStudentsClick = { currentScreen = "select_course_for_students" }
+                            onManageStudentsClick = { currentScreen = "select_course_for_students" },
+                            onEnrollmentRequestsClick = { currentScreen = "enrollment_requests" }
                         )
                     } else if (selectedTab == 3) {
                         CourseListScreen(
@@ -2158,12 +2272,20 @@ fun DashboardScreen(
                                                 }
                                             } catch (e: Exception) { e.printStackTrace() }
 
+                                            // Delete related enrollment_requests
+                                            try {
+                                                supabase.from("enrollment_requests").delete {
+                                                    filter { eq("course_id", course.id) }
+                                                }
+                                            } catch (e: Exception) { e.printStackTrace() }
+
                                             // Delete the course itself
                                             supabase.from("courses").delete {
                                                 filter { eq("id", course.id) }
                                             }
                                         }
                                         courses = courses.filter { it.id != course.id }
+                                        enrollmentRequests = enrollmentRequests.filter { it.course_id != course.id }
                                         Toast.makeText(context, "কোর্স মুছে ফেলা হয়েছে!", Toast.LENGTH_SHORT).show()
                                     } catch (e: Exception) {
                                         Toast.makeText(context, "Error deleting course: ${e.message}", Toast.LENGTH_SHORT).show()
@@ -2180,6 +2302,8 @@ fun DashboardScreen(
                             onProfileUpdate = onProfileUpdate,
                             courses = courses,
                             enrollments = enrollments
+                        ,
+                            onNavigateToMyEnrollments = { currentScreen = "my_enrollments" }
                         )
                     }
                 } else {
@@ -2211,6 +2335,15 @@ fun DashboardScreen(
                             }
                         )
                     } else if (selectedTab == 2) {
+                        MyEnrollmentsScreen(
+                            profile = profile,
+                            enrollments = enrollments,
+                            requests = enrollmentRequests,
+                            courses = courses,
+                            accentColor = accentColor,
+                            onBack = { selectedTab = 0 }
+                        )
+                    } else if (selectedTab == 3) {
                         ExploreFeedScreen(
                             accentColor = accentColor, 
                             profile = profile, 
@@ -2236,6 +2369,8 @@ fun DashboardScreen(
                             onProfileUpdate = onProfileUpdate,
                             courses = courses,
                             enrollments = enrollments
+                        ,
+                            onNavigateToMyEnrollments = { currentScreen = "my_enrollments" }
                         )
                     } else {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -2935,7 +3070,7 @@ fun StudentCoursesScreen(
 }
 
 @Composable
-fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAddCourseClick: () -> Unit, onMentorsClick: () -> Unit, onManageStudentsClick: () -> Unit, onAddClassLinkClick: () -> Unit) {
+fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAddCourseClick: () -> Unit, onMentorsClick: () -> Unit, onManageStudentsClick: () -> Unit, onAddClassLinkClick: () -> Unit, onEnrollmentRequestsClick: () -> Unit) {
     val items = listOf(
         Pair("সকল কোর্স", Icons.Default.LibraryBooks),
         Pair("ক্লাস যোগ", Icons.Default.AddBox),
@@ -2943,7 +3078,8 @@ fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAd
         Pair("চ্যানেল", Icons.Default.LiveTv),
         Pair("হোম ওয়ার্ক", Icons.Default.Assignment),
         Pair("শিক্ষার্থীদের পরিচালনা", Icons.Default.People),
-        Pair("মেন্টর তালিকা", Icons.Default.GroupAdd)
+        Pair("মেন্টর তালিকা", Icons.Default.GroupAdd),
+        Pair("কোর্স কেনা রিকোয়েস্ট", Icons.Outlined.Notifications)
     )
 
     LazyColumn(
@@ -2984,6 +3120,7 @@ fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAd
                                 else if (items[i].first == "মেন্টর তালিকা") onMentorsClick()
                                 else if (items[i].first == "শিক্ষার্থীদের পরিচালনা") onManageStudentsClick()
                                 else if (items[i].first == "ক্লাস লিংক যোগ") onAddClassLinkClick()
+                                else if (items[i].first == "কোর্স কেনা রিকোয়েস্ট") onEnrollmentRequestsClick()
                             },
                             modifier = Modifier.weight(1f)
                         )
@@ -2998,6 +3135,7 @@ fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAd
                                     else if (items[i + 1].first == "মেন্টর তালিকা") onMentorsClick()
                                     else if (items[i + 1].first == "শিক্ষার্থীদের পরিচালনা") onManageStudentsClick()
                                     else if (items[i + 1].first == "ক্লাস লিংক যোগ") onAddClassLinkClick()
+                                    else if (items[i + 1].first == "কোর্স কেনা রিকোয়েস্ট") onEnrollmentRequestsClick()
                                 },
                                 modifier = Modifier.weight(1f)
                             )
@@ -3064,7 +3202,8 @@ fun SettingsScreen(
     accentColor: Color,
     onProfileUpdate: (UserProfile) -> Unit,
     courses: List<CourseItem> = emptyList(),
-    enrollments: List<Enrollment> = emptyList()
+    enrollments: List<Enrollment> = emptyList(),
+    onNavigateToMyEnrollments: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -3074,7 +3213,7 @@ fun SettingsScreen(
     var showProfileEditDialog by remember { mutableStateOf(false) }
     var showLanguageSheet by remember { mutableStateOf(false) }
     var showThemeSheet by remember { mutableStateOf(false) }
-    var showAdmissionInfoDialog by remember { mutableStateOf(false) }
+    
     var showDownloadsDialog by remember { mutableStateOf(false) }
     
     var isCheckingUpdate by remember { mutableStateOf(false) }
@@ -3083,43 +3222,6 @@ fun SettingsScreen(
     var showPublishNoticeDialog by remember { mutableStateOf(false) }
     var showAdminDashboardPanel by remember { mutableStateOf(false) }
     var showLogoutDialog by remember { mutableStateOf(false) }
-
-    if (showAdmissionInfoDialog) {
-        val myEnrolledCourses = courses.filter { course ->
-            enrollments.any { it.user_id == profile.user_id && it.course_id == course.id }
-        }
-        AlertDialog(
-            onDismissRequest = { showAdmissionInfoDialog = false },
-            title = { Text("Admission Information", fontWeight = FontWeight.Bold) },
-            text = {
-                if (myEnrolledCourses.isEmpty()) {
-                    Text("You have not purchased any courses yet.")
-                } else {
-                    LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(myEnrolledCourses) { course ->
-                            val enrollment = enrollments.find { it.user_id == profile.user_id && it.course_id == course.id }
-                            Card(
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6))
-                            ) {
-                                Column(modifier = Modifier.padding(12.dp)) {
-                                    Text(course.title, fontWeight = FontWeight.Bold)
-                                    Spacer(modifier = Modifier.height(4.dp))
-                                    Text("Price Paid: ৳${enrollment?.price_paid ?: "0"}", fontSize = 14.sp)
-                                    Text("Purchase Date: ${enrollment?.created_at?.take(10) ?: "Just now"}", fontSize = 14.sp)
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showAdmissionInfoDialog = false }) {
-                    Text("Close", color = accentColor)
-                }
-            }
-        )
-    }
 
     if (showAdminDashboardPanel) {
         AdminDashboardContent(
@@ -3156,21 +3258,11 @@ fun SettingsScreen(
                 ) {
                     SettingItem(
                         icon = Icons.Outlined.Person,
-                        title = "প্রোফাইল সেটিংস".t(),
-                        subtitle = "আপনার প্রোফাইলের তথ্য আপডেট করুন".t(),
+                        title = "প্রোফাইল আপডেট".t(),
+                        subtitle = "আপনার নাম, ছবি ও অন্যান্য তথ্য পরিবর্তন করুন".t(),
                         accentColor = accentColor,
                         onClick = { showProfileEditDialog = true }
                     )
-                    if (!isTeacher) {
-                        Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
-                        SettingItem(
-                            icon = Icons.Outlined.Info,
-                            title = "ভর্তির তথ্য".t(),
-                            subtitle = "আপনার ভর্তি হওয়া কোর্সের বিবরণ দেখুন".t(),
-                            accentColor = accentColor,
-                            onClick = { showAdmissionInfoDialog = true }
-                        )
-                    }
                 }
             }
         }
@@ -3210,6 +3302,17 @@ fun SettingsScreen(
                         },
                         accentColor = accentColor,
                         onClick = { showThemeSheet = true }
+                    )
+                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
+                    SettingToggleItem(
+                        icon = Icons.Outlined.PlayCircleOutline,
+                        title = "পপ-আপ ভিডিও মোড".t(),
+                        subtitle = "অন্য অ্যাপ চালানোর সময়ও ভিডিও দেখুন".t(),
+                        accentColor = accentColor,
+                        checked = ThemeManager.isPipEnabled,
+                        onCheckedChange = { enabled ->
+                            ThemeManager.setPipEnabled(context, enabled)
+                        }
                     )
                     if (!isTeacher) {
                         Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
@@ -3796,6 +3899,61 @@ fun SettingItem(
             imageVector = Icons.Default.ChevronRight,
             contentDescription = "Go",
             tint = Color.LightGray
+        )
+    }
+}
+
+
+@Composable
+fun SettingToggleItem(
+    icon: ImageVector,
+    title: String,
+    subtitle: String,
+    accentColor: Color,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .background(Color(0xFFF3F4F6), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = title,
+                tint = accentColor,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        Spacer(modifier = Modifier.width(16.dp))
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontSize = 15.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = Color.DarkGray
+            )
+            Text(
+                text = subtitle,
+                fontSize = 12.sp,
+                color = Color.Gray
+            )
+        }
+        androidx.compose.material3.Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = androidx.compose.material3.SwitchDefaults.colors(
+                checkedThumbColor = Color.White,
+                checkedTrackColor = accentColor
+            )
         )
     }
 }

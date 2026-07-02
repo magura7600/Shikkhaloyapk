@@ -22,12 +22,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Block
+
+import androidx.compose.material.icons.filled.HelpOutline
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.PlayCircle
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.KeyboardArrowDown
@@ -83,9 +93,15 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.material.icons.filled.Brightness5
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.AspectRatio
+import androidx.compose.material.icons.filled.Share
+import android.content.Intent
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.TextStyle
 
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
@@ -110,6 +126,8 @@ fun CourseDetailScreen(
     mentors: List<Mentor>,
     userEnrollment: Enrollment?,
     isLiked: Boolean,
+    pendingRequest: EnrollmentRequest? = null,
+    onPurchaseClick: () -> Unit = {},
     onEnroll: (purchasedQuarters: String) -> Unit,
     onLikeToggle: () -> Unit,
     onCourseUpdate: (CourseItem) -> Unit,
@@ -122,6 +140,7 @@ fun CourseDetailScreen(
 ) {
     var selectedQuarters by remember { mutableStateOf(setOf<CourseQuarter>()) }
     var selectFullCourse by remember { mutableStateOf(true) }
+    var isAddingSubjectTopBar by remember { mutableStateOf(false) }
     val mContext = LocalContext.current
     val isTeacher = course.channel_id == profile.user_id
     
@@ -168,82 +187,95 @@ fun CourseDetailScreen(
     Scaffold(
         topBar = {
             if (!isClassActive && !isChapterActive) {
-                TopAppBar(
-                    title = { Text(selectedSubjectForView?.title ?: course.title, fontWeight = FontWeight.Bold) },
-                    navigationIcon = {
-                        IconButton(onClick = {
-                            if (selectedSubjectForView != null) {
-                                selectedSubjectForView = null
-                            } else {
-                                onBack()
-                            }
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFFFBF8F1))
+                        .padding(horizontal = 16.dp)
+                        .padding(top = 16.dp, bottom = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    // Back Button
+                    Card(
+                        modifier = Modifier
+                            .size(42.dp)
+                            .clickable {
+                                if (selectedSubjectForView != null) {
+                                    selectedSubjectForView = null
+                                } else {
+                                    onBack()
+                                }
+                            },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back",
+                                tint = Color(0xFF1E293B),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
-                )
+                    }
+
+                    // Course / Subject Title
+                    Text(
+                        text = selectedSubjectForView?.title ?: course.title,
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 12.dp),
+                        style = TextStyle(
+                            fontSize = 17.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF0F172A),
+                            textAlign = TextAlign.Center
+                        ),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+
+                    Spacer(modifier = Modifier.size(42.dp)) // Right side empty placeholder for balanced alignment
+                }
             }
         },
         bottomBar = {
-            if (!isClassActive && !isChapterActive) {
-                if (!isTeacher) {
-                    Surface(
-                        color = Color.White,
-                        shadowElevation = 8.dp,
-                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+            if (!isClassActive && !isChapterActive && userEnrollment == null && !isTeacher) {
+                Surface(
+                    color = Color.White,
+                    shadowElevation = 8.dp,
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp)
                     ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp)
-                        ) {
-                            if (course.pricingOption != "Fully Free") {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text("Total Price:", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.Gray)
-                                    Text("৳${totalPrice.toInt()}", fontWeight = FontWeight.ExtraBold, fontSize = 24.sp, color = accentColor)
+                        Button(
+                            onClick = {
+                                if (course.pricingOption == "Fully Free") {
+                                    onEnroll("")
+                                } else {
+                                    onPurchaseClick()
                                 }
-                                Spacer(modifier = Modifier.height(16.dp))
-                            }
-                            Button(
-                                onClick = {
-                                    if (userEnrollment == null) {
-                                        val purchasedQuartersStr = if (selectFullCourse) "" else selectedQuarters.joinToString(",") { it.name }
-                                        onEnroll(purchasedQuartersStr)
-                                    }
-                                },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = if (userEnrollment != null) Color.Gray else accentColor),
-                                shape = RoundedCornerShape(12.dp),
-                                enabled = userEnrollment == null
-                            ) {
-                                Text(
-                                    text = if (userEnrollment != null) "আপনি ইতিমধ্যে কোর্সটি কিনেছেন ✔️" else if (course.pricingOption == "Fully Free") "এনরোল করুন (Free)" else "পেমেন্ট করুন (Pay)", 
-                                    fontSize = 16.sp, 
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                } else {
-                    Surface(
-                        color = Color.White,
-                        shadowElevation = 8.dp,
-                        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-                    ) {
-                        Column(
+                            },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
+                                .height(50.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (pendingRequest?.status == "PENDING") Color.Gray else accentColor),
+                            shape = RoundedCornerShape(12.dp),
+                            enabled = pendingRequest?.status != "PENDING"
                         ) {
-                            Text("এটি আপনার তৈরি করা কোর্স", fontWeight = FontWeight.Bold, color = accentColor)
+                            Text(
+                                text = if (pendingRequest?.status == "PENDING") "পেন্ডিং..." else if (course.pricingOption == "Fully Free") "এনরোল করুন (Free)" else "কোর্স কিনুন",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
                 }
@@ -274,34 +306,39 @@ fun CourseDetailScreen(
             }
         } else {
             val isInnerActive = isClassActive || isChapterActive
-            if (isInnerActive) {
+            if (userEnrollment == null && !isTeacher) {
+                UnenrolledCourseOverview(course = course, accentColor = accentColor)
+            } else if (isInnerActive) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
                     .background(Color(0xFFF1F5F9))
             ) {
-                CourseContentSection(
-                    course = course,
-                    mentors = mentors,
-                    isTeacher = isTeacher,
-                    teacherId = profile.user_id,
-                    userEnrollment = userEnrollment,
-                    onUpdate = { newSubjects -> onCourseUpdate(course.copy(subjects = newSubjects)) },
-                    onMultipleCoursesUpdate = onMultipleCoursesUpdate,
-                    accentColor = accentColor,
-                    initialSubjectId = initialSubjectId,
-                    initialChapterId = initialChapterId,
-                    initialClassId = initialClassId,
-                    initialSelectedQuarterName = initialSelectedQuarterName,
-                    onCourseUpdate = onCourseUpdate,
-                    selectedSubjectForView = selectedSubjectForView,
-                    onSelectedSubjectChange = { selectedSubjectForView = it },
-                    selectedChapterForView = selectedChapterForView,
-                    onSelectedChapterChange = { selectedChapterForView = it },
-                    selectedClassForView = selectedClassForView,
-                    onSelectedClassChange = { selectedClassForView = it }
-                )
+                    CourseContentSection(
+                        course = course,
+                        mentors = mentors,
+                        isTeacher = isTeacher,
+                        teacherId = profile.user_id,
+                        userEnrollment = userEnrollment,
+                        onUpdate = { newSubjects: List<CourseSubject> -> onCourseUpdate(course.copy(subjects = newSubjects)) },
+                        onMultipleCoursesUpdate = onMultipleCoursesUpdate,
+                        accentColor = accentColor,
+                        initialSubjectId = initialSubjectId,
+                        initialChapterId = initialChapterId,
+                        initialClassId = initialClassId,
+                        initialSelectedQuarterName = initialSelectedQuarterName,
+                        onCourseUpdate = onCourseUpdate,
+                        selectedSubjectForView = selectedSubjectForView,
+                        onSelectedSubjectChange = { s: CourseSubject? -> selectedSubjectForView = s },
+                        selectedChapterForView = selectedChapterForView,
+                        onSelectedChapterChange = { ch: CourseChapter? -> selectedChapterForView = ch },
+                        selectedClassForView = selectedClassForView,
+                        onSelectedClassChange = { cl: CourseClass? -> selectedClassForView = cl },
+                        externalIsAddingSubject = isAddingSubjectTopBar,
+                        onExternalAddHandled = { isAddingSubjectTopBar = false },
+                        onPurchaseClick = onPurchaseClick
+                    )
             }
         } else {
             LazyColumn(
@@ -312,161 +349,33 @@ fun CourseDetailScreen(
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item {
-                    CourseContentSection(
-                        course = course,
-                        mentors = mentors,
-                        isTeacher = isTeacher,
-                        teacherId = profile.user_id,
-                        userEnrollment = userEnrollment,
-                        onUpdate = { newSubjects -> onCourseUpdate(course.copy(subjects = newSubjects)) },
-                        onMultipleCoursesUpdate = onMultipleCoursesUpdate,
-                        accentColor = accentColor,
-                        initialSubjectId = initialSubjectId,
-                        initialChapterId = initialChapterId,
-                        initialClassId = initialClassId,
-                        initialSelectedQuarterName = initialSelectedQuarterName,
-                        onCourseUpdate = onCourseUpdate,
-                        selectedSubjectForView = selectedSubjectForView,
-                        onSelectedSubjectChange = { selectedSubjectForView = it },
-                        selectedChapterForView = selectedChapterForView,
-                        onSelectedChapterChange = { selectedChapterForView = it },
-                        selectedClassForView = selectedClassForView,
-                        onSelectedClassChange = { selectedClassForView = it }
-                    )
+                        CourseContentSection(
+                            course = course,
+                            mentors = mentors,
+                            isTeacher = isTeacher,
+                            teacherId = profile.user_id,
+                            userEnrollment = userEnrollment,
+                            onUpdate = { newSubjects: List<CourseSubject> -> onCourseUpdate(course.copy(subjects = newSubjects)) },
+                            onMultipleCoursesUpdate = onMultipleCoursesUpdate,
+                            accentColor = accentColor,
+                            initialSubjectId = initialSubjectId,
+                            initialChapterId = initialChapterId,
+                            initialClassId = initialClassId,
+                            initialSelectedQuarterName = initialSelectedQuarterName,
+                            onCourseUpdate = onCourseUpdate,
+                            selectedSubjectForView = selectedSubjectForView,
+                            onSelectedSubjectChange = { s: CourseSubject? -> selectedSubjectForView = s },
+                            selectedChapterForView = selectedChapterForView,
+                            onSelectedChapterChange = { ch: CourseChapter? -> selectedChapterForView = ch },
+                            selectedClassForView = selectedClassForView,
+                            onSelectedClassChange = { cl: CourseClass? -> selectedClassForView = cl },
+                            externalIsAddingSubject = isAddingSubjectTopBar,
+                            onExternalAddHandled = { isAddingSubjectTopBar = false },
+                            onPurchaseClick = onPurchaseClick
+                        )
                 }
-
-            // Pricing & Quarters Selection
-            if (course.pricingOption != "Fully Free") {
-                item {
-                    Divider(modifier = Modifier.padding(vertical = 8.dp))
-                    Text("ক্রয় অপশন (Purchase Options)", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2D3748))
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Full Course Option
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { selectFullCourse = true; selectedQuarters = emptySet() },
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (selectFullCourse) accentColor.copy(alpha = 0.1f) else Color.White
-                        ),
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = 1.dp,
-                            color = if (selectFullCourse) accentColor else Color.LightGray
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            RadioButton(
-                                selected = selectFullCourse,
-                                onClick = { selectFullCourse = true; selectedQuarters = emptySet() },
-                                colors = RadioButtonDefaults.colors(selectedColor = accentColor)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text("Full Course", fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("সবগুলো কোয়ার্টার একসাথে", fontSize = 12.sp, color = Color.Gray)
-                            }
-                            Column(horizontalAlignment = Alignment.End) {
-                                val dPrice = course.discountPrice.toDoubleOrNull()
-                                val mPrice = course.mainPrice.toDoubleOrNull()
-                                if (dPrice != null && mPrice != null && dPrice < mPrice) {
-                                    Text("৳${mPrice.toInt()}", fontSize = 12.sp, color = Color.Gray, textDecoration = TextDecoration.LineThrough)
-                                    Text("৳${dPrice.toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = accentColor)
-                                } else if (mPrice != null) {
-                                    Text("৳${mPrice.toInt()}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = accentColor)
-                                }
-                            }
-                        }
-                    }
-                }
-
-                if (course.isQuarterOn && course.quarters.isNotEmpty()) {
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text("অথবা নির্দিষ্ট কোয়ার্টার কিনুন:", fontSize = 14.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-                        Spacer(modifier = Modifier.height(8.dp))
-                    }
-
-                    items(course.quarters) { quarter ->
-                        val isSelected = selectedQuarters.contains(quarter)
-                        Card(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .toggleable(
-                                    value = isSelected && !selectFullCourse,
-                                    onValueChange = { checked ->
-                                        selectFullCourse = false
-                                        selectedQuarters = if (checked) {
-                                            selectedQuarters + quarter
-                                        } else {
-                                            selectedQuarters - quarter
-                                        }
-                                    }
-                                ),
-                            colors = CardDefaults.cardColors(
-                                containerColor = if (isSelected && !selectFullCourse) accentColor.copy(alpha = 0.1f) else Color.White
-                            ),
-                            border = androidx.compose.foundation.BorderStroke(
-                                width = 1.dp,
-                                color = if (isSelected && !selectFullCourse) accentColor else Color.LightGray
-                            ),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Checkbox(
-                                    checked = isSelected && !selectFullCourse,
-                                    onCheckedChange = null,
-                                    colors = CheckboxDefaults.colors(checkedColor = accentColor)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(quarter.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    if (quarter.startDate.isNotBlank() || quarter.endDate.isNotBlank()) {
-                                        Text("${quarter.startDate} - ${quarter.endDate}", fontSize = 12.sp, color = Color.Gray)
-                                    }
-                                }
-                                Text("৳${quarter.price}", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = accentColor)
-                            }
-                        }
-                    }
-                }
-            }
-            
-            // Payment Instructions
-            if (course.pricingOption != "Fully Free" && (course.bkashNumber.isNotBlank() || course.nagadNumber.isNotBlank() || course.rocketNumber.isNotBlank())) {
-                item {
-                    Divider(modifier = Modifier.padding(vertical = 16.dp))
-                    Text("Payment Methods", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2D3748))
-                    Spacer(modifier = Modifier.height(12.dp))
-                    
-                    if (course.bkashNumber.isNotBlank()) {
-                        Text("bKash: ${course.bkashNumber}", fontWeight = FontWeight.Medium)
-                    }
-                    if (course.nagadNumber.isNotBlank()) {
-                        Text("Nagad: ${course.nagadNumber}", fontWeight = FontWeight.Medium)
-                    }
-                    if (course.rocketNumber.isNotBlank()) {
-                        Text("Rocket: ${course.rocketNumber}", fontWeight = FontWeight.Medium)
-                    }
-                    if (course.paymentDetails.isNotBlank()) {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(course.paymentDetails, color = Color.DarkGray, fontSize = 14.sp)
-                    }
-                }
-            }
+            } // Close else for isUserBanned
         }
-        } // Close else for isUserBanned
     }
 }
 }
@@ -491,15 +400,39 @@ fun CourseContentSection(
     selectedChapterForView: CourseChapter?,
     onSelectedChapterChange: (CourseChapter?) -> Unit,
     selectedClassForView: CourseClass?,
-    onSelectedClassChange: (CourseClass?) -> Unit
+    onSelectedClassChange: (CourseClass?) -> Unit,
+    externalIsAddingSubject: Boolean = false,
+    onExternalAddHandled: () -> Unit = {},
+    onPurchaseClick: () -> Unit = {}
 ) {
     val mContext = LocalContext.current
     var subjectToEdit by remember { mutableStateOf<CourseSubject?>(null) }
+    var subjectToDelete by remember { mutableStateOf<CourseSubject?>(null) }
     var isAddingSubject by remember { mutableStateOf(false) }
+    
+    val isFullyPurchased = userEnrollment?.purchased_quarters.isNullOrBlank() && userEnrollment != null
+    val purchasedQuartersList = userEnrollment?.purchased_quarters?.split(",")?.map { it.trim() } ?: emptyList()
+    val isQuarterLocked = fun(qName: String): Boolean {
+        if (isTeacher) return false
+        if (course.pricingOption == "Fully Free") return false
+        if (userEnrollment == null) return true
+        if (isFullyPurchased) return false
+        return qName !in purchasedQuartersList
+    }
+
     var subjectToAddChapterTo by remember { mutableStateOf<CourseSubject?>(null) }
     var chapterToEdit by remember { mutableStateOf<Pair<CourseSubject, CourseChapter>?>(null) }
     var chapterToAddClassTo by remember { mutableStateOf<Pair<CourseSubject, CourseChapter>?>(null) }
     var classToEdit by remember { mutableStateOf<Triple<CourseSubject, CourseChapter, CourseClass>?>(null) }
+    var isResourcesExpanded by remember(selectedSubjectForView?.id) { mutableStateOf(false) }
+    var isAddingResource by remember { mutableStateOf(false) }
+
+    LaunchedEffect(externalIsAddingSubject) {
+        if (externalIsAddingSubject) {
+            isAddingSubject = true
+            onExternalAddHandled()
+        }
+    }
 
     LaunchedEffect(initialSubjectId, initialChapterId, initialClassId) {
         if (initialSubjectId != null && initialChapterId != null && initialClassId != null) {
@@ -601,110 +534,224 @@ fun CourseContentSection(
         )
     } else if (selectedSubjectForView == null) {
         Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text("কোর্সের বিষয়বস্তু (Course Content)", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2D3748))
-                if (isTeacher) {
-                    IconButton(onClick = { isAddingSubject = true }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Subject", tint = accentColor)
-                    }
-                }
-            }
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // 1. "রুটিন দেখে নাও →" Banner Button
+            // 1. "রুটিন দেখে নাও →" Banner Button - Premium Gradient Styling
             Card(
                 onClick = { showRoutineDialog = true },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF3B82F6))
+                shape = RoundedCornerShape(16.dp),
+                elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
-                Row(
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.DateRange,
-                            contentDescription = "Routine",
-                            tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                        .background(
+                            Brush.linearGradient(
+                                colors = listOf(Color(0xFF2563EB), Color(0xFF4F46E5))
+                            )
                         )
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Text(
-                            text = "রুটিন দেখে নাও",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp
+                        .padding(horizontal = 20.dp, vertical = 18.dp)
+                        .fillMaxWidth()
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .background(Color.White.copy(alpha = 0.2f), shape = RoundedCornerShape(10.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = "Routine",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = "রুটিন দেখে নাও",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                                Text(
+                                    text = "আজকের ক্লাস ও পরীক্ষার সময়সূচী",
+                                    color = Color.White.copy(alpha = 0.8f),
+                                    fontSize = 12.sp
+                                )
+                            }
+                        }
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Arrow",
+                            tint = Color.White,
+                            modifier = Modifier.size(20.dp).rotate(180f)
                         )
                     }
-                    Text(
-                        text = "→",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 18.sp
-                    )
                 }
             }
 
-            // 2. Selectable Quarter Tabs
+            // 2. Selectable Quarter Tabs - Premium Card Layout with Dates & Progress Bars
             if (course.isQuarterOn && course.quarters.isNotEmpty()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp)
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     quartersList.forEach { qName ->
                         val isSelected = selectedQuarterName == qName
                         
-                        val cardBgColor = if (isSelected) Color(0xFF3B82F6) else Color(0xFFF1F5F9)
-                        val cardTextColor = if (isSelected) Color.White else Color(0xFF475569)
-                        val cardBorderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFE2E8F0)
+                        // Calculate Quarter Progress % dynamically
+                        val quarterChapters = course.subjects.flatMap { subj ->
+                            subj.chapters.filter { (it.quarter.ifBlank { "Quarter 1" }) == qName }
+                        }
+                        val totalChapters = quarterChapters.size
+                        val completedWeight = quarterChapters.sumOf { ch ->
+                            val displayStatus = if (ch.classes.isEmpty()) "পড়ানো হবে" else ch.teachingStatus
+                            when (displayStatus) {
+                                "পড়ানো শেষ" -> 1.0
+                                "পড়ানো হচ্ছে" -> 0.5
+                                else -> 0.0
+                            }
+                        }
+                        val progressPercent = if (totalChapters > 0) {
+                            ((completedWeight / totalChapters) * 100).toInt()
+                        } else {
+                            0
+                        }
+                        val progressText = convertToBengaliDigits(progressPercent.toString()) + "% পড়া হয়েছে"
+
+                        val quarterObj = course.quarters.find { it.name == qName }
+                        val dateRangeText = if (quarterObj != null && quarterObj.startDate.isNotBlank() && quarterObj.endDate.isNotBlank()) {
+                            "${quarterObj.startDate} - ${quarterObj.endDate}"
+                        } else {
+                            ""
+                        }
+
+                        val cardBgColor = if (isSelected) Color(0xFF2563EB) else Color.White
+                        val cardTextColor = if (isSelected) Color.White else Color(0xFF1E293B)
+                        val cardSubTextColor = if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B)
+                        val cardBorderColor = if (isSelected) Color(0xFF1D4ED8) else Color(0xFFE2E8F0)
 
                         Card(
                             onClick = { selectedQuarterName = qName },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = cardBgColor),
                             border = BorderStroke(1.dp, cardBorderColor),
-                            modifier = Modifier.padding(vertical = 2.dp)
+                            modifier = Modifier
+                                .width(200.dp)
+                                .padding(vertical = 4.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                            Column(
+                                modifier = Modifier.padding(14.dp)
                             ) {
-                                Text(
-                                    text = qName,
-                                    color = cardTextColor,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "✔ আনলক",
-                                    color = if (isSelected) Color.White.copy(alpha = 0.9f) else Color(0xFF10B981),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = qName,
+                                        color = cardTextColor,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    
+                                    // Dynamic Quarter Status Badge
+                                    var quarterStatus = "আনলক"
+                                    var statusBgColor = if (isSelected) Color.White.copy(alpha = 0.2f) else Color(0xFFD1FAE5)
+                                    var statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
+
+                                    if (quarterObj != null && quarterObj.startDate.isNotBlank() && quarterObj.endDate.isNotBlank()) {
+                                        try {
+                                            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                                            val start = java.time.LocalDate.parse(quarterObj.startDate, formatter)
+                                            val end = java.time.LocalDate.parse(quarterObj.endDate, formatter)
+                                            val today = java.time.LocalDate.now()
+                                            if (today.isBefore(start)) {
+                                                quarterStatus = "পড়ানো হবে"
+                                                statusBgColor = if (isSelected) Color(0xFF93C5FD).copy(alpha = 0.3f) else Color(0xFFDBEAFE)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
+                                            } else if (today.isAfter(end)) {
+                                                quarterStatus = "পড়ানো শেষ"
+                                                statusBgColor = if (isSelected) Color(0xFFD1FAE5).copy(alpha = 0.3f) else Color(0xFFD1FAE5)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
+                                            } else {
+                                                quarterStatus = "পড়ানো হচ্ছে"
+                                                statusBgColor = if (isSelected) Color(0xFFFEF08A).copy(alpha = 0.3f) else Color(0xFFFEF9C3)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFF854D0E)
+                                            }
+                                        } catch (e: Exception) { }
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .background(statusBgColor, shape = RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = quarterStatus,
+                                            color = statusTextColor,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                
+                                if (dateRangeText.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = dateRangeText,
+                                        color = cardSubTextColor,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                
+
                             }
                         }
                     }
                 }
             }
 
-            // 3. Subjects Grid
-            if (course.subjects.isEmpty()) {
+            // 3. Subjects Grid with Video and PDF details and Premium Overlays
+            val isCurrentQuarterLocked = isQuarterLocked(selectedQuarterName)
+            if (isCurrentQuarterLocked) {
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(32.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(Icons.Default.Lock, contentDescription = "Locked", tint = Color.Gray, modifier = Modifier.size(64.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("এই কোয়ার্টারটি লক করা আছে", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.DarkGray)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("বিস্তারিত দেখতে কোয়ার্টারটি কিনুন বা আনলক করুন।", fontSize = 14.sp, color = Color.Gray)
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = onPurchaseClick,
+                            colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                        ) {
+                            Text("আনলক করুন")
+                        }
+                    }
+                }
+            } else if (course.subjects.isEmpty()) {
                 Text("এখনো কোনো বিষয়বস্তু যোগ করা হয়নি।", color = Color.Gray, fontSize = 14.sp)
             } else {
                 course.subjects.chunked(2).forEach { rowSubjects ->
@@ -714,47 +761,177 @@ fun CourseContentSection(
                     ) {
                         rowSubjects.forEach { subject ->
                             val bgColor = try { Color(android.graphics.Color.parseColor(subject.colorHex)) } catch (e: Exception) { Color(0xFFEF4444) }
+                            
+                            // Calculate dynamic Videos & PDFs inside this subject
+                            val totalVideos = subject.chapters.sumOf { chapter ->
+                                chapter.classes.count { clazz -> clazz.recordedLink.isNotBlank() || clazz.liveLink.isNotBlank() }
+                            }
+                            val totalPdfs = subject.chapters.sumOf { chapter ->
+                                chapter.classes.sumOf { clazz -> clazz.pdfLinks.size }
+                            }
+
                             Card(
                                 modifier = Modifier
                                     .weight(1f)
-                                    .aspectRatio(1f)
+                                    .height(180.dp)
                                     .clickable { onSelectedSubjectChange(subject) },
-                                colors = CardDefaults.cardColors(containerColor = bgColor),
-                                shape = RoundedCornerShape(16.dp)
+                                shape = RoundedCornerShape(20.dp),
+                                colors = CardDefaults.cardColors(containerColor = Color.White),
+                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                             ) {
                                 Box(modifier = Modifier.fillMaxSize()) {
-                                    val isMainCourse = subject.sourceCourseId == null || subject.sourceCourseId == course.id
-                                    if (isTeacher && isMainCourse) {
-                                        TextButton(
-                                            onClick = { subjectToEdit = subject },
-                                            modifier = Modifier.align(Alignment.TopEnd)
-                                        ) {
-                                            Text("এডিট", color = Color.White, fontSize = 12.sp)
+                                    // Decorative Top Banner with subject custom color
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .height(80.dp)
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(bgColor, bgColor.copy(alpha = 0.8f))
+                                                )
+                                            )
+                                    ) {
+                                        // Simple elegant design overlay
+                                        Canvas(modifier = Modifier.fillMaxSize()) {
+                                            drawCircle(
+                                                color = Color.White.copy(alpha = 0.15f),
+                                                radius = size.minDimension / 1.5f,
+                                                center = androidx.compose.ui.geometry.Offset(size.width, 0f)
+                                            )
                                         }
                                     }
-                                    Column(
-                                        modifier = Modifier.fillMaxSize().padding(16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
+                                    
+                                    val isMainCourse = subject.sourceCourseId == null || subject.sourceCourseId == course.id
+                                    if (isTeacher && isMainCourse) {
+                                        var isMenuExpanded by remember { mutableStateOf(false) }
+                                        Box(modifier = Modifier.align(Alignment.TopEnd).padding(4.dp)) {
+                                            IconButton(onClick = { isMenuExpanded = true }) {
+                                                Icon(
+                                                    Icons.Default.MoreVert,
+                                                    contentDescription = "Subject Options",
+                                                    tint = Color.White
+                                                )
+                                            }
+                                            DropdownMenu(
+                                                expanded = isMenuExpanded,
+                                                onDismissRequest = { isMenuExpanded = false }
+                                            ) {
+                                                DropdownMenuItem(
+                                                    text = { Text("এডিট করুন") },
+                                                    onClick = {
+                                                        isMenuExpanded = false
+                                                        subjectToEdit = subject
+                                                    }
+                                                )
+                                                DropdownMenuItem(
+                                                    text = { Text("ডিলিট করুন", color = Color.Red) },
+                                                    onClick = {
+                                                        isMenuExpanded = false
+                                                        subjectToDelete = subject
+                                                    }
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    // Floating Circular Icon Badge
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.TopStart)
+                                            .padding(top = 45.dp, start = 16.dp)
+                                            .size(52.dp)
+                                            .background(Color.White, shape = CircleShape)
+                                            .border(2.dp, Color.White, CircleShape)
+                                            .padding(4.dp),
+                                        contentAlignment = Alignment.Center
                                     ) {
                                         if (subject.iconUrl.isNotBlank()) {
                                             coil.compose.AsyncImage(
                                                 model = subject.iconUrl,
                                                 contentDescription = null,
-                                                modifier = Modifier.size(56.dp).clip(RoundedCornerShape(12.dp)),
+                                                modifier = Modifier.fillMaxSize().clip(CircleShape),
                                                 contentScale = androidx.compose.ui.layout.ContentScale.Crop
                                             )
                                         } else {
-                                            Icon(Icons.Default.MenuBook, contentDescription = null, tint = Color.White, modifier = Modifier.size(56.dp))
+                                            Icon(
+                                                imageVector = Icons.Default.MenuBook,
+                                                contentDescription = null,
+                                                tint = bgColor,
+                                                modifier = Modifier.size(24.dp)
+                                            )
                                         }
-                                        Spacer(modifier = Modifier.height(16.dp))
+                                    }
+
+                                    // Title & Custom Stats Details in the card body
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .padding(top = 105.dp, start = 16.dp, end = 16.dp, bottom = 12.dp),
+                                        verticalArrangement = Arrangement.SpaceBetween
+                                    ) {
                                         Text(
-                                            text = subject.title, 
-                                            color = Color.White, 
-                                            fontWeight = FontWeight.Bold, 
-                                            fontSize = 16.sp,
-                                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                            text = subject.title,
+                                            color = Color(0xFF0F172A),
+                                            fontWeight = FontWeight.Bold,
+                                            fontSize = 15.sp,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis
                                         )
+                                        
+                                        // Dynamic Stats Column (Videos & PDFs) with Bengali Digits
+                                        Column(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                                            horizontalAlignment = Alignment.Start
+                                        ) {
+                                            // Videos
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier
+                                                    .background(Color(0xFFEFF6FF), shape = RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.PlayCircle,
+                                                    contentDescription = "Videos",
+                                                    tint = Color(0xFF3B82F6),
+                                                    modifier = Modifier.size(10.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text(
+                                                    text = "${convertToBengaliDigits(totalVideos.toString())} ভিডিও",
+                                                    color = Color(0xFF1D4ED8),
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                            // PDFs
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier
+                                                    .background(Color(0xFFF0FDF4), shape = RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 6.dp, vertical = 3.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.ListAlt,
+                                                    contentDescription = "PDFs",
+                                                    tint = Color(0xFF10B981),
+                                                    modifier = Modifier.size(10.dp)
+                                                )
+                                                Spacer(modifier = Modifier.width(3.dp))
+                                                Text(
+                                                    text = "${convertToBengaliDigits(totalPdfs.toString())} ডকুমেন্ট",
+                                                    color = Color(0xFF047857),
+                                                    fontSize = 10.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -765,65 +942,155 @@ fun CourseContentSection(
                     }
                 }
             }
-        }
-    } else {
-        val subject = currentSubject ?: selectedSubjectForView!!
-        Column(modifier = Modifier.fillMaxWidth()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                val isMainCourse = subject.sourceCourseId == null || subject.sourceCourseId == course.id
-                if (isTeacher && isMainCourse) {
-                    IconButton(onClick = { subjectToAddChapterTo = subject }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add Chapter", tint = accentColor)
+
+            // Elegant "নতুন বিষয় যোগ করুন" Card for Teachers at the bottom of the list
+            if (isTeacher) {
+                Card(
+                    onClick = { isAddingSubject = true },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.5.dp, accentColor.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Subject", tint = accentColor, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("নতুন বিষয় যোগ করুন", color = accentColor, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(12.dp))
+        }
+    } else {
+        val subj = currentSubject ?: selectedSubjectForView!!
+        Column(modifier = Modifier.fillMaxWidth()) {
 
-            // 1. Quarters Selectable Tabs inside subject details
+            // 1. Quarters Selectable Tabs inside subject details - Premium Card style
             if (course.isQuarterOn && course.quarters.isNotEmpty()) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = 16.dp)
                         .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     quartersList.forEach { qName ->
                         val isSelected = selectedQuarterName == qName
-                        val cardBgColor = if (isSelected) Color(0xFF3B82F6) else Color(0xFFF1F5F9)
-                        val cardTextColor = if (isSelected) Color.White else Color(0xFF475569)
-                        val cardBorderColor = if (isSelected) Color(0xFF2563EB) else Color(0xFFE2E8F0)
+                        
+                        // Calculate Quarter Progress % inside this subject dynamically
+                        val quarterChapters = subj.chapters.filter { (it.quarter.ifBlank { "Quarter 1" }) == qName }
+                        val totalChapters = quarterChapters.size
+                        val completedWeight = quarterChapters.sumOf { ch ->
+                            val displayStatus = if (ch.classes.isEmpty()) "পড়ানো হবে" else ch.teachingStatus
+                            when (displayStatus) {
+                                "পড়ানো শেষ" -> 1.0
+                                "পড়ানো হচ্ছে" -> 0.5
+                                else -> 0.0
+                            }
+                        }
+                        val progressPercent = if (totalChapters > 0) {
+                            ((completedWeight / totalChapters) * 100).toInt()
+                        } else {
+                            0
+                        }
+                        val progressText = convertToBengaliDigits(progressPercent.toString()) + "% পড়া হয়েছে"
+
+                        val quarterObj = course.quarters.find { it.name == qName }
+                        val dateRangeText = if (quarterObj != null && quarterObj.startDate.isNotBlank() && quarterObj.endDate.isNotBlank()) {
+                            "${quarterObj.startDate} - ${quarterObj.endDate}"
+                        } else {
+                            ""
+                        }
+
+                        val cardBgColor = if (isSelected) Color(0xFF2563EB) else Color.White
+                        val cardTextColor = if (isSelected) Color.White else Color(0xFF1E293B)
+                        val cardSubTextColor = if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B)
+                        val cardBorderColor = if (isSelected) Color(0xFF1D4ED8) else Color(0xFFE2E8F0)
 
                         Card(
                             onClick = { selectedQuarterName = qName },
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(16.dp),
                             colors = CardDefaults.cardColors(containerColor = cardBgColor),
                             border = BorderStroke(1.dp, cardBorderColor),
-                            modifier = Modifier.padding(vertical = 2.dp)
+                            modifier = Modifier
+                                .width(200.dp)
+                                .padding(vertical = 4.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp)
                         ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
+                            Column(
+                                modifier = Modifier.padding(14.dp)
                             ) {
-                                Text(
-                                    text = qName,
-                                    color = cardTextColor,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp
-                                )
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "✔ আনলক",
-                                    color = if (isSelected) Color.White.copy(alpha = 0.9f) else Color(0xFF10B981),
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Medium
-                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = qName,
+                                        color = cardTextColor,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 15.sp
+                                    )
+                                    // Dynamic Quarter Status Badge
+                                    var quarterStatus = "আনলক"
+                                    var statusBgColor = if (isSelected) Color.White.copy(alpha = 0.2f) else Color(0xFFD1FAE5)
+                                    var statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
+
+                                    if (quarterObj != null && quarterObj.startDate.isNotBlank() && quarterObj.endDate.isNotBlank()) {
+                                        try {
+                                            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+                                            val start = java.time.LocalDate.parse(quarterObj.startDate, formatter)
+                                            val end = java.time.LocalDate.parse(quarterObj.endDate, formatter)
+                                            val today = java.time.LocalDate.now()
+                                            if (today.isBefore(start)) {
+                                                quarterStatus = "পড়ানো হবে"
+                                                statusBgColor = if (isSelected) Color(0xFF93C5FD).copy(alpha = 0.3f) else Color(0xFFDBEAFE)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
+                                            } else if (today.isAfter(end)) {
+                                                quarterStatus = "পড়ানো শেষ"
+                                                statusBgColor = if (isSelected) Color(0xFFD1FAE5).copy(alpha = 0.3f) else Color(0xFFD1FAE5)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
+                                            } else {
+                                                quarterStatus = "পড়ানো হচ্ছে"
+                                                statusBgColor = if (isSelected) Color(0xFFFEF08A).copy(alpha = 0.3f) else Color(0xFFFEF9C3)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFF854D0E)
+                                            }
+                                        } catch (e: Exception) { }
+                                    }
+
+                                    Box(
+                                        modifier = Modifier
+                                            .background(statusBgColor, shape = RoundedCornerShape(6.dp))
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Text(
+                                            text = quarterStatus,
+                                            color = statusTextColor,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                }
+                                
+                                if (dateRangeText.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = dateRangeText,
+                                        color = cardSubTextColor,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                                
+
                             }
                         }
                     }
@@ -832,7 +1099,7 @@ fun CourseContentSection(
 
             // 2. Learning Resources Banner (Screenshot 2 style)
             Card(
-                onClick = { /* View learning resources if needed */ },
+                onClick = { isResourcesExpanded = !isResourcesExpanded },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
@@ -862,19 +1129,95 @@ fun CourseContentSection(
                         )
                     }
                     Text(
-                        text = "→",
+                        text = if (isResourcesExpanded) "↓" else "→",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
                 }
             }
+            if (isResourcesExpanded) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp)
+                        .background(Color.White, RoundedCornerShape(12.dp))
+                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
+                        .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    if (subj.learningResources.isEmpty()) {
+                        Text("কোনো রিসোর্স যোগ করা হয়নি।", color = Color.Gray, fontSize = 14.sp)
+                    } else {
+                        subj.learningResources.forEachIndexed { index, resource ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(resource.url))
+                                        try { mContext.startActivity(intent) } catch (e: Exception) { }
+                                    }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Default.Link, contentDescription = "Link", tint = Color(0xFF3B82F6), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(resource.title, color = Color(0xFF1D4ED8), fontWeight = FontWeight.Medium, fontSize = 15.sp, modifier = Modifier.weight(1f))
+                                if (isTeacher) {
+                                    IconButton(
+                                        onClick = {
+                                            val updatedResources = subj.learningResources.toMutableList().apply { removeAt(index) }
+                                            val updatedSubject = subj.copy(learningResources = updatedResources)
+                                            val updatedSubjects = course.subjects.map { if (it.id == subj.id) updatedSubject else it }
+                                            onUpdate(updatedSubjects)
+                                            syncSubjectToAllCourses(updatedSubject)
+                                        },
+                                        modifier = Modifier.size(24.dp)
+                                    ) {
+                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red, modifier = Modifier.size(16.dp))
+                                    }
+                                }
+                            }
+                            if (index < subj.learningResources.size - 1) {
+                                Divider(color = Color(0xFFE2E8F0))
+                            }
+                        }
+                    }
+                    if (isTeacher) {
+                        Button(
+                            onClick = { isAddingResource = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF1D4ED8)),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("নতুন রিসোর্স যোগ করুন")
+                        }
+                    }
+                }
+            }
+            
+            if (isAddingResource) {
+                AddResourceDialog(
+                    onDismiss = { isAddingResource = false },
+                    onAdd = { title, url ->
+                        val updatedResources = subj.learningResources.toMutableList().apply { add(PdfLink(title, url)) }
+                        val updatedSubject = subj.copy(learningResources = updatedResources)
+                        val updatedSubjects = course.subjects.map { if (it.id == subj.id) updatedSubject else it }
+                        onUpdate(updatedSubjects)
+                        syncSubjectToAllCourses(updatedSubject)
+                        isAddingResource = false
+                    }
+                )
+            }
+
 
             // Filter chapters by active selected Quarter
             val chaptersToShow = if (course.isQuarterOn && course.quarters.isNotEmpty()) {
-                subject.chapters.filter { (it.quarter.ifBlank { "Quarter 1" }) == selectedQuarterName }
+                subj.chapters.filter { (it.quarter.ifBlank { "Quarter 1" }) == selectedQuarterName }
             } else {
-                subject.chapters
+                subj.chapters
             }
 
             if (chaptersToShow.isEmpty()) {
@@ -960,8 +1303,8 @@ fun CourseContentSection(
                                                 onClick = {
                                                     isStatusMenuExpanded = false
                                                     val updatedChapter = chapter.copy(teachingStatus = targetStatus)
-                                                    val updatedSubject = subject.copy(chapters = subject.chapters.map { if (it.id == chapter.id) updatedChapter else it })
-                                                    val updatedSubjects = course.subjects.map { if (it.id == subject.id) updatedSubject else it }
+                                                    val updatedSubject = subj.copy(chapters = subj.chapters.map { if (it.id == chapter.id) updatedChapter else it })
+                                                    val updatedSubjects = course.subjects.map { if (it.id == subj.id) updatedSubject else it }
                                                     onUpdate(updatedSubjects)
                                                     syncSubjectToAllCourses(updatedSubject)
                                                     
@@ -1004,7 +1347,7 @@ fun CourseContentSection(
                                     // Edit/Delete for Teachers
                                     if (isTeacher) {
                                         IconButton(
-                                            onClick = { chapterToEdit = Pair(subject, chapter) },
+                                            onClick = { chapterToEdit = Pair(subj, chapter) },
                                             modifier = Modifier.size(32.dp)
                                         ) {
                                             Icon(
@@ -1016,8 +1359,8 @@ fun CourseContentSection(
                                         }
                                         IconButton(
                                             onClick = {
-                                                val updatedSubject = subject.copy(chapters = subject.chapters.filter { it.id != chapter.id })
-                                                val updatedSubjects = course.subjects.map { if (it.id == subject.id) updatedSubject else it }
+                                                val updatedSubject = subj.copy(chapters = subj.chapters.filter { it.id != chapter.id })
+                                                val updatedSubjects = course.subjects.map { if (it.id == subj.id) updatedSubject else it }
                                                 onUpdate(updatedSubjects)
                                                 syncSubjectToAllCourses(updatedSubject)
                                             },
@@ -1068,6 +1411,31 @@ fun CourseContentSection(
                 }
             }
         }
+    }
+
+    if (subjectToDelete != null) {
+        val subject = subjectToDelete!!
+        AlertDialog(
+            onDismissRequest = { subjectToDelete = null },
+            title = { Text("বিষয় ডিলিট করুন") },
+            text = { Text("আপনি কি নিশ্চিতভাবে '${subject.title}' বিষয় এবং এর ভিতরের সব অধ্যায় ও ক্লাস ডিলিট করতে চান?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val updatedSubjects = course.subjects.filter { it.id != subject.id }
+                        onUpdate(updatedSubjects)
+                        subjectToDelete = null
+                    }
+                ) {
+                    Text("ডিলিট", color = Color.Red)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { subjectToDelete = null }) {
+                    Text("বাতিল")
+                }
+            }
+        )
     }
 
     if (isAddingSubject || subjectToEdit != null) {
@@ -1145,6 +1513,36 @@ fun CourseContentSection(
                 }
                 isAddingSubject = false
                 subjectToEdit = null
+            }
+        )
+    }
+
+    if (showRoutineDialog) {
+        RoutineDialog(
+            routineUrl = course.realRoutineUrl,
+            isTeacher = isTeacher,
+            onDismiss = { showRoutineDialog = false },
+            onSaveRoutine = { updatedRoutineUrl ->
+                val finalRoutineUrl = "v2;${course.bannerUrl};${course.startDate};${course.endDate};$updatedRoutineUrl"
+                val finalPaymentDetails = if (course.cleanPaymentDetails.isNotBlank()) {
+                    "${course.cleanPaymentDetails}|||ROUTINE_DATA:$finalRoutineUrl"
+                } else {
+                    "|||ROUTINE_DATA:$finalRoutineUrl"
+                }
+                val updatedCourse = course.copy(paymentDetails = finalPaymentDetails)
+                coroutineScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            supabase.from("courses").update(updatedCourse) {
+                                filter { eq("id", course.id) }
+                            }
+                        }
+                        onCourseUpdate?.invoke(updatedCourse)
+                        Toast.makeText(mContext, "রুটিন আপডেট করা হয়েছে!", Toast.LENGTH_SHORT).show()
+                    } catch (e: Exception) {
+                        Toast.makeText(mContext, "রুটিন সংরক্ষণ করতে ত্রুটি: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
             }
         )
     }
@@ -1682,7 +2080,10 @@ fun AddEditSubjectDialog(
         }
     }
     
-    val colors = listOf("#EF4444", "#F97316", "#F59E0B", "#10B981", "#3B82F6", "#8B5CF6", "#EC4899", "#64748B")
+    val colors = listOf(
+        "#EF4444", "#F97316", "#F59E0B", "#10B981", "#06B6D4", "#3B82F6", 
+        "#6366F1", "#8B5CF6", "#D946EF", "#EC4899", "#14B8A6", "#475569"
+    )
     
     var otherCourses by remember { mutableStateOf<List<CourseItem>>(emptyList()) }
     var selectedOtherCourseIds by remember { mutableStateOf(setOf<String>()) }
@@ -1758,22 +2159,50 @@ fun AddEditSubjectDialog(
                 
                 Text("বিষয়ের রঙ", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 14.sp)
                 Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), 
-                    horizontalArrangement = Arrangement.SpaceEvenly
+                
+                // Color presets grid (2 rows of 6 circles)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    colors.forEach { hex ->
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(CircleShape)
-                                .background(Color(android.graphics.Color.parseColor(hex)))
-                                .clickable { newColorHex = hex }
-                                .border(if (newColorHex.uppercase() == hex.uppercase()) 3.dp else 0.dp, if (newColorHex.uppercase() == hex.uppercase()) Color.Black else Color.Transparent, CircleShape)
-                        )
+                    colors.chunked(6).forEach { rowColors ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            rowColors.forEach { hex ->
+                                val isSelected = newColorHex.uppercase() == hex.uppercase()
+                                Box(
+                                    modifier = Modifier
+                                        .size(42.dp)
+                                        .clip(CircleShape)
+                                        .background(Color(android.graphics.Color.parseColor(hex)))
+                                        .clickable { newColorHex = hex }
+                                        .border(
+                                            width = if (isSelected) 3.dp else 1.dp,
+                                            color = if (isSelected) Color.Black else Color.White.copy(alpha = 0.5f),
+                                            shape = CircleShape
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isSelected) {
+                                        Icon(
+                                            imageVector = Icons.Default.CheckCircle,
+                                            contentDescription = "Selected",
+                                            tint = Color.White,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
-                Spacer(modifier = Modifier.height(8.dp))
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                // Custom HEX color input row with instant preview
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
@@ -1785,7 +2214,10 @@ fun AddEditSubjectDialog(
                             newColorHex = it
                         },
                         label = { Text("নিজের মতো কাস্টম কালার কোড (HEX)") },
-                        modifier = Modifier.weight(1f)
+                        placeholder = { Text("#FF6B6B") },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(12.dp)
                     )
                     
                     // Color Preview
@@ -1794,13 +2226,19 @@ fun AddEditSubjectDialog(
                     } catch (e: Exception) {
                         Color.Gray
                     }
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(previewColor)
-                            .border(1.dp, Color.LightGray, RoundedCornerShape(8.dp))
-                    )
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(previewColor)
+                                        .border(1.5.dp, Color.LightGray, RoundedCornerShape(12.dp))
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("প্রিভিউ", fontSize = 11.sp, color = Color.Gray)
+                    }
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 
@@ -1885,6 +2323,10 @@ private fun formatTime(ms: Long): String {
 fun VideoPlayer(
     videoOptions: VideoOptions, 
     modifier: Modifier = Modifier,
+    initialPosition: Long = 0L,
+    onPositionChanged: (Long) -> Unit = {},
+    initialPlaying: Boolean = true,
+    onPlayingChanged: (Boolean) -> Unit = {},
     onQualityChanged: (VideoLink) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -1896,13 +2338,69 @@ fun VideoPlayer(
     // Controls Visibility & Interaction States
     var controlsVisible by remember { mutableStateOf(true) }
     var isLocked by remember { mutableStateOf(false) }
-    var isPlaying by remember { mutableStateOf(true) }
-    var currentPosition by remember { mutableStateOf(0L) }
+    var isPlaying by remember { mutableStateOf(initialPlaying) }
+    var currentPosition by remember { mutableStateOf(initialPosition) }
     var duration by remember { mutableStateOf(0L) }
     var playbackSpeed by remember { mutableStateOf(1.0f) }
     
     var isBuffering by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
+    
+    // Pinch-to-zoom and pan states for video
+    var scale by remember { mutableStateOf(1f) }
+    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    val transformState = androidx.compose.foundation.gestures.rememberTransformableState { zoomChange, offsetChange, _ ->
+        if (!VideoPipState.isInPip) {
+            scale = (scale * zoomChange).coerceIn(1f, 5f)
+            if (scale > 1f) {
+                offset += offsetChange
+            } else {
+                offset = androidx.compose.ui.geometry.Offset.Zero
+            }
+        }
+    }
+
+    // Reset zoom when picture-in-picture changes or a new video starts
+    LaunchedEffect(VideoPipState.isInPip, videoOptions) {
+        if (VideoPipState.isInPip) {
+            scale = 1f
+            offset = androidx.compose.ui.geometry.Offset.Zero
+        }
+    }
+
+    // Update parent states when playing state or playback position changes
+    LaunchedEffect(currentPosition) {
+        onPositionChanged(currentPosition)
+    }
+    LaunchedEffect(isPlaying) {
+        onPlayingChanged(isPlaying)
+    }
+
+    // Manage VideoPipState lifecycle registration
+    DisposableEffect(Unit) {
+        VideoPipState.isVideoActive = true
+        VideoPipState.onEnterPip = {
+            if (activity != null && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+                try {
+                    val aspectRatio = android.util.Rational(16, 9)
+                    val params = android.app.PictureInPictureParams.Builder()
+                        .setAspectRatio(aspectRatio)
+                        .build()
+                    activity.enterPictureInPictureMode(params)
+                } catch (e: Exception) {
+                    try {
+                        activity.enterPictureInPictureMode()
+                    } catch (ex: Exception) {
+                        ex.printStackTrace()
+                    }
+                }
+            }
+        }
+        onDispose {
+            VideoPipState.isVideoActive = false
+            VideoPipState.onEnterPip = null
+        }
+    }
     
     LaunchedEffect(statusMessage) {
         if (statusMessage != null) {
@@ -1947,18 +2445,32 @@ fun VideoPlayer(
             .setDefaultRequestProperties(mapOf("Referer" to "https://www.facebook.com/"))
             .setAllowCrossProtocolRedirects(true)
     }
+
+    val dataSourceFactory = remember {
+        androidx.media3.datasource.DefaultDataSource.Factory(context, httpDataSourceFactory)
+    }
     
     val exoPlayer = remember {
-        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(httpDataSourceFactory)
+        val mediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(dataSourceFactory)
         
         val audioAttributes = androidx.media3.common.AudioAttributes.Builder()
             .setUsage(androidx.media3.common.C.USAGE_MEDIA)
             .setContentType(androidx.media3.common.C.AUDIO_CONTENT_TYPE_MOVIE)
             .build()
             
+        val loadControl = androidx.media3.exoplayer.DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                15000, // minBufferMs
+                50000, // maxBufferMs
+                1000,  // bufferForPlaybackMs (starts playback faster)
+                1500   // bufferForPlaybackAfterRebufferMs
+            )
+            .build()
+            
         ExoPlayer.Builder(context)
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(audioAttributes, true)
+            .setLoadControl(loadControl)
             .build()
     }
 
@@ -1999,26 +2511,42 @@ fun VideoPlayer(
     }
 
     LaunchedEffect(videoOptions, currentNonAdaptiveQuality) {
-        val currentPos = exoPlayer.currentPosition
+        val currentPos = if (exoPlayer.currentPosition > 0L) exoPlayer.currentPosition else initialPosition
         val wasPlaying = exoPlayer.isPlaying
         
         val targetLink = videoOptions.links.find { it.quality == currentNonAdaptiveQuality } ?: videoOptions.links.firstOrNull()
         if (targetLink != null) {
-            val defaultMediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(httpDataSourceFactory)
-            if (!targetLink.hasAudio && videoOptions.audioUrl != null) {
-                val videoSource = defaultMediaSourceFactory.createMediaSource(MediaItem.fromUri(targetLink.url))
-                val audioSource = defaultMediaSourceFactory.createMediaSource(MediaItem.fromUri(videoOptions.audioUrl))
+            val defaultMediaSourceFactory = androidx.media3.exoplayer.source.DefaultMediaSourceFactory(dataSourceFactory)
+            
+            // Format video URI safely (check for web vs local file)
+            val videoUri = if (targetLink.url.startsWith("http://") || targetLink.url.startsWith("https://")) {
+                android.net.Uri.parse(targetLink.url)
+            } else {
+                android.net.Uri.fromFile(java.io.File(targetLink.url))
+            }
+            
+            val audioUri = videoOptions.audioUrl?.let { url ->
+                if (url.startsWith("http://") || url.startsWith("https://")) {
+                    android.net.Uri.parse(url)
+                } else {
+                    android.net.Uri.fromFile(java.io.File(url))
+                }
+            }
+
+            if (!targetLink.hasAudio && audioUri != null) {
+                val videoSource = defaultMediaSourceFactory.createMediaSource(MediaItem.fromUri(videoUri))
+                val audioSource = defaultMediaSourceFactory.createMediaSource(MediaItem.fromUri(audioUri))
                 exoPlayer.setMediaSource(MergingMediaSource(videoSource, audioSource))
             } else {
-                exoPlayer.setMediaItem(MediaItem.fromUri(targetLink.url))
+                exoPlayer.setMediaItem(MediaItem.fromUri(videoUri))
             }
         }
         
         exoPlayer.prepare()
-        if (currentPos > 0) {
+        if (currentPos > 0L) {
             exoPlayer.seekTo(currentPos)
         }
-        exoPlayer.playWhenReady = if (currentPos > 0) wasPlaying else true
+        exoPlayer.playWhenReady = if (exoPlayer.currentPosition > 0L) wasPlaying else initialPlaying
     }
 
     DisposableEffect(Unit) {
@@ -2131,7 +2659,15 @@ fun VideoPlayer(
             update = { playerView ->
                 playerView.resizeMode = resizeMode
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer(
+                    scaleX = scale,
+                    scaleY = scale,
+                    translationX = offset.x,
+                    translationY = offset.y
+                )
+                .transformable(state = transformState)
         )
 
         // Buffering Indicator
@@ -2159,8 +2695,9 @@ fun VideoPlayer(
             }
         }
 
-        // On-screen Transient Status Message
-        if (statusMessage != null) {
+        if (!VideoPipState.isInPip) {
+            // On-screen Transient Status Message
+            if (statusMessage != null) {
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -2559,27 +3096,49 @@ fun VideoPlayer(
                             modifier = Modifier.padding(start = 4.dp)
                         )
 
-                        // Fullscreen Landscape/Portrait Toggle
-                        IconButton(
-                            onClick = {
-                                if (activity != null) {
-                                    activity.requestedOrientation = if (isLandscape) {
-                                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                    } else {
-                                        android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                                    }
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            // PiP Pop-up Toggle Button
+                            if (ThemeManager.isPipEnabled) {
+                                IconButton(
+                                    onClick = {
+                                        VideoPipState.onEnterPip?.invoke()
+                                    },
+                                    modifier = Modifier
+                                        .padding(end = 8.dp)
+                                        .size(36.dp)
+                                        .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.PlayCircle,
+                                        contentDescription = "Pop-up Mode",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(18.dp)
+                                    )
                                 }
-                            },
-                            modifier = Modifier
-                                .size(36.dp)
-                                .background(Color.Black.copy(alpha = 0.4f), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
-                                contentDescription = "Toggle Landscape Fullscreen",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
-                            )
+                            }
+
+                            // Fullscreen Landscape/Portrait Toggle
+                            IconButton(
+                                onClick = {
+                                    if (activity != null) {
+                                        activity.requestedOrientation = if (isLandscape) {
+                                            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                        } else {
+                                            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                        }
+                                    }
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(Color.Black.copy(alpha = 0.4f), CircleShape)
+                            ) {
+                                Icon(
+                                    imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                    contentDescription = "Toggle Landscape Fullscreen",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
                         }
                     }
 
@@ -2608,6 +3167,7 @@ fun VideoPlayer(
             }
         }
     }
+}
 
     // Playback Speed Selector Dialog
     if (showSpeedDialog) {
@@ -2735,6 +3295,8 @@ fun ClassDetailView(
 ) {
     val context = LocalContext.current
     var videoOptions by remember { mutableStateOf<VideoOptions?>(null) }
+    var savedVideoPosition by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0L) }
+    var savedVideoPlaying by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     var isLoadingVideo by remember { mutableStateOf(false) }
     var currentVideoUrl by remember { mutableStateOf<String?>(null) }
     var showQualitySelector by remember { mutableStateOf(false) }
@@ -2775,6 +3337,10 @@ fun ClassDetailView(
             VideoPlayer(
                 videoOptions = videoOptions!!, 
                 modifier = Modifier.fillMaxSize(),
+                initialPosition = savedVideoPosition,
+                onPositionChanged = { savedVideoPosition = it },
+                initialPlaying = savedVideoPlaying,
+                onPlayingChanged = { savedVideoPlaying = it },
                 onQualityChanged = { link ->
                     currentVideoUrl = link.url
                 }
@@ -2789,24 +3355,6 @@ fun ClassDetailView(
             .verticalScroll(rememberScrollState())
             .padding(bottom = 32.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier
-                    .background(Color.White, shape = RoundedCornerShape(12.dp))
-                    .border(1.dp, Color(0xFFE5E7EB), RoundedCornerShape(12.dp))
-            ) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.DarkGray)
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            Column {
-                Text(clazz.title, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
-                Text(clazz.type, fontSize = 14.sp, color = Color.Gray)
-            }
-        }
 
         // Video Player Placeholder or Actual Player or Live Countdown Timer
         if (isClassUpcoming(clazz)) {
@@ -2944,13 +3492,17 @@ fun ClassDetailView(
             }
         } else if (clazz.recordedLink.isNotBlank()) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Box(modifier = Modifier.fillMaxWidth().height(250.dp).clip(RoundedCornerShape(16.dp))) {
+                Box(modifier = Modifier.fillMaxWidth().height(250.dp)) {
                     if (isLoadingVideo) {
                         VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
                     } else if (videoOptions != null) {
                         VideoPlayer(
                             videoOptions = videoOptions!!, 
                             modifier = Modifier.fillMaxSize().background(Color.Black),
+                            initialPosition = savedVideoPosition,
+                            onPositionChanged = { savedVideoPosition = it },
+                            initialPlaying = savedVideoPlaying,
+                            onPlayingChanged = { savedVideoPlaying = it },
                             onQualityChanged = { link ->
                                 currentVideoUrl = link.url
                             }
@@ -2964,7 +3516,11 @@ fun ClassDetailView(
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
-                // Unified Premium Download Button directly under the Video Player!
+                
+        Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 0.dp)) {
+        }
+
+        // Unified Premium Download Button directly under the Video Player!
                 // Always visible, so layout doesn't jump
                 val dlUrl = currentVideoUrl ?: videoOptions?.links?.firstOrNull()?.url
                 val isDownloaded = remember(downloadsList, dlUrl) {
@@ -3292,6 +3848,8 @@ fun ClassDetailView(
                 }
             }
         }
+        
+
 
         if (activePdfToView != null) {
             PdfViewerDialog(
@@ -3652,7 +4210,7 @@ fun ChapterDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp)
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 0.dp)
     ) {
         Row(
             modifier = Modifier
@@ -3804,7 +4362,7 @@ fun ChapterDetailScreen(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp)
+                            .padding(horizontal = 16.dp, vertical = 10.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -3882,7 +4440,7 @@ fun ChapterDetailScreen(
                             }
                         }
                         
-                        Spacer(modifier = Modifier.height(12.dp))
+                        Spacer(modifier = Modifier.height(4.dp))
                         
                         Text(
                             text = clazz.title,
@@ -3892,7 +4450,7 @@ fun ChapterDetailScreen(
                         )
                         
                         if (clazz.date.isNotBlank() || clazz.time.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.DateRange,
@@ -3950,3 +4508,153 @@ fun ChapterDetailScreen(
         }
     }
 }
+
+@Composable
+fun AddResourceDialog(
+    onDismiss: () -> Unit,
+    onAdd: (String, String) -> Unit
+) {
+    var title by remember { mutableStateOf("") }
+    var url by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("নতুন রিসোর্স যোগ করুন", fontWeight = FontWeight.Bold) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("রিসোর্সের নাম") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    label = { Text("রিসোর্সের লিংক (URL)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (title.isNotBlank() && url.isNotBlank()) {
+                        onAdd(title, url)
+                    }
+                }
+            ) {
+                Text("যোগ করুন")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("বাতিল")
+            }
+        }
+    )
+}
+
+@Composable
+fun UnenrolledCourseOverview(
+    course: CourseItem,
+    accentColor: Color
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
+        Box(
+            modifier = Modifier.fillMaxWidth().height(200.dp).background(Color.LightGray, RoundedCornerShape(16.dp))
+        ) {
+            if (course.bannerUrl.isNotBlank()) {
+                coil.compose.AsyncImage(
+                    model = course.bannerUrl,
+                    contentDescription = "Course Banner",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                )
+            } else {
+                Box(modifier = Modifier.fillMaxSize().background(accentColor), contentAlignment = Alignment.Center) {
+                    Text("No Banner", color = Color.White)
+                }
+            }
+        }
+        Spacer(modifier = Modifier.height(16.dp))
+        Text(course.title, fontSize = 24.sp, fontWeight = FontWeight.Bold, color = Color.Black)
+        Spacer(modifier = Modifier.height(8.dp))
+        Text(course.description, fontSize = 16.sp, color = Color.DarkGray)
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column {
+                Text("দাম", color = Color.Gray, fontSize = 12.sp)
+                Text(if (course.pricingOption == "Fully Free") "ফ্রি" else "৳${course.mainPrice}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = accentColor)
+            }
+            Column {
+                Text("মোট বিষয়", color = Color.Gray, fontSize = 12.sp)
+                Text("${course.subjects.size} টি", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        
+        if (course.isQuarterOn && course.quarters.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(24.dp))
+            Text("কোয়ার্টার বা প্যাকেজ সমূহ", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+            val currentDate = java.time.LocalDate.now()
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            
+            course.quarters.forEach { quarter ->
+                var statusText = "অজানা"
+                var statusColor = Color.Gray
+                var statusIcon = Icons.Default.HelpOutline
+                
+                try {
+                    val start = java.time.LocalDate.parse(quarter.startDate, formatter)
+                    val end = java.time.LocalDate.parse(quarter.endDate, formatter)
+                    
+                    if (currentDate.isBefore(start)) {
+                        statusText = "পড়ানো হবে"
+                        statusColor = Color(0xFF3B82F6) // Blue
+                        statusIcon = Icons.Default.Schedule
+                    } else if (currentDate.isAfter(end)) {
+                        statusText = "সম্পন্ন"
+                        statusColor = Color(0xFF22C55E) // Green
+                        statusIcon = Icons.Default.CheckCircle
+                    } else {
+                        statusText = "পড়ানো হচ্ছে"
+                        statusColor = Color(0xFFEAB308) // Yellow/Orange
+                        statusIcon = Icons.Default.PlayCircle
+                    }
+                } catch (e: Exception) { }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
+                        Row(
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column {
+                                Text(quarter.name, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text("${quarter.startDate} - ${quarter.endDate}", fontSize = 12.sp, color = Color.Gray)
+                            }
+                            Text("৳${quarter.price}", fontWeight = FontWeight.Bold, color = accentColor)
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(statusIcon, contentDescription = null, tint = statusColor, modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(statusText, color = statusColor, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
