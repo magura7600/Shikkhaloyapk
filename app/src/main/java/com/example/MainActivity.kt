@@ -194,6 +194,7 @@ class MainActivity : ComponentActivity() {
                 if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                     permissions.add(android.Manifest.permission.READ_MEDIA_VIDEO)
                     permissions.add(android.Manifest.permission.READ_MEDIA_IMAGES)
+                    permissions.add(android.Manifest.permission.POST_NOTIFICATIONS)
                 } else {
                     permissions.add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
                     permissions.add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
