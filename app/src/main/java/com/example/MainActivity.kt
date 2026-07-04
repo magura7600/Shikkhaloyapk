@@ -155,6 +155,11 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         appContext = applicationContext
+        try {
+            com.google.firebase.FirebaseApp.initializeApp(this)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         L.init(this)
         ThemeManager.init(this)
 
@@ -858,7 +863,6 @@ fun LoginScreen(
     var isOtpSent by remember { mutableStateOf(false) }
     var verificationId by remember { mutableStateOf("") }
     var resendToken by remember { mutableStateOf<PhoneAuthProvider.ForceResendingToken?>(null) }
-    var simulationMode by remember { mutableStateOf(false) }
 
     // Forgot / Reset Password States
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
@@ -867,7 +871,6 @@ fun LoginScreen(
     var resetNewPassword by remember { mutableStateOf("") }
     var resetOtpSent by remember { mutableStateOf(false) }
     var resetVerificationId by remember { mutableStateOf("") }
-    var resetSimulationMode by remember { mutableStateOf(false) }
     var resetLoading by remember { mutableStateOf(false) }
 
     // Helper to format Bangladeshi numbers to E.164
@@ -908,17 +911,12 @@ fun LoginScreen(
         if (isForReset) resetLoading = true else loading = true
 
         if (firebaseAuth == null) {
-            // Firebase Auth is not available (such as missing google-services.json) -> Fallback to Simulation Mode
             if (isForReset) {
-                resetSimulationMode = true
-                resetOtpSent = true
                 resetLoading = false
             } else {
-                simulationMode = true
-                isOtpSent = true
                 loading = false
             }
-            Toast.makeText(context, "সিমুলেশন মোড সক্রিয়! ওটিপি কোড: ১২৩৪৫৬", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, "Firebase Auth ইনিশিয়ালাইজ হয়নি!", Toast.LENGTH_LONG).show()
             return
         }
 
@@ -926,15 +924,11 @@ fun LoginScreen(
             val activity = context as? ComponentActivity
             if (activity == null) {
                 if (isForReset) {
-                    resetSimulationMode = true
-                    resetOtpSent = true
                     resetLoading = false
                 } else {
-                    simulationMode = true
-                    isOtpSent = true
                     loading = false
                 }
-                Toast.makeText(context, "সিমুলেশন মোড চালু (কোড: ১২৩৪৫৬)", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, "অ্যাক্টিভিটি পাওয়া যায়নি", Toast.LENGTH_SHORT).show()
                 return
             }
 
@@ -961,28 +955,22 @@ fun LoginScreen(
 
                 override fun onVerificationFailed(e: FirebaseException) {
                     if (isForReset) {
-                        resetSimulationMode = true
-                        resetOtpSent = true
                         resetLoading = false
                     } else {
-                        simulationMode = true
-                        isOtpSent = true
                         loading = false
                     }
-                    Toast.makeText(context, "Firebase Error: ${e.message}. সিমুলেশন মোড সক্রিয় করা হয়েছে (কোড: ১২৩৪৫৬)", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Firebase Error: ${e.message}", Toast.LENGTH_LONG).show()
                 }
 
                 override fun onCodeSent(verId: String, token: PhoneAuthProvider.ForceResendingToken) {
                     if (isForReset) {
                         resetVerificationId = verId
                         resetOtpSent = true
-                        resetSimulationMode = false
                         resetLoading = false
                     } else {
                         verificationId = verId
                         resendToken = token
                         isOtpSent = true
-                        simulationMode = false
                         loading = false
                     }
                     Toast.makeText(context, "ওটিপি কোড পাঠানো হয়েছে!", Toast.LENGTH_SHORT).show()
@@ -999,15 +987,11 @@ fun LoginScreen(
 
         } catch (e: Exception) {
             if (isForReset) {
-                resetSimulationMode = true
-                resetOtpSent = true
                 resetLoading = false
             } else {
-                simulationMode = true
-                isOtpSent = true
                 loading = false
             }
-            Toast.makeText(context, "সিমুলেশন ওটিপি কোড ১২৩৪৫৬ পাঠানো হয়েছে", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1020,19 +1004,14 @@ fun LoginScreen(
         }
 
         loading = true
-        if (simulationMode || firebaseAuth == null) {
-            if (otpCode == "123456") {
-                val simulatedUid = "sim_user_" + formatted.replace("+", "")
-                Toast.makeText(context, "মোবাইল ভেরিফিকেশন সফল!", Toast.LENGTH_SHORT).show()
-                handleAuthSuccess(formatted, simulatedUid)
-                loading = false
-            } else {
-                loading = false
-                Toast.makeText(context, "ভুল ওটিপি! অনুগ্রহ করে '১২৩৪৫৬' লিখুন।", Toast.LENGTH_SHORT).show()
-            }
-        } else {
-            val credential = PhoneAuthProvider.getCredential(verificationId, otpCode)
-            firebaseAuth.signInWithCredential(credential)
+        if (firebaseAuth == null) {
+            loading = false
+            Toast.makeText(context, "Firebase Auth নেই", Toast.LENGTH_SHORT).show()
+            return
+        }
+        
+        val credential = PhoneAuthProvider.getCredential(verificationId, otpCode)
+        firebaseAuth.signInWithCredential(credential)
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful) {
                         val user = task.result?.user
@@ -1045,7 +1024,6 @@ fun LoginScreen(
                         Toast.makeText(context, "ভুল ওটিপি কোড! আবার চেষ্টা করুন।", Toast.LENGTH_SHORT).show()
                     }
                 }
-        }
     }
 
     // Dynamic banner text based on selected tab
@@ -1351,22 +1329,6 @@ fun LoginScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    if (simulationMode) {
-                        Surface(
-                            modifier = Modifier.fillMaxWidth().padding(bottom = 12.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.secondaryContainer
-                        ) {
-                            Text(
-                                text = "সিমুলেশন মোড সক্রিয়। যাচাই করার জন্য ওটিপি ঘরে '123456' লিখুন।",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                modifier = Modifier.padding(12.dp),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
-
                     Button(
                         onClick = { verifyOtpAndComplete() },
                         modifier = Modifier
@@ -1450,16 +1412,6 @@ fun LoginScreen(
                             visualTransformation = PasswordVisualTransformation(),
                             shape = RoundedCornerShape(12.dp)
                         )
-
-                        if (resetSimulationMode) {
-                            Text(
-                                text = "সিমুলেশন মোড সক্রিয়। যাচাই করার জন্য ওটিপি ঘরে '123456' লিখুন।",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.primary,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
                     }
                 }
             },
@@ -1524,18 +1476,14 @@ fun LoginScreen(
                             
                             resetLoading = true
                             val formatted = formatPhoneNumber(resetPhone)
-                            if (resetSimulationMode || firebaseAuth == null) {
-                                if (resetOtp == "123456") {
-                                    coroutineScope.launch {
-                                        performPasswordReset(formatted)
-                                    }
-                                } else {
-                                    resetLoading = false
-                                    Toast.makeText(context, "ভুল ওটিপি কোড! আবার চেষ্টা করুন।", Toast.LENGTH_SHORT).show()
-                                }
-                            } else {
-                                val credential = PhoneAuthProvider.getCredential(resetVerificationId, resetOtp)
-                                firebaseAuth.signInWithCredential(credential)
+                            if (firebaseAuth == null) {
+                                resetLoading = false
+                                Toast.makeText(context, "Firebase Auth নেই!", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            
+                            val credential = PhoneAuthProvider.getCredential(resetVerificationId, resetOtp)
+                            firebaseAuth.signInWithCredential(credential)
                                     .addOnCompleteListener { task ->
                                         if (task.isSuccessful) {
                                             coroutineScope.launch {
@@ -1546,7 +1494,6 @@ fun LoginScreen(
                                             Toast.makeText(context, "ভুল ওটিপি কোড! আবার চেষ্টা করুন।", Toast.LENGTH_SHORT).show()
                                         }
                                     }
-                            }
                         }
                     },
                     enabled = !resetLoading
