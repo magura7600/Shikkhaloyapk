@@ -1,0 +1,63 @@
+{
+  "project_info": {
+    "project_number": "374513992367",
+    "project_id": "shikkhaloy-ai",
+    "storage_bucket": "shikkhaloy-ai.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:374513992367:android:0d28e90fce6f85dca9ca5a",
+        "android_client_info": {
+          "package_name": "com.shikkhaloyai.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "374513992367-1dmr0o5mljc634og7vjeq4jnu2fvcvi5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shikkhaloyai.app",
+            "certificate_hash": "bf69841c42ac25e7cc328d155d8776e7bb488a0e"
+          }
+        },
+        {
+          "client_id": "374513992367-kl5mfqlpqru3qqe9fa94mtc1dpd41823.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shikkhaloyai.app",
+            "certificate_hash": "50352350c8aa6fd2f43b9ad4138f0b9d377ddbd9"
+          }
+        },
+        {
+          "client_id": "374513992367-o4qeias1dbns90dl8fdhpkurevj9h7re.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.shikkhaloyai.app",
+            "certificate_hash": "f96ae8a0deabcbda0eb857dc8ee92a802d58615a"
+          }
+        },
+        {
+          "client_id": "374513992367-n5kercp4pbdc9h6ctjcehcctfc7f3r7u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAa6Vtpy92rbyy0UXddTBMf-DR-_ycrsUs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "374513992367-n5kercp4pbdc9h6ctjcehcctfc7f3r7u.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -36,7 +36,7 @@ android {
   compileSdk { version = release(36) { minorApiLevel = 1 } }
 
   defaultConfig {
-    applicationId = "app.shikkhaloy.ai.com"
+    applicationId = "com.shikkhaloyai.app"
     minSdk = 26
     targetSdk = 36
     versionCode = 7
@@ -136,6 +136,10 @@ dependencies {
   
   // OneSignal - used?
   implementation(libs.onesignal)
+  
+  // Firebase Auth
+  implementation(platform(libs.firebase.bom))
+  implementation("com.google.firebase:firebase-auth")
   
   // implementation(libs.retrofit)
   
