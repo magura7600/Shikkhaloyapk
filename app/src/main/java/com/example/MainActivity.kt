@@ -71,6 +71,7 @@ import androidx.compose.ui.unit.sp
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.handleDeeplinks
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.postgrest.Postgrest
@@ -161,8 +162,22 @@ class MainActivity : ComponentActivity() {
         VideoPipState.isInPip = isInPictureInPictureMode
     }
 
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        try {
+            supabase.handleDeeplinks(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         appContext = applicationContext
+        try {
+            supabase.handleDeeplinks(intent)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
         try {
             com.google.firebase.FirebaseApp.initializeApp(this)
         } catch (e: Exception) {
@@ -414,6 +429,18 @@ fun MainAppContent() {
                 )
             } else {
                 appState = AppState.Onboarding(email, userId)
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        supabase.auth.sessionStatus.collect { status ->
+            if (status is io.github.jan.supabase.auth.status.SessionStatus.Authenticated) {
+                val email = status.session.user?.email ?: ""
+                val userId = status.session.user?.id ?: ""
+                if (appState is AppState.Login || appState is AppState.Splash) {
+                    handleLoginSuccess(email, userId)
+                }
             }
         }
     }
@@ -1018,7 +1045,7 @@ fun LoginScreen(
             onClick = {
                 coroutineScope.launch {
                     try {
-                        supabase.auth.signInWith(Google)
+                        supabase.auth.signInWith(provider = Google, redirectUrl = "shikkhaloy://login-callback")
                     } catch(e: Exception) {
                         Toast.makeText(context, "Google Sign-in error: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
