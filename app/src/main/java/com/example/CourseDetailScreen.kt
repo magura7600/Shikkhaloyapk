@@ -1448,6 +1448,29 @@ fun CourseContentSection(
                     }
                 }
             }
+            if (isTeacher) {
+                Card(
+                    onClick = { subjectToAddChapterTo = subj },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    border = BorderStroke(1.5.dp, accentColor.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Chapter", tint = accentColor, modifier = Modifier.size(20.dp))
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("নতুন অধ্যায় যোগ করুন", color = accentColor, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                }
+            }
         }
     }
 
