@@ -35,25 +35,70 @@ jobs:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 || secrets.RELEASE_KEYSTORE_BASE64 }}
       run: |
         python3 -c "
-        import base64, os, sys
-        data = os.environ.get('KEYSTORE_BASE64', '').strip()
-        if not data:
+        import base64, os, sys, re
+        raw_data = os.environ.get('KEYSTORE_BASE64', '').strip()
+        if not raw_data:
             print('ERROR: Neither KEYSTORE_BASE64 nor RELEASE_KEYSTORE_BASE64 secret is set in GitHub Secrets!')
             print('Please configure either of these secrets in your repository Settings -> Secrets and variables -> Actions.')
             sys.exit(1)
+        
         try:
-            # Clean all whitespace, newlines, and carriage returns
-            cleaned_data = ''.join(data.split())
-            # Handle missing base64 padding dynamically
+            # 1. Clean any markdown backticks or code block formatting
+            data = raw_data.replace('`', '').strip()
+            
+            # 2. Clean data URL prefixes if present
+            # e.g., data:application/octet-stream;base64,...
+            data_uri_match = re.match(r'^data:[^;]+;base64,(.*)$', data, re.DOTALL | re.IGNORECASE)
+            if data_uri_match:
+                data = data_uri_match.group(1).strip()
+                print('INFO: Removed data URI prefix from secret string.')
+            
+            # 3. Clean PEM headers and footers
+            pem_elements = [
+                '-----BEGIN CERTIFICATE-----', '-----END CERTIFICATE-----',
+                '-----BEGIN PRIVATE KEY-----', '-----END PRIVATE KEY-----',
+                '-----BEGIN KEYSTORE-----', '-----END KEYSTORE-----',
+                '-----BEGIN PKCS12-----', '-----END PKCS12-----',
+                '-----BEGIN/END CERTIFICATE-----', '---'
+            ]
+            for elem in pem_elements:
+                data = data.replace(elem, '')
+            
+            # 4. Remove all non-base64 characters
+            # Valid chars: A-Z, a-z, 0-9, +, /, =
+            cleaned_data = re.sub(r'[^A-Za-z0-9+/=]', '', data)
+            
+            if len(cleaned_data) < len(raw_data) * 0.8:
+                print('WARNING: A significant amount of non-base64 characters were filtered out. The secret may contain corrupted data!')
+            
+            # 5. Fix padding dynamically
             padding_needed = (4 - len(cleaned_data) % 4) % 4
             cleaned_data += '=' * padding_needed
             
             decoded = base64.b64decode(cleaned_data)
+            
+            # 6. Verify Keystore Format Magic Bytes
+            is_jks = decoded.startswith(b'\xfe\xed\xfe\xed')
+            is_pkcs12 = decoded.startswith(b'\x30') # DER Sequence
+            
+            print(f'INFO: Decoded file size: {len(decoded)} bytes')
+            if is_jks:
+                print('SUCCESS: Detected valid Java KeyStore (JKS) format magic bytes.')
+            elif is_pkcs12:
+                print('SUCCESS: Detected valid PKCS12 keystore format magic bytes.')
+            else:
+                print('CRITICAL WARNING: The decoded bytes DO NOT match any standard Keystore format!')
+                print(f'Magic bytes (first 4 bytes): {decoded[:4].hex().upper()}')
+                print('This almost certainly means your base64 string is corrupted or was generated from an incorrect file.')
+                print('Please verify your KEYSTORE_BASE64 secret contains a clean base64 string of your .jks/.p12 file.')
+                print('Command to generate on Windows PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes(\"your-file.jks\"))')
+                print('Command to generate on Mac/Linux: base64 -i your-file.jks -o -  OR  openssl base64 -A -in your-file.jks')
+            
             with open('my-upload-key.jks', 'wb') as f:
                 f.write(decoded)
-            print('SUCCESS: Keystore decoded successfully to my-upload-key.jks')
+            print('SUCCESS: Decoded keystore written to my-upload-key.jks')
         except Exception as e:
-            print(f'ERROR: Failed to decode base64 keystore: {e}')
+            print(f'ERROR: Exception occurred during base64 decoding: {e}')
             sys.exit(1)
         "
       
@@ -80,8 +125,8 @@ jobs:
     - name: Build Release APK
       env:
         KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
-        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
-        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || secrets.STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
         KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'upload' }}
       run: ./gradlew assembleRelease
       
