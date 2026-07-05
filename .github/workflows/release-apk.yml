@@ -145,24 +145,72 @@ jobs:
                 String alias = args[2];
                 String keyPass = args[3];
                 
+                KeyStore ks = null;
+                String loadedType = null;
+                Exception pkcs12Exception = null;
+                Exception jksException = null;
+                
+                // Try loading as PKCS12 first
                 try {
-                    KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+                    ks = KeyStore.getInstance("PKCS12");
                     try (FileInputStream fis = new FileInputStream(path)) {
                         ks.load(fis, storePass.toCharArray());
                     }
-                    System.out.println("SUCCESS: Keystore file loaded successfully.");
-                    
+                    loadedType = "PKCS12";
+                    System.out.println("SUCCESS: Keystore file loaded successfully as PKCS12.");
+                } catch (Exception e) {
+                    pkcs12Exception = e;
+                }
+                
+                // If PKCS12 failed, try loading as JKS
+                if (loadedType == null) {
+                    try {
+                        ks = KeyStore.getInstance("JKS");
+                        try (FileInputStream fis = new FileInputStream(path)) {
+                            ks.load(fis, storePass.toCharArray());
+                        }
+                        loadedType = "JKS";
+                        System.out.println("SUCCESS: Keystore file loaded successfully as JKS.");
+                    } catch (Exception e) {
+                        jksException = e;
+                    }
+                }
+                
+                if (loadedType == null) {
+                    System.out.println("ERROR: Failed to load keystore with either PKCS12 or JKS format.");
+                    System.out.println("----------------------------------------");
+                    System.out.println("PKCS12 Load Error: " + (pkcs12Exception != null ? pkcs12Exception.toString() : "N/A"));
+                    System.out.println("JKS Load Error: " + (jksException != null ? jksException.toString() : "N/A"));
+                    System.out.println("----------------------------------------");
+                    System.out.println("\n================================ DIAGNOSIS ================================");
+                    System.out.println("This means your 'STORE_PASSWORD' (or 'KEYSTORE_PASSWORD') is INCORRECT,");
+                    System.out.println("or the keystore file base64 data is corrupted/incomplete.");
+                    System.out.println("Please check the 'Decode Keystore' step logs above to verify if magic bytes were detected.");
+                    System.out.println("===========================================================================\n");
+                    System.exit(5);
+                }
+                
+                try {
                     if (!ks.containsAlias(alias)) {
-                        System.out.println("ERROR: The alias '" + alias + "' does NOT exist in the keystore!");
+                        System.out.println("ERROR: The alias '" + alias + "' does NOT exist in the " + loadedType + " keystore!");
                         System.out.print("Available aliases in this keystore: ");
                         Enumeration<String> aliases = ks.aliases();
+                        int count = 0;
                         while (aliases.hasMoreElements()) {
                             System.out.print("'" + aliases.nextElement() + "' ");
+                            count++;
+                        }
+                        if (count == 0) {
+                            System.out.print("(No aliases found!)");
                         }
                         System.out.println();
+                        System.out.println("\n================================ DIAGNOSIS ================================");
+                        System.out.println("Your 'KEY_ALIAS' secret is set to '" + alias + "' but that alias is not inside the keystore.");
+                        System.out.println("Please set the 'KEY_ALIAS' secret to one of the available aliases listed above.");
+                        System.out.println("===========================================================================\n");
                         System.exit(2);
                     }
-                    System.out.println("SUCCESS: Alias '" + alias + "' found in the keystore.");
+                    System.out.println("SUCCESS: Alias '" + alias + "' found in the " + loadedType + " keystore.");
                     
                     try {
                         KeyStore.Entry entry = ks.getEntry(alias, new KeyStore.PasswordProtection(keyPass.toCharArray()));
@@ -177,17 +225,17 @@ jobs:
                         System.out.println("\n================================ DIAGNOSIS ================================");
                         System.out.println("This error means your 'KEY_PASSWORD' (key password) is INCORRECT.");
                         System.out.println("Please make sure that the 'KEY_PASSWORD' secret in your GitHub repository is correct.");
-                        System.out.println("Note: If your keystore is in PKCS12 format, the key password MUST be identical to the store password.");
+                        if ("PKCS12".equals(loadedType)) {
+                            System.out.println("Note: Since your keystore is in PKCS12 format, the key password MUST be identical to the store password.");
+                        } else {
+                            System.out.println("Note: For JKS format, the key password can be different, but must match the password used when generating the key.");
+                        }
                         System.out.println("===========================================================================\n");
                         System.exit(4);
                     }
                 } catch (Exception e) {
-                    System.out.println("ERROR: Failed to load keystore: " + e.toString());
-                    System.out.println("\n================================ DIAGNOSIS ================================");
-                    System.out.println("This means your 'STORE_PASSWORD' (or 'KEYSTORE_PASSWORD') is INCORRECT,");
-                    System.out.println("or the keystore file base64 data is corrupted.");
-                    System.out.println("===========================================================================\n");
-                    System.exit(5);
+                    System.out.println("ERROR during alias lookup: " + e.toString());
+                    System.exit(6);
                 }
             }
         }
