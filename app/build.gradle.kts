@@ -115,6 +115,11 @@ dependencies {
   // YouTube/Video related - check if they are actually used
   // implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
   
+  // Google Sign-In with Credential Manager
+  implementation("androidx.credentials:credentials:1.3.0-rc01")
+  implementation("androidx.credentials:credentials-play-services-auth:1.3.0-rc01")
+  implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+  
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)
   implementation(libs.androidx.core.ktx)

@@ -309,8 +309,23 @@ fun MainAppContent() {
             val cachedUidCode = sharedPrefs.getString("uid_code", null)
 
             var dbProfile: UserProfile? = null
-
-            if (cachedRole != null && cachedFullName != null && cachedUidCode != null) {
+            
+            // Always try to fetch latest from DB first to get updated roles (like admin)
+            try {
+                withContext(Dispatchers.IO) {
+                    dbProfile = supabase.from("profiles")
+                        .select {
+                            filter {
+                                eq("user_id", cachedUserId)
+                            }
+                        }.decodeSingleOrNull<UserProfile>()
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            
+            // Fallback to cache if DB fetch fails (e.g. offline)
+            if (dbProfile == null && cachedRole != null && cachedFullName != null && cachedUidCode != null) {
                 dbProfile = UserProfile(
                     user_id = cachedUserId,
                     email = cachedEmail,
@@ -320,19 +335,6 @@ fun MainAppContent() {
                     contact = cachedContact,
                     uid_code = cachedUidCode
                 )
-            } else {
-                try {
-                    withContext(Dispatchers.IO) {
-                        dbProfile = supabase.from("profiles")
-                            .select {
-                                filter {
-                                    eq("user_id", cachedUserId)
-                                }
-                            }.decodeSingleOrNull<UserProfile>()
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
             }
 
             nextState = if (dbProfile != null) {
@@ -1352,6 +1354,73 @@ fun LoginScreen(
                 }
             }
 
+            Spacer(modifier = Modifier.height(24.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                HorizontalDivider(modifier = Modifier.weight(1f))
+                Text("অথবা", modifier = Modifier.padding(horizontal = 8.dp), color = Color.Gray)
+                HorizontalDivider(modifier = Modifier.weight(1f))
+            }
+            Spacer(modifier = Modifier.height(24.dp))
+            
+            Button(
+                onClick = {
+                    coroutineScope.launch {
+                        loading = true
+                        try {
+                            val credentialManager = androidx.credentials.CredentialManager.create(context)
+                            val googleIdOption = com.google.android.libraries.identity.googleid.GetGoogleIdOption.Builder()
+                                .setFilterByAuthorizedAccounts(false)
+                                .setServerClientId("374513992367-n5kercp4pbdc9h6ctjcehcctfc7f3r7u.apps.googleusercontent.com")
+                                .setAutoSelectEnabled(false)
+                                .build()
+                                
+                            val request = androidx.credentials.GetCredentialRequest.Builder()
+                                .addCredentialOption(googleIdOption)
+                                .build()
+
+                            val result = credentialManager.getCredential(context, request)
+                            val credential = result.credential
+                            
+                            if (credential is androidx.credentials.CustomCredential &&
+                                credential.type == com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
+                                val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
+                                
+                                val authCredential = com.google.firebase.auth.GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
+                                
+                                val firebaseAuth = FirebaseAuth.getInstance()
+                                firebaseAuth.signInWithCredential(authCredential).addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        val user = task.result?.user
+                                        if (user != null) {
+                                            Toast.makeText(context, "লগইন সফল হয়েছে!", Toast.LENGTH_SHORT).show()
+                                            handleAuthSuccess(user.email ?: user.phoneNumber ?: "", user.uid)
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Google Auth Error: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
+                                        loading = false
+                                    }
+                                }
+                            } else {
+                                loading = false
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                            Toast.makeText(context, "Google Sign-In Error: ${e.message}", Toast.LENGTH_LONG).show()
+                            loading = false
+                        }
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
+                border = BorderStroke(1.dp, Color.LightGray),
+                enabled = !loading
+            ) {
+                Text("গুগল দিয়ে প্রবেশ করুন".t(), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+            }
+
 
         }
     }
@@ -1529,9 +1598,8 @@ fun OnboardingScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    val isAdminEmail = email.equals("fahimmia017740@gmail.com", ignoreCase = true)
-    var selectedRole by remember { mutableStateOf<String?>(if (isAdminEmail) "admin" else null) } // "teacher", "student", or "admin"
-    var fullName by remember { mutableStateOf(if (isAdminEmail) "Fahim Mia" else "") }
+    var selectedRole by remember { mutableStateOf<String?>(null) } // "teacher" or "student"
+    var fullName by remember { mutableStateOf("") }
     var institution by remember { mutableStateOf("") }
     var contactInfo by remember { mutableStateOf(email) }
     var isSavingProfile by remember { mutableStateOf(false) }
@@ -1693,54 +1761,7 @@ fun OnboardingScreen(
                 }
             }
 
-            // Admin Card
-            Card(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { selectedRole = "admin" },
-                shape = RoundedCornerShape(12.dp),
-                border = BorderStroke(
-                    width = if (selectedRole == "admin") 2.dp else 1.dp,
-                    color = if (selectedRole == "admin") Color.Red else Color.LightGray
-                ),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (selectedRole == "admin") Color(0xFFFEF2F2) else Color.White
-                )
-            ) {
-                Column(
-                    modifier = Modifier.padding(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(CircleShape)
-                            .background(if (selectedRole == "admin") Color.Red else Color(0xFFF3F4F6)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.AdminPanelSettings,
-                            contentDescription = "Admin",
-                            tint = if (selectedRole == "admin") Color.White else Color.Gray,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "এডমিন (Admin)",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 11.sp,
-                        color = if (selectedRole == "admin") Color.Red else Color.DarkGray
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    Text(
-                        text = "অ্যাপ ও অ্যাকাউন্ট নিয়ন্ত্রণ",
-                        fontSize = 8.sp,
-                        color = Color.Gray,
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
+            // Admin Card removed as per user request to prevent anyone from registering as admin
         }
 
         // Details Form
@@ -1809,7 +1830,7 @@ fun OnboardingScreen(
                     val sharedPrefs = context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
                     val regPassword = sharedPrefs.getString("temp_register_password", "") ?: ""
                     val generatedUid = "SL-" + (100000..999999).random()
-                    val resolvedRole = if (email.equals("fahimmia017740@gmail.com", ignoreCase = true)) "admin" else (selectedRole ?: "student")
+                    val resolvedRole = selectedRole ?: "student"
                     val profile = UserProfile(
                         user_id = userId,
                         email = email,
