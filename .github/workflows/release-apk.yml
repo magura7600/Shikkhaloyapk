@@ -144,6 +144,15 @@ jobs:
                 String storePass = args[1];
                 String alias = args[2];
                 String keyPass = args[3];
+                 System.out.println("================== KEYSTORE VERIFICATION DEBUG ==================");
+                 System.out.println("- Keystore Path: " + path);
+                 java.io.File f = new java.io.File(path);
+                 System.out.println("- Keystore Path exists: " + f.exists());
+                 System.out.println("- Keystore File size: " + f.length() + " bytes");
+                 System.out.println("- Store Password length: " + (storePass == null ? "null" : storePass.length()));
+                 System.out.println("- Key Alias: '" + alias + "' (length: " + (alias == null ? "null" : alias.length()) + ")");
+                 System.out.println("- Key Password length: " + (keyPass == null ? "null" : keyPass.length()));
+                 System.out.println("================================================================");
                 
                 KeyStore ks = null;
                 String loadedType = null;
