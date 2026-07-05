@@ -122,6 +122,79 @@ jobs:
         echo "SUPABASE_KEY=$SUPABASE_KEY" >> .env
         echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
         
+    - name: Verify Keystore and Passwords
+      env:
+        KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
+        STORE_PASSWORD: ${{ secrets.STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+        KEY_PASSWORD: ${{ secrets.KEY_PASSWORD || secrets.STORE_PASSWORD || secrets.KEYSTORE_PASSWORD }}
+        KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'upload' }}
+      run: |
+        cat << 'EOF' > VerifyKeystore.java
+        import java.io.FileInputStream;
+        import java.security.KeyStore;
+        import java.util.Enumeration;
+
+        public class VerifyKeystore {
+            public static void main(String[] args) {
+                if (args.length < 4) {
+                    System.out.println("Usage: VerifyKeystore <path> <store_pass> <alias> <key_pass>");
+                    System.exit(1);
+                }
+                String path = args[0];
+                String storePass = args[1];
+                String alias = args[2];
+                String keyPass = args[3];
+                
+                try {
+                    KeyStore ks = KeyStore.getInstance(KeyStore.getDefaultType());
+                    try (FileInputStream fis = new FileInputStream(path)) {
+                        ks.load(fis, storePass.toCharArray());
+                    }
+                    System.out.println("SUCCESS: Keystore file loaded successfully.");
+                    
+                    if (!ks.containsAlias(alias)) {
+                        System.out.println("ERROR: The alias '" + alias + "' does NOT exist in the keystore!");
+                        System.out.print("Available aliases in this keystore: ");
+                        Enumeration<String> aliases = ks.aliases();
+                        while (aliases.hasMoreElements()) {
+                            System.out.print("'" + aliases.nextElement() + "' ");
+                        }
+                        System.out.println();
+                        System.exit(2);
+                    }
+                    System.out.println("SUCCESS: Alias '" + alias + "' found in the keystore.");
+                    
+                    try {
+                        KeyStore.Entry entry = ks.getEntry(alias, new KeyStore.PasswordProtection(keyPass.toCharArray()));
+                        if (entry == null) {
+                            System.out.println("ERROR: Could not retrieve key entry for alias '" + alias + "'. Entry is null.");
+                            System.exit(3);
+                        }
+                        System.out.println("SUCCESS: Private key decrypted and retrieved successfully!");
+                    } catch (Exception e) {
+                        System.out.println("ERROR: Failed to decrypt key '" + alias + "' using the provided key password!");
+                        System.out.println("Detailed Exception: " + e.toString());
+                        System.out.println("\n================================ DIAGNOSIS ================================");
+                        System.out.println("This error means your 'KEY_PASSWORD' (key password) is INCORRECT.");
+                        System.out.println("Please make sure that the 'KEY_PASSWORD' secret in your GitHub repository is correct.");
+                        System.out.println("Note: If your keystore is in PKCS12 format, the key password MUST be identical to the store password.");
+                        System.out.println("===========================================================================\n");
+                        System.exit(4);
+                    }
+                } catch (Exception e) {
+                    System.out.println("ERROR: Failed to load keystore: " + e.toString());
+                    System.out.println("\n================================ DIAGNOSIS ================================");
+                    System.out.println("This means your 'STORE_PASSWORD' (or 'KEYSTORE_PASSWORD') is INCORRECT,");
+                    System.out.println("or the keystore file base64 data is corrupted.");
+                    System.out.println("===========================================================================\n");
+                    System.exit(5);
+                }
+            }
+        }
+        EOF
+        javac VerifyKeystore.java
+        java VerifyKeystore "$KEYSTORE_PATH" "$STORE_PASSWORD" "$KEY_ALIAS" "$KEY_PASSWORD"
+
     - name: Build Release APK
       env:
         KEYSTORE_PATH: ${{ github.workspace }}/my-upload-key.jks
