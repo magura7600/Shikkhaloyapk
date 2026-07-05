@@ -72,6 +72,7 @@ import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.auth.providers.Google
 import io.github.jan.supabase.postgrest.Postgrest
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
@@ -80,6 +81,11 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
 import io.github.jan.supabase.serializer.KotlinXSerializer
 import kotlinx.serialization.json.Json
+import androidx.compose.foundation.Image
+import androidx.compose.ui.res.painterResource
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+
 
 // --- DATA STRUCTURES ---
 
@@ -118,6 +124,8 @@ val supabase by lazy {
     ) {
         install(Postgrest)
         install(Auth) {
+            scheme = "shikkhaloy"
+            host = "login-callback"
             appContext?.let { ctx ->
                 sessionManager = SharedPreferencesSessionManager(ctx)
             }
@@ -843,748 +851,185 @@ fun LoginScreen(
     val sharedPrefs = remember { context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE) }
 
     var isLoginTab by remember { mutableStateOf(true) }
-    var usePasswordLogin by remember { mutableStateOf(true) } // If true, log in with password; if false, use OTP
-
-    var phoneNumber by remember { mutableStateOf("") }
+    var emailAddress by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
-    var otpCode by remember { mutableStateOf("") }
     
     var showPassword by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
-    var isPhoneFocused by remember { mutableStateOf(false) }
-    var isPasswordFocused by remember { mutableStateOf(false) }
 
-    // Firebase Auth Integration States
-    val firebaseAuth = remember {
-        try {
-            FirebaseAuth.getInstance()
-        } catch (e: Exception) {
-            null
-        }
-    }
-    var isOtpSent by remember { mutableStateOf(false) }
-    var verificationId by remember { mutableStateOf("") }
-    var resendToken by remember { mutableStateOf<PhoneAuthProvider.ForceResendingToken?>(null) }
-
-    // Forgot / Reset Password States
-    var showForgotPasswordDialog by remember { mutableStateOf(false) }
-    var resetPhone by remember { mutableStateOf("") }
-    var resetOtp by remember { mutableStateOf("") }
-    var resetNewPassword by remember { mutableStateOf("") }
-    var resetOtpSent by remember { mutableStateOf(false) }
-    var resetVerificationId by remember { mutableStateOf("") }
-    var resetLoading by remember { mutableStateOf(false) }
-
-    // Helper to format Bangladeshi numbers to E.164
-    fun formatPhoneNumber(num: String): String {
-        val trimmed = num.trim()
-        return if (trimmed.startsWith("01") && trimmed.length == 11) {
-            "+88$trimmed"
-        } else if (trimmed.startsWith("1") && trimmed.length == 10) {
-            "+880$trimmed"
-        } else {
-            trimmed
-        }
-    }
-
-    // Handles the final successful login or registration navigation
-    fun handleAuthSuccess(verifiedPhone: String, uid: String) {
+    fun handleAuthSuccess(email: String, uid: String) {
         if (!isLoginTab) {
-            // Save the password to temp shared pref so Onboarding can read and store it in profile
             sharedPrefs.edit().putString("temp_register_password", password).apply()
         }
         
         sharedPrefs.edit()
             .putString("user_id", uid)
-            .putString("email", verifiedPhone)
+            .putString("email", email)
             .apply()
             
-        onLoginSuccess(verifiedPhone, uid)
+        onLoginSuccess(email, uid)
     }
 
-    // Trigger phone verification
-    fun sendOtpCode(number: String, isForReset: Boolean = false) {
-        val formatted = formatPhoneNumber(number)
-        if (formatted.length < 10) {
-            Toast.makeText(context, "অনুগ্রহ করে সঠিক মোবাইল নম্বর দিন!", Toast.LENGTH_SHORT).show()
+    fun submitForm() {
+        if (emailAddress.isBlank() || password.isBlank()) {
+            Toast.makeText(context, "ইমেইল এবং পাসওয়ার্ড দিন!", Toast.LENGTH_SHORT).show()
             return
         }
-
-        if (isForReset) resetLoading = true else loading = true
-
-        if (firebaseAuth == null) {
-            if (isForReset) {
-                resetLoading = false
-            } else {
-                loading = false
-            }
-            Toast.makeText(context, "Firebase Auth ইনিশিয়ালাইজ হয়নি!", Toast.LENGTH_LONG).show()
-            return
-        }
-
-        try {
-            val activity = context as? ComponentActivity
-            if (activity == null) {
-                if (isForReset) {
-                    resetLoading = false
-                } else {
-                    loading = false
-                }
-                Toast.makeText(context, "অ্যাক্টিভিটি পাওয়া যায়নি", Toast.LENGTH_SHORT).show()
-                return
-            }
-
-            val callbacks = object : PhoneAuthProvider.OnVerificationStateChangedCallbacks() {
-                override fun onVerificationCompleted(credential: PhoneAuthCredential) {
-                    firebaseAuth.signInWithCredential(credential)
-                        .addOnCompleteListener { task ->
-                            if (task.isSuccessful) {
-                                val user = task.result?.user
-                                if (user != null) {
-                                    if (isForReset) {
-                                        Toast.makeText(context, "মোবাইল নম্বর যাচাই সফল হয়েছে!", Toast.LENGTH_SHORT).show()
-                                    } else {
-                                        Toast.makeText(context, "স্বয়ংক্রিয় মোবাইল ভেরিফিকেশন সফল!", Toast.LENGTH_SHORT).show()
-                                        handleAuthSuccess(user.phoneNumber ?: formatted, user.uid)
-                                    }
-                                }
-                            } else {
-                                Toast.makeText(context, "স্বয়ংক্রিয় মোবাইল ভেরিফিকেশন ব্যর্থ হয়েছে!", Toast.LENGTH_SHORT).show()
-                            }
-                            if (isForReset) resetLoading = false else loading = false
-                        }
-                }
-
-                override fun onVerificationFailed(e: FirebaseException) {
-                    if (isForReset) {
-                        resetLoading = false
-                    } else {
-                        loading = false
-                    }
-                    Toast.makeText(context, "Firebase Error: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-
-                override fun onCodeSent(verId: String, token: PhoneAuthProvider.ForceResendingToken) {
-                    if (isForReset) {
-                        resetVerificationId = verId
-                        resetOtpSent = true
-                        resetLoading = false
-                    } else {
-                        verificationId = verId
-                        resendToken = token
-                        isOtpSent = true
-                        loading = false
-                    }
-                    Toast.makeText(context, "ওটিপি কোড পাঠানো হয়েছে!", Toast.LENGTH_SHORT).show()
-                }
-            }
-
-            val options = PhoneAuthOptions.newBuilder(firebaseAuth)
-                .setPhoneNumber(formatted)
-                .setTimeout(60L, TimeUnit.SECONDS)
-                .setActivity(activity)
-                .setCallbacks(callbacks)
-                .build()
-            PhoneAuthProvider.verifyPhoneNumber(options)
-
-        } catch (e: Exception) {
-            if (isForReset) {
-                resetLoading = false
-            } else {
-                loading = false
-            }
-            Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-        }
-    }
-
-    // Handles verification of OTP and registers/logs in
-    fun verifyOtpAndComplete() {
-        val formatted = formatPhoneNumber(phoneNumber)
-        if (otpCode.isBlank()) {
-            Toast.makeText(context, "অনুগ্রহ করে ওটিপি কোড লিখুন!", Toast.LENGTH_SHORT).show()
-            return
-        }
-
         loading = true
-        if (firebaseAuth == null) {
-            loading = false
-            Toast.makeText(context, "Firebase Auth নেই", Toast.LENGTH_SHORT).show()
-            return
-        }
-        
-        val credential = PhoneAuthProvider.getCredential(verificationId, otpCode)
-        firebaseAuth.signInWithCredential(credential)
-                .addOnCompleteListener { task ->
-                    if (task.isSuccessful) {
-                        val user = task.result?.user
-                        if (user != null) {
-                            Toast.makeText(context, "মোবাইল ভেরিফিকেশন সফল!", Toast.LENGTH_SHORT).show()
-                            handleAuthSuccess(user.phoneNumber ?: formatted, user.uid)
-                        }
+        coroutineScope.launch {
+            try {
+                if (isLoginTab) {
+                    supabase.auth.signInWith(Email) {
+                        email = emailAddress.trim()
+                        this.password = password
+                    }
+                    val user = supabase.auth.currentUserOrNull()
+                    if (user != null) {
+                        handleAuthSuccess(user.email ?: emailAddress.trim(), user.id)
                     } else {
-                        loading = false
-                        Toast.makeText(context, "ভুল ওটিপি কোড! আবার চেষ্টা করুন।", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "লগইন ব্যর্থ হয়েছে!", Toast.LENGTH_SHORT).show()
+                    }
+                } else {
+                    supabase.auth.signUpWith(Email) {
+                        email = emailAddress.trim()
+                        this.password = password
+                    }
+                    val user = supabase.auth.currentUserOrNull()
+                    if (user != null) {
+                        handleAuthSuccess(user.email ?: emailAddress.trim(), user.id)
+                    } else {
+                        Toast.makeText(context, "সাইন আপ সফল হয়েছে!", Toast.LENGTH_LONG).show()
                     }
                 }
+            } catch (e: Exception) {
+                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_LONG).show()
+            } finally {
+                loading = false
+            }
+        }
     }
 
-    // Dynamic banner text based on selected tab
-    val primaryText = if (isLoginTab) "স্বাগতম শিক্ষালয়ে" else "নতুন অ্যাকাউন্ট তৈরি করুন"
-    val secondaryText = if (isLoginTab) "আপনার মোবাইল নম্বর দিয়ে সহজেই প্রবেশ করুন" else "মোবাইল নম্বর ওটিপি ভেরিফিকেশনের মাধ্যমে সাইন-আপ করুন"
-
-    val scrollState = rememberScrollState()
-
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
-            .imePadding(),
-        contentAlignment = Alignment.Center
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
     ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+        // App Logo
+        Image(
+            painter = painterResource(id = R.drawable.custom_logo),
+            contentDescription = "App Logo",
+            modifier = Modifier.size(100.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        // Tabs
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
         ) {
-            // Interactive Animated Bear Logo (covers eyes for password field)
-            InteractiveBear(
-                isPasswordFocused = isPasswordFocused,
-                showPassword = showPassword,
-                emailLength = phoneNumber.length,
-                isEmailFocused = isPhoneFocused,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                text = "শিক্ষালয়".t(),
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Black,
-                color = Color(0xFF3730A3),
-                textAlign = TextAlign.Center
-            )
-            Text(
-                text = "ডিজিটাল স্কুল ম্যানেজমেন্ট প্ল্যাটফর্ম".t(),
-                fontSize = 12.sp,
-                color = Color.Gray,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-
-            // Title and Subtitle Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = primaryText.t(),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer
-                    )
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Text(
-                        text = secondaryText.t(),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.7f),
-                        textAlign = TextAlign.Center
-                    )
-                }
-            }
-
-            // Tab Selector for Login / Register
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 20.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(Color(0xFFF3F4F6))
-                    .padding(4.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (isLoginTab) Color.White else Color.Transparent)
-                        .clickable { 
-                            isLoginTab = true 
-                            isOtpSent = false
-                        }
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "লগইন".t(),
-                        fontWeight = FontWeight.Bold,
-                        color = if (isLoginTab) MaterialTheme.colorScheme.primary else Color.Gray,
-                        fontSize = 14.sp
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(if (!isLoginTab) Color.White else Color.Transparent)
-                        .clickable { 
-                            isLoginTab = false 
-                            isOtpSent = false
-                        }
-                        .padding(vertical = 12.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        "রেজিস্ট্রেশন".t(),
-                        fontWeight = FontWeight.Bold,
-                        color = if (!isLoginTab) MaterialTheme.colorScheme.primary else Color.Gray,
-                        fontSize = 14.sp
-                    )
-                }
-            }
-
-            // Mobile number input field
-            OutlinedTextField(
-                value = phoneNumber,
-                onValueChange = { phoneNumber = it },
-                label = { Text("মোবাইল নম্বর".t()) },
-                placeholder = { Text("উদা: ০১৭৭xxxxxx") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .onFocusChanged { isPhoneFocused = it.isFocused },
-                singleLine = true,
-                leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone") },
-                shape = RoundedCornerShape(12.dp),
-                enabled = isLoginTab || !isOtpSent
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            if (isLoginTab) {
-                // Password Login Fields
-                OutlinedTextField(
-                    value = password,
-                    onValueChange = { password = it },
-                    label = { Text("পাসওয়ার্ড".t()) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .onFocusChanged { isPasswordFocused = it.isFocused },
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock") },
-                    trailingIcon = {
-                        val icon = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                        IconButton(onClick = { showPassword = !showPassword }) {
-                            Icon(imageVector = icon, contentDescription = "Password toggle")
-                        }
-                    },
-                    visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                    shape = RoundedCornerShape(12.dp)
+            TextButton(
+                onClick = { isLoginTab = true },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = if (isLoginTab) MaterialTheme.colorScheme.primary else Color.Gray
                 )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Forgot Password text
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    Text(
-                        text = "পাসওয়ার্ড ভুলে গেছেন?".t(),
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .clickable { showForgotPasswordDialog = true }
-                            .padding(8.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Log in button
-                Button(
-                    onClick = {
-                        if (phoneNumber.isBlank() || password.isBlank()) {
-                            Toast.makeText(context, "অনুগ্রহ করে মোবাইল নম্বর এবং পাসওয়ার্ড দিন!", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-                        loading = true
-                        coroutineScope.launch {
-                            try {
-                                val formatted = formatPhoneNumber(phoneNumber)
-                                var matchingProfile: UserProfile? = null
-                                
-                                withContext(Dispatchers.IO) {
-                                    val results = supabase.from("profiles")
-                                        .select {
-                                            filter {
-                                                or {
-                                                    eq("contact", formatted)
-                                                    eq("email", formatted)
-                                                }
-                                            }
-                                        }.decodeList<UserProfile>()
-                                    if (results.isNotEmpty()) {
-                                        matchingProfile = results.first()
-                                    }
-                                }
-
-                                if (matchingProfile == null) {
-                                    Toast.makeText(context, "এই নাম্বারে কোনো অ্যাকাউন্ট পাওয়া যায়নি! রেজিস্ট্রেশন করুন।", Toast.LENGTH_LONG).show()
-                                } else {
-                                    // Check password match from handle field
-                                    val savedPassword = matchingProfile?.handle ?: ""
-                                    if (savedPassword == password || password == "admin123") { // admin123 as secure override / developer bypass
-                                        Toast.makeText(context, "লগইন সফল হয়েছে!", Toast.LENGTH_SHORT).show()
-                                        handleAuthSuccess(matchingProfile!!.email, matchingProfile!!.user_id)
-                                    } else {
-                                        Toast.makeText(context, "ভুল পাসওয়ার্ড! সঠিক পাসওয়ার্ড দিন।", Toast.LENGTH_LONG).show()
-                                    }
-                                }
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "ত্রুটি: ${e.message}", Toast.LENGTH_LONG).show()
-                            } finally {
-                                loading = false
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(54.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    enabled = !loading
-                ) {
-                    if (loading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                    } else {
-                        Text("লগইন করুন".t(), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                    }
-                }
-            } else {
-                // Registration Flow: OTP verification
-                if (!isOtpSent) {
-                    // Registration password specification
-                    OutlinedTextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        label = { Text("নতুন পাসওয়ার্ড তৈরি করুন".t()) },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .onFocusChanged { isPasswordFocused = it.isFocused },
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "Lock") },
-                        trailingIcon = {
-                            val icon = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff
-                            IconButton(onClick = { showPassword = !showPassword }) {
-                                Icon(imageVector = icon, contentDescription = "Password toggle")
-                            }
-                        },
-                        visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
-                        shape = RoundedCornerShape(12.dp)
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = {
-                            if (phoneNumber.isBlank()) {
-                                Toast.makeText(context, "অনুগ্রহ করে মোবাইল নম্বর লিখুন!", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            if (password.length < 6) {
-                                Toast.makeText(context, "পাসওয়ার্ড কমপক্ষে ৬ অক্ষরের হতে হবে!", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            sendOtpCode(phoneNumber)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = !loading
-                    ) {
-                        if (loading) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                        } else {
-                            Text("ভেরিফিকেশন কোড পাঠান".t(), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                } else {
-                    // OTP is sent, prompt OTP input
-                    OutlinedTextField(
-                        value = otpCode,
-                        onValueChange = { otpCode = it },
-                        label = { Text("৬ সংখ্যার ওটিপি কোড (OTP)".t()) },
-                        placeholder = { Text("১২৩৪৫৬") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Pin, contentDescription = "OTP") },
-                        shape = RoundedCornerShape(12.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Button(
-                        onClick = { verifyOtpAndComplete() },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(54.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = !loading
-                    ) {
-                        if (loading) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                        } else {
-                            Text("যাচাই এবং প্রবেশ করুন".t(), fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    TextButton(onClick = { isOtpSent = false }) {
-                        Text("নম্বর পরিবর্তন করুন".t())
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                HorizontalDivider(modifier = Modifier.weight(1f))
-                Text("অথবা", modifier = Modifier.padding(horizontal = 8.dp), color = Color.Gray)
-                HorizontalDivider(modifier = Modifier.weight(1f))
-            }
-            Spacer(modifier = Modifier.height(24.dp))
-            
-            Button(
-                onClick = {
-                    coroutineScope.launch {
-                        loading = true
-                        try {
-                            val credentialManager = androidx.credentials.CredentialManager.create(context)
-                            val googleIdOption = com.google.android.libraries.identity.googleid.GetGoogleIdOption.Builder()
-                                .setFilterByAuthorizedAccounts(false)
-                                .setServerClientId("374513992367-n5kercp4pbdc9h6ctjcehcctfc7f3r7u.apps.googleusercontent.com")
-                                .setAutoSelectEnabled(false)
-                                .build()
-                                
-                            val request = androidx.credentials.GetCredentialRequest.Builder()
-                                .addCredentialOption(googleIdOption)
-                                .build()
-
-                            val result = credentialManager.getCredential(context, request)
-                            val credential = result.credential
-                            
-                            if (credential is androidx.credentials.CustomCredential &&
-                                credential.type == com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.TYPE_GOOGLE_ID_TOKEN_CREDENTIAL) {
-                                val googleIdTokenCredential = com.google.android.libraries.identity.googleid.GoogleIdTokenCredential.createFrom(credential.data)
-                                
-                                val authCredential = com.google.firebase.auth.GoogleAuthProvider.getCredential(googleIdTokenCredential.idToken, null)
-                                
-                                val firebaseAuth = FirebaseAuth.getInstance()
-                                firebaseAuth.signInWithCredential(authCredential).addOnCompleteListener { task ->
-                                    if (task.isSuccessful) {
-                                        val user = task.result?.user
-                                        if (user != null) {
-                                            Toast.makeText(context, "লগইন সফল হয়েছে!", Toast.LENGTH_SHORT).show()
-                                            handleAuthSuccess(user.email ?: user.phoneNumber ?: "", user.uid)
-                                        }
-                                    } else {
-                                        Toast.makeText(context, "Google Auth Error: ${task.exception?.message}", Toast.LENGTH_SHORT).show()
-                                        loading = false
-                                    }
-                                }
-                            } else {
-                                loading = false
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                            Toast.makeText(context, "Google Sign-In Error: ${e.message}", Toast.LENGTH_LONG).show()
-                            loading = false
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(54.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.White, contentColor = Color.Black),
-                border = BorderStroke(1.dp, Color.LightGray),
-                enabled = !loading
             ) {
-                Text("গুগল দিয়ে প্রবেশ করুন".t(), fontSize = 16.sp, fontWeight = FontWeight.Medium)
-            }
-
-
-        }
-    }
-
-    // Forgot / Reset Password Dialog
-    if (showForgotPasswordDialog) {
-        AlertDialog(
-            onDismissRequest = { showForgotPasswordDialog = false },
-            title = {
                 Text(
-                    "পাসওয়ার্ড পরিবর্তন করুন".t(),
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 18.sp
+                    "লগইন",
+                    fontSize = 18.sp,
+                    fontWeight = if (isLoginTab) FontWeight.Bold else FontWeight.Normal,
+                    textDecoration = if (isLoginTab) TextDecoration.Underline else TextDecoration.None
                 )
-            },
-            text = {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(
-                        "আপনার ওটিপি কোড দিয়ে মোবাইল নম্বর যাচাই করে নতুন পাসওয়ার্ড নির্ধারণ করুন।".t(),
-                        fontSize = 12.sp,
-                        color = Color.Gray
+            }
+            Spacer(modifier = Modifier.width(32.dp))
+            TextButton(
+                onClick = { isLoginTab = false },
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = if (!isLoginTab) MaterialTheme.colorScheme.primary else Color.Gray
+                )
+            ) {
+                Text(
+                    "সাইন-আপ",
+                    fontSize = 18.sp,
+                    fontWeight = if (!isLoginTab) FontWeight.Bold else FontWeight.Normal,
+                    textDecoration = if (!isLoginTab) TextDecoration.Underline else TextDecoration.None
+                )
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        OutlinedTextField(
+            value = emailAddress,
+            onValueChange = { emailAddress = it },
+            label = { Text("ইমেইল অ্যাড্রেস") },
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        OutlinedTextField(
+            value = password,
+            onValueChange = { password = it },
+            label = { Text("পাসওয়ার্ড") },
+            visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            trailingIcon = {
+                IconButton(onClick = { showPassword = !showPassword }) {
+                    Icon(
+                        imageVector = if (showPassword) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                        contentDescription = "Toggle Password"
                     )
-
-                    OutlinedTextField(
-                        value = resetPhone,
-                        onValueChange = { resetPhone = it },
-                        label = { Text("মোবাইল নম্বর".t()) },
-                        placeholder = { Text("০১৭৭xxxxxx") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone") },
-                        shape = RoundedCornerShape(12.dp),
-                        enabled = !resetOtpSent
-                    )
-
-                    if (resetOtpSent) {
-                        OutlinedTextField(
-                            value = resetOtp,
-                            onValueChange = { resetOtp = it },
-                            label = { Text("৬ সংখ্যার ওটিপি কোড (OTP)".t()) },
-                            placeholder = { Text("১২৩৪৫৬") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            leadingIcon = { Icon(Icons.Default.Pin, contentDescription = "OTP") },
-                            shape = RoundedCornerShape(12.dp)
-                        )
-
-                        OutlinedTextField(
-                            value = resetNewPassword,
-                            onValueChange = { resetNewPassword = it },
-                            label = { Text("নতুন পাসওয়ার্ড".t()) },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true,
-                            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = "New Password") },
-                            visualTransformation = PasswordVisualTransformation(),
-                            shape = RoundedCornerShape(12.dp)
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                val performPasswordReset: suspend (String) -> Unit = { formatted ->
-                    try {
-                        var foundProfile: UserProfile? = null
-                        withContext(Dispatchers.IO) {
-                            val results = supabase.from("profiles")
-                                .select {
-                                    filter {
-                                        or {
-                                            eq("contact", formatted)
-                                            eq("email", formatted)
-                                        }
-                                    }
-                                }.decodeList<UserProfile>()
-                            if (results.isNotEmpty()) {
-                                foundProfile = results.first()
-                            }
-                        }
-
-                        if (foundProfile == null) {
-                            Toast.makeText(context, "এই নাম্বারে কোনো অ্যাকাউন্ট পাওয়া যায়নি!", Toast.LENGTH_LONG).show()
-                        } else {
-                            // Update password inside profile's handle field
-                            val updatedProfile = foundProfile!!.copy(handle = resetNewPassword)
-                            withContext(Dispatchers.IO) {
-                                supabase.from("profiles").update(updatedProfile) {
-                                    filter {
-                                        eq("user_id", updatedProfile.user_id)
-                                    }
-                                }
-                            }
-                            Toast.makeText(context, "পাসওয়ার্ড সফলভাবে পরিবর্তন করা হয়েছে!", Toast.LENGTH_SHORT).show()
-                            showForgotPasswordDialog = false
-                            resetOtpSent = false
-                            resetPhone = ""
-                            resetOtp = ""
-                            resetNewPassword = ""
-                        }
-                    } catch (e: Exception) {
-                        Toast.makeText(context, "ত্রুটি: ${e.message}", Toast.LENGTH_LONG).show()
-                    } finally {
-                        resetLoading = false
-                    }
-                }
-
-                Button(
-                    onClick = {
-                        if (!resetOtpSent) {
-                            if (resetPhone.isBlank()) {
-                                Toast.makeText(context, "অনুগ্রহ করে মোবাইল নম্বর লিখুন!", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            sendOtpCode(resetPhone, isForReset = true)
-                        } else {
-                            if (resetOtp.isBlank() || resetNewPassword.length < 6) {
-                                Toast.makeText(context, "সঠিক ওটিপি এবং কমপক্ষে ৬ অক্ষরের পাসওয়ার্ড দিন!", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            
-                            resetLoading = true
-                            val formatted = formatPhoneNumber(resetPhone)
-                            if (firebaseAuth == null) {
-                                resetLoading = false
-                                Toast.makeText(context, "Firebase Auth নেই!", Toast.LENGTH_SHORT).show()
-                                return@Button
-                            }
-                            
-                            val credential = PhoneAuthProvider.getCredential(resetVerificationId, resetOtp)
-                            firebaseAuth.signInWithCredential(credential)
-                                    .addOnCompleteListener { task ->
-                                        if (task.isSuccessful) {
-                                            coroutineScope.launch {
-                                                performPasswordReset(formatted)
-                                            }
-                                        } else {
-                                            resetLoading = false
-                                            Toast.makeText(context, "ভুল ওটিপি কোড! আবার চেষ্টা করুন।", Toast.LENGTH_SHORT).show()
-                                        }
-                                    }
-                        }
-                    },
-                    enabled = !resetLoading
-                ) {
-                    if (resetLoading) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(18.dp))
-                    } else {
-                        Text(if (!resetOtpSent) "ওটিপি পাঠান".t() else "পাসওয়ার্ড রিসেট করুন".t())
-                    }
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        showForgotPasswordDialog = false
-                        resetOtpSent = false
-                    }
-                ) {
-                    Text("বাতিল করুন".t())
                 }
             }
         )
+        
+        Spacer(modifier = Modifier.height(32.dp))
+        
+        Button(
+            onClick = { submitForm() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(54.dp),
+            shape = RoundedCornerShape(12.dp),
+            enabled = !loading
+        ) {
+            if (loading) {
+                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+            } else {
+                Text(
+                    text = if (isLoginTab) "লগইন করুন" else "অ্যাকাউন্ট তৈরি করুন",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        OutlinedButton(
+            onClick = {
+                coroutineScope.launch {
+                    try {
+                        supabase.auth.signInWith(Google)
+                    } catch(e: Exception) {
+                        Toast.makeText(context, "Google Sign-in error: ${e.message}", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(54.dp),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Google দিয়ে সাইন-ইন করুন", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        }
+
     }
 }
 

@@ -42,7 +42,7 @@ fun ShikkhaloyLogo(
             contentAlignment = Alignment.Center
         ) {
             androidx.compose.foundation.Image(
-                painter = androidx.compose.ui.res.painterResource(id = R.drawable.app_logo_vector),
+                painter = androidx.compose.ui.res.painterResource(id = R.drawable.custom_logo),
                 contentDescription = "Shikkhaloy Logo",
                 modifier = Modifier.fillMaxSize()
             )
@@ -156,6 +156,17 @@ fun ShikkhaloySplashScreen() {
                 label = "PulseScale"
             )
 
+            // Rotation Animation for custom logo
+            val rotationAnim by infiniteTransition.animateFloat(
+                initialValue = 0f,
+                targetValue = 360f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(4000, easing = LinearEasing),
+                    repeatMode = RepeatMode.Restart
+                ),
+                label = "PulseRotation"
+            )
+
             // Custom Vector logo drawn dynamically on Canvas
             ShikkhaloyLogo(
                 showText = false,
@@ -165,7 +176,8 @@ fun ShikkhaloySplashScreen() {
                     .graphicsLayer(
                         scaleX = scaleAnim,
                         scaleY = scaleAnim,
-                        alpha = alphaAnim
+                        alpha = alphaAnim,
+                        rotationZ = rotationAnim
                     )
             )
 
