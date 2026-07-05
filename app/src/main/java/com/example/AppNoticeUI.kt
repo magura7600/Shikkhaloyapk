@@ -1,5 +1,12 @@
 package com.example
 
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -598,4 +605,68 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
             }
         }
     )
+}
+
+fun showNoticeNotification(context: Context, notice: AppNotice) {
+    if (notice.id == null) return
+    
+    val sharedPrefs = context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
+    val lastNotifiedId = sharedPrefs.getInt("last_notified_notice_id", -1)
+    
+    // Only notify if we haven't notified for this notice ID yet
+    if (notice.id != lastNotifiedId) {
+        val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        val channelId = "announcements_channel_v1"
+        
+        L.init(context)
+        val isBn = L.currentLanguage == "bn"
+        
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                channelId,
+                if (isBn) "জরুরি নোটিশ ও ঘোষণা" else "Announcements & Notices",
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = if (isBn) "গুরুত্বপূর্ণ ঘোষণা এবং জরুরি নোটিশ" else "Important announcements and notices"
+                enableVibration(true)
+                val defaultSoundUri = android.media.RingtoneManager.getDefaultUri(android.media.RingtoneManager.TYPE_NOTIFICATION)
+                val audioAttributes = android.media.AudioAttributes.Builder()
+                    .setContentType(android.media.AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .setUsage(android.media.AudioAttributes.USAGE_NOTIFICATION)
+                    .build()
+                setSound(defaultSoundUri, audioAttributes)
+            }
+            notificationManager.createNotificationChannel(channel)
+        }
+        
+        // Intent to open app
+        val clickIntent = Intent(context, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            context,
+            0,
+            clickIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        
+        val displayTitle = L.translateNotice(notice.title)
+        val displayContent = L.translateNotice(notice.content)
+        
+        val notification = NotificationCompat.Builder(context, channelId)
+            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setContentTitle(displayTitle)
+            .setContentText(displayContent)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(displayContent))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+            
+        notificationManager.notify(notice.id, notification)
+        
+        // Save to preferences to avoid double notification
+        sharedPrefs.edit().putInt("last_notified_notice_id", notice.id).apply()
+    }
 }

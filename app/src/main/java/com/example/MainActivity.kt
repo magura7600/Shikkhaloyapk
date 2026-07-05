@@ -1,6 +1,7 @@
 package com.example
 
 import android.content.Context
+import android.view.WindowManager
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -287,12 +288,43 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
+fun SecurityFlagManager(appState: AppState) {
+    val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() } ?: return
+
+    val isAdmin = remember(appState) {
+        if (appState is AppState.Dashboard) {
+            appState.profile.role == "admin"
+        } else {
+            false
+        }
+    }
+
+    DisposableEffect(isAdmin) {
+        if (isAdmin) {
+            // Admin accounts can take screenshots or record videos
+            activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+        } else {
+            // Non-admin users cannot take screenshots or record videos
+            activity.window.setFlags(
+                WindowManager.LayoutParams.FLAG_SECURE,
+                WindowManager.LayoutParams.FLAG_SECURE
+            )
+        }
+        onDispose {
+            // Keep secure state by default
+        }
+    }
+}
+
+@Composable
 fun MainAppContent() {
     val context = LocalContext.current
     val sharedPrefs = remember { context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE) }
     val coroutineScope = rememberCoroutineScope()
     
     var appState by remember { mutableStateOf<AppState>(AppState.Splash) }
+    SecurityFlagManager(appState = appState)
     var activeUpdateToPrompt by remember { mutableStateOf<AppUpdate?>(null) }
     var activeNoticeToPrompt by remember { mutableStateOf<AppNotice?>(null) }
 
@@ -314,6 +346,7 @@ fun MainAppContent() {
             val notice = AppNoticeManager.getActiveNotice()
             if (notice != null) {
                 activeNoticeToPrompt = notice
+                showNoticeNotification(context, notice)
             }
         } catch (e: Exception) {
             e.printStackTrace()

@@ -128,7 +128,8 @@ object AppUpdateManager {
                 
                 val body = response.body ?: throw Exception("Response body is empty")
                 val totalBytes = body.contentLength()
-                val apkFile = File(context.cacheDir, "app_update_latest.apk")
+                val apkDir = context.externalCacheDir ?: context.cacheDir
+                val apkFile = File(apkDir, "app_update_latest.apk")
                 
                 // Delete existing if any
                 if (apkFile.exists()) {
