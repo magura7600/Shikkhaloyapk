@@ -11,7 +11,12 @@ data class AppNotice(
     val title: String,
     val content: String,
     val is_active: Boolean = true,
-    val created_at: String? = null
+    val created_at: String? = null,
+    val image_url: String? = null,
+    val type: String = "general", // "general", "warning", "offer", "exam"
+    val action_url: String? = null,
+    val scheduled_time: String? = null, // Format: yyyy-MM-dd HH:mm
+    val target_course_id: String? = null
 )
 
 object AppNoticeManager {
@@ -29,8 +34,22 @@ object AppNoticeManager {
                     }
                 }.decodeList<AppNotice>()
                 
-                // Return the latest created active notice
-                notices.maxByOrNull { it.id ?: 0 }
+                // Return the latest created active notice considering scheduled time
+                val now = java.time.LocalDateTime.now()
+                val formatter = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")
+                
+                notices.filter { notice ->
+                    if (notice.scheduled_time.isNullOrBlank()) {
+                        true
+                    } else {
+                        try {
+                            val schedTime = java.time.LocalDateTime.parse(notice.scheduled_time.trim(), formatter)
+                            now.isAfter(schedTime) || now.isEqual(schedTime)
+                        } catch (e: Exception) {
+                            true // Fallback to displaying if formatting is unparseable
+                        }
+                    }
+                }.maxByOrNull { it.id ?: 0 }
             } catch (e: Exception) {
                 e.printStackTrace()
                 null

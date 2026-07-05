@@ -332,6 +332,7 @@ fun MainAppContent() {
             val cachedUidCode = sharedPrefs.getString("uid_code", null)
 
             var dbProfile: UserProfile? = null
+            var dbFetchFailed = false
             
             // Always try to fetch latest from DB first to get updated roles (like admin)
             try {
@@ -345,10 +346,11 @@ fun MainAppContent() {
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
+                dbFetchFailed = true
             }
             
-            // Fallback to cache if DB fetch fails (e.g. offline)
-            if (dbProfile == null && cachedRole != null && cachedFullName != null && cachedUidCode != null) {
+            // Fallback to cache ONLY if DB fetch fails (e.g. offline)
+            if (dbProfile == null && dbFetchFailed && cachedRole != null && cachedFullName != null && cachedUidCode != null) {
                 dbProfile = UserProfile(
                     user_id = cachedUserId,
                     email = cachedEmail,
@@ -376,7 +378,19 @@ fun MainAppContent() {
                     profile = dbProfile!!
                 )
             } else {
-                AppState.Onboarding(cachedEmail, cachedUserId)
+                if (dbFetchFailed) {
+                    AppState.Login
+                } else {
+                    // Fetch succeeded but profile is null in the database (deleted from DB)
+                    // Clear the session completely so they can't auto-login anymore!
+                    try {
+                        withContext(Dispatchers.IO) {
+                            supabase.auth.signOut()
+                        }
+                    } catch (e: Exception) {}
+                    sharedPrefs.edit().clear().apply()
+                    AppState.Login
+                }
             }
         }
 
@@ -394,6 +408,7 @@ fun MainAppContent() {
         Toast.makeText(context, "ডাটাবেজ প্রোফাইল যাচাই করা হচ্ছে...", Toast.LENGTH_SHORT).show()
         coroutineScope.launch {
             var dbProfile: UserProfile? = null
+            var dbFetchSuccess = false
             try {
                 withContext(Dispatchers.IO) {
                     dbProfile = supabase.from("profiles")
@@ -403,18 +418,16 @@ fun MainAppContent() {
                             }
                         }.decodeSingleOrNull<UserProfile>()
                 }
+                dbFetchSuccess = true
             } catch (e: Exception) {
                 // DB error (table not found or network)
             }
 
-            // Save basic login state
-            sharedPrefs.edit()
-                .putString("user_id", userId)
-                .putString("email", email)
-                .apply()
-
             if (dbProfile != null) {
+                // Save complete login state
                 sharedPrefs.edit()
+                    .putString("user_id", userId)
+                    .putString("email", email)
                     .putString("role", dbProfile!!.role)
                     .putString("full_name", dbProfile!!.full_name)
                     .putString("institution", dbProfile!!.institution ?: "")
@@ -428,7 +441,41 @@ fun MainAppContent() {
                     profile = dbProfile!!
                 )
             } else {
-                appState = AppState.Onboarding(email, userId)
+                if (dbFetchSuccess) {
+                    // Fetch was successful, but returned null. 
+                    // This means they have a valid Supabase Auth session but no profile in 'profiles' table.
+                    // This is a new or deleted user. Send them to onboarding to complete their profile.
+                    sharedPrefs.edit()
+                        .putString("user_id", userId)
+                        .putString("email", email)
+                        .apply()
+                    appState = AppState.Onboarding(email, userId)
+                } else {
+                    // DB check failed (offline or network error)
+                    // Fallback to cache if available
+                    val cachedRole = sharedPrefs.getString("role", null)
+                    val cachedFullName = sharedPrefs.getString("full_name", null)
+                    val cachedUidCode = sharedPrefs.getString("uid_code", null)
+                    if (cachedRole != null && cachedFullName != null && cachedUidCode != null) {
+                        val cachedProfile = UserProfile(
+                            user_id = userId,
+                            email = email,
+                            role = cachedRole,
+                            full_name = cachedFullName,
+                            institution = sharedPrefs.getString("institution", "") ?: "",
+                            contact = sharedPrefs.getString("contact", "") ?: "",
+                            uid_code = cachedUidCode
+                        )
+                        appState = AppState.Dashboard(
+                            email = email,
+                            userId = userId,
+                            profile = cachedProfile
+                        )
+                    } else {
+                        // Offline but no cache, send to Login
+                        appState = AppState.Login
+                    }
+                }
             }
         }
     }
@@ -453,6 +500,13 @@ fun MainAppContent() {
             email = state.email,
             uid = state.profile.uid_code,
             onLogout = {
+                coroutineScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            supabase.auth.signOut()
+                        }
+                    } catch (e: Exception) {}
+                }
                 sharedPrefs.edit().clear().apply()
                 appState = AppState.Login
             }
@@ -483,6 +537,17 @@ fun MainAppContent() {
                                 .apply()
 
                             appState = AppState.Dashboard(state.email, state.userId, profile)
+                        },
+                        onLogout = {
+                            coroutineScope.launch {
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        supabase.auth.signOut()
+                                    }
+                                } catch (e: Exception) {}
+                            }
+                            sharedPrefs.edit().clear().apply()
+                            appState = AppState.Login
                         }
                     )
                 }
@@ -493,6 +558,13 @@ fun MainAppContent() {
                         profile = state.profile,
                         onLogout = {
                             // Clear login and profile cache
+                            coroutineScope.launch {
+                                try {
+                                    withContext(Dispatchers.IO) {
+                                        supabase.auth.signOut()
+                                    }
+                                } catch (e: Exception) {}
+                            }
                             sharedPrefs.edit().clear().apply()
                             appState = AppState.Login
                         },
@@ -1065,7 +1137,8 @@ fun LoginScreen(
 fun OnboardingScreen(
     email: String,
     userId: String,
-    onProfileComplete: (UserProfile) -> Unit
+    onProfileComplete: (UserProfile) -> Unit,
+    onLogout: () -> Unit
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -1107,7 +1180,7 @@ fun OnboardingScreen(
                 modifier = Modifier.size(32.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = "প্রোফাইল সম্পন্ন করুন",
                     fontSize = 20.sp,
@@ -1118,6 +1191,13 @@ fun OnboardingScreen(
                     text = "সংযুক্ত অ্যাকাউন্ট: $email",
                     fontSize = 11.sp,
                     color = Color.Gray
+                )
+            }
+            IconButton(onClick = onLogout) {
+                Icon(
+                    imageVector = Icons.Default.Logout,
+                    contentDescription = "Logout",
+                    tint = Color.Red
                 )
             }
         }
@@ -1346,6 +1426,9 @@ fun DashboardScreen(
     var enrollmentRequests by remember { mutableStateOf(listOf<EnrollmentRequest>()) }
 
     var courseInteractions by remember { mutableStateOf(listOf<CourseInteraction>()) }
+    var isOffline by remember { mutableStateOf(false) }
+    var hasPromptedOffline by remember { mutableStateOf(false) }
+    var showOfflineDownloadsGlobal by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     var lastBackPressTime by remember { mutableStateOf(0L) }
@@ -1401,6 +1484,23 @@ fun DashboardScreen(
             }
         } catch (e: Exception) {
             android.util.Log.e("OneSignalSync", "Failed to sync tags to OneSignal: ${e.message}")
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            val hasInternet = NetworkUtils.hasActualInternetAccess(context)
+            isOffline = !hasInternet
+            if (!hasInternet && !hasPromptedOffline) {
+                // Connection lost or unavailable, automatically show Offline Downloads Dialog
+                showOfflineDownloadsGlobal = true
+                hasPromptedOffline = true
+                Toast.makeText(context, "কোনো ইন্টারনেট সংযোগ নেই! অফলাইন মোড চালু করা হয়েছে।", Toast.LENGTH_LONG).show()
+            } else if (hasInternet) {
+                // If internet is restored, allow prompting again when disconnected next time
+                hasPromptedOffline = false
+            }
+            kotlinx.coroutines.delay(8000) // check every 8 seconds
         }
     }
 
@@ -1612,6 +1712,40 @@ fun DashboardScreen(
                     windowInsets = WindowInsets(0, 0, 0, 0)
                 )
                 Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                if (isOffline) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFFEF2F2))
+                            .clickable { showOfflineDownloadsGlobal = true }
+                            .padding(horizontal = 16.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.WifiOff,
+                            contentDescription = "Offline Mode",
+                            tint = Color(0xFFEF4444),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "কোনো ইন্টারনেট সংযোগ নেই! আপনি অফলাইন মোডে আছেন।",
+                            color = Color(0xFF991B1B),
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "ডাউনলোডকৃত ক্লাস দেখুন >",
+                            color = Color(0xFFEF4444),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            textDecoration = TextDecoration.Underline
+                        )
+                    }
+                    Divider(color = Color(0xFFFCA5A5), thickness = 1.dp)
+                }
                 }
             }
         },
@@ -2148,6 +2282,13 @@ fun DashboardScreen(
         }
     }
     
+    if (showOfflineDownloadsGlobal) {
+        OfflineDownloadsDialog(
+            onDismiss = { showOfflineDownloadsGlobal = false },
+            accentColor = accentColor
+        )
+    }
+
     if (showMentorsDialog) {
         MentorsListDialog(
             mentors = mentors,
@@ -4351,20 +4492,36 @@ fun AllNotificationsDialog(
                 )
                 
                 if (activeNotice != null) {
+                    val noticeTheme = remember(activeNotice.type) {
+                        when (activeNotice.type.lowercase()) {
+                            "warning" -> Triple(Color(0xFFEF4444), Color(0xFFFEF2F2), Color(0xFF991B1B))
+                            "offer" -> Triple(Color(0xFF8B5CF6), Color(0xFFF5F3FF), Color(0xFF5B21B6))
+                            "exam" -> Triple(Color(0xFFF59E0B), Color(0xFFFFFBEB), Color(0xFF92400E))
+                            else -> Triple(accentColor, Color(0xFFF8FAFC), Color(0xFF1E293B))
+                        }
+                    }
+                    val (primaryColor, bgColor, onBgColor) = noticeTheme
+                    val uriHandler = androidx.compose.ui.platform.LocalUriHandler.current
+
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 4.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF2F2)),
+                        colors = CardDefaults.cardColors(containerColor = bgColor),
                         shape = RoundedCornerShape(16.dp),
-                        border = BorderStroke(1.dp, Color(0xFFFCA5A5))
+                        border = BorderStroke(1.dp, primaryColor.copy(alpha = 0.5f))
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
-                                    imageVector = Icons.Default.Campaign,
-                                    contentDescription = "Urgent",
-                                    tint = Color(0xFFEF4444),
+                                    imageVector = when(activeNotice.type.lowercase()) {
+                                        "warning" -> Icons.Default.Warning
+                                        "offer" -> Icons.Default.Star
+                                        "exam" -> Icons.Default.MenuBook
+                                        else -> Icons.Default.Campaign
+                                    },
+                                    contentDescription = activeNotice.type,
+                                    tint = primaryColor,
                                     modifier = Modifier.size(18.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -4372,15 +4529,44 @@ fun AllNotificationsDialog(
                                     text = activeNotice.title,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
-                                    color = Color(0xFF991B1B)
+                                    color = onBgColor
                                 )
                             }
-                            Spacer(modifier = Modifier.height(4.dp))
+                            
+                            if (!activeNotice.image_url.isNullOrBlank()) {
+                                coil.compose.AsyncImage(
+                                    model = activeNotice.image_url,
+                                    contentDescription = "Notice Image",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 140.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(10.dp)),
+                                    contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                                )
+                            }
+
                             Text(
                                 text = activeNotice.content,
                                 fontSize = 13.sp,
-                                color = Color(0xFF7F1D1D)
+                                color = onBgColor.copy(alpha = 0.9f)
                             )
+
+                            if (!activeNotice.action_url.isNullOrBlank()) {
+                                Button(
+                                    onClick = {
+                                        try {
+                                            uriHandler.openUri(activeNotice.action_url.trim())
+                                        } catch (e: Exception) {}
+                                    },
+                                    colors = ButtonDefaults.buttonColors(containerColor = primaryColor),
+                                    shape = RoundedCornerShape(8.dp),
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = PaddingValues(vertical = 4.dp)
+                                ) {
+                                    Text("বিস্তারিত দেখুন 🔗", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                                }
+                            }
                         }
                     }
                 } else {

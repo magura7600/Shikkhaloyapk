@@ -1,5 +1,5 @@
--- Create profiles table
-CREATE TABLE public.profiles (
+-- 1. Create profiles table
+CREATE TABLE IF NOT EXISTS public.profiles (
     user_id UUID PRIMARY KEY,
     email TEXT NOT NULL,
     role TEXT NOT NULL DEFAULT 'student',
@@ -14,8 +14,8 @@ CREATE TABLE public.profiles (
     is_banned BOOLEAN DEFAULT false
 );
 
--- Create mentors table
-CREATE TABLE public.mentors (
+-- 2. Create mentors table
+CREATE TABLE IF NOT EXISTS public.mentors (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     channel_id UUID NOT NULL REFERENCES public.profiles(user_id) ON DELETE CASCADE,
     name TEXT NOT NULL,
@@ -25,8 +25,8 @@ CREATE TABLE public.mentors (
     image_url TEXT
 );
 
--- Create courses table
-CREATE TABLE public.courses (
+-- 3. Create courses table
+CREATE TABLE IF NOT EXISTS public.courses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     channel_id UUID NOT NULL REFERENCES public.profiles(user_id) ON DELETE CASCADE,
     title TEXT NOT NULL,
@@ -43,8 +43,8 @@ CREATE TABLE public.courses (
     subjects JSONB DEFAULT '[]'::jsonb
 );
 
--- Create enrollments table
-CREATE TABLE public.enrollments (
+-- 4. Create enrollments table
+CREATE TABLE IF NOT EXISTS public.enrollments (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(user_id) ON DELETE CASCADE,
     course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
@@ -55,8 +55,8 @@ CREATE TABLE public.enrollments (
     ban_reason TEXT
 );
 
--- Create enrollment_requests table
-CREATE TABLE public.enrollment_requests (
+-- 5. Create enrollment_requests table
+CREATE TABLE IF NOT EXISTS public.enrollment_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(user_id) ON DELETE CASCADE,
     course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
@@ -70,11 +70,35 @@ CREATE TABLE public.enrollment_requests (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
 );
 
--- Create course_interactions table
-CREATE TABLE public.course_interactions (
+-- 6. Create course_interactions table
+CREATE TABLE IF NOT EXISTS public.course_interactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id UUID NOT NULL REFERENCES public.profiles(user_id) ON DELETE CASCADE,
     course_id UUID NOT NULL REFERENCES public.courses(id) ON DELETE CASCADE,
     is_like BOOLEAN NOT NULL
 );
 
+-- 7. Create app_updates table
+CREATE TABLE IF NOT EXISTS public.app_updates (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    version_code BIGINT NOT NULL,
+    version_name TEXT NOT NULL,
+    apk_url TEXT NOT NULL,
+    changelog TEXT DEFAULT '',
+    is_force_update BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+);
+
+-- 8. Create app_notices table
+CREATE TABLE IF NOT EXISTS public.app_notices (
+    id BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    is_active BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    image_url TEXT,
+    type TEXT DEFAULT 'general',
+    action_url TEXT,
+    scheduled_time TEXT,
+    target_course_id TEXT
+);
