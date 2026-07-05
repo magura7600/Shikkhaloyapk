@@ -1071,10 +1071,22 @@ fun OnboardingScreen(
     val coroutineScope = rememberCoroutineScope()
 
     var selectedRole by remember { mutableStateOf<String?>(null) } // "teacher" or "student"
-    var fullName by remember { mutableStateOf("") }
-    var institution by remember { mutableStateOf("") }
-    var contactInfo by remember { mutableStateOf(email) }
     var isSavingProfile by remember { mutableStateOf(false) }
+
+    val defaultName = remember(email) {
+        val user = try { supabase.auth.currentUserOrNull() } catch(e: Exception) { null }
+        // Attempt to extract the Google Display Name or metadata name
+        val metaName = user?.userMetadata?.get("full_name")?.toString()?.replace("\"", "")
+            ?: user?.userMetadata?.get("name")?.toString()?.replace("\"", "")
+        if (!metaName.isNullOrBlank() && metaName != "null") {
+            metaName
+        } else {
+            val part = email.substringBefore("@")
+            part.split(".", "_", "-").joinToString(" ") { segment ->
+                segment.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() }
+            }
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -1232,86 +1244,31 @@ fun OnboardingScreen(
                     )
                 }
             }
-
-            // Admin Card removed as per user request to prevent anyone from registering as admin
         }
 
-        // Details Form
-        Text(
-            text = "আপনার ব্যক্তিগত তথ্য",
-            fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            color = Color.DarkGray,
-            modifier = Modifier.padding(bottom = 12.dp)
-        )
-
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                OutlinedTextField(
-                    value = fullName,
-                    onValueChange = { fullName = it },
-                    label = { Text("সম্পূর্ণ নাম *") },
-                    placeholder = { Text("উদা: রাইহান তানভীর") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Person, contentDescription = "Name") },
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = institution,
-                    onValueChange = { institution = it },
-                    label = { Text("শিক্ষা প্রতিষ্ঠান / স্কুল / কলেজ *") },
-                    placeholder = { Text("উদা: ঢাকা কলেজ") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.School, contentDescription = "Institution") },
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-            item {
-                OutlinedTextField(
-                    value = contactInfo,
-                    onValueChange = { contactInfo = it },
-                    label = { Text("মোবাইল নম্বর *") },
-                    placeholder = { Text("উদা: +৮৮০১৭৭xxxxxx") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    leadingIcon = { Icon(Icons.Default.Phone, contentDescription = "Phone") },
-                    shape = RoundedCornerShape(12.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(modifier = Modifier.weight(1f))
 
         // Complete Profile Button
         Button(
             onClick = {
-                if (selectedRole == null || fullName.isBlank()) {
-                    Toast.makeText(context, "অনুগ্রহ করে সকল তথ্য পূরণ করুন!", Toast.LENGTH_SHORT).show()
+                if (selectedRole == null) {
+                    Toast.makeText(context, "অনুগ্রহ করে ভূমিকা নির্বাচন করুন!", Toast.LENGTH_SHORT).show()
                     return@Button
                 }
 
                 coroutineScope.launch {
                     isSavingProfile = true
-                    val sharedPrefs = context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
-                    val regPassword = sharedPrefs.getString("temp_register_password", "") ?: ""
                     val generatedUid = "SL-" + (100000..999999).random()
                     val resolvedRole = selectedRole ?: "student"
                     val profile = UserProfile(
                         user_id = userId,
                         email = email,
                         role = resolvedRole,
-                        full_name = fullName,
-                        institution = institution,
-                        contact = contactInfo,
+                        full_name = defaultName,
+                        institution = "",
+                        contact = "",
                         uid_code = generatedUid,
-                        handle = regPassword
+                        handle = null // NULL by default, they don't have a channel setup yet
                     )
 
                     try {
@@ -1452,7 +1409,7 @@ fun DashboardScreen(
             val fetchedChannels = withContext(Dispatchers.IO) {
                 supabase.from("profiles").select().decodeList<UserProfile>()
             }
-            allChannels = fetchedChannels.filter { it.handle != null }
+            allChannels = fetchedChannels.filter { it.handle != null && it.handle.isNotBlank() }
 
             val fetchedCourses = withContext(Dispatchers.IO) {
                 supabase.from("courses").select().decodeList<CourseItem>()
@@ -1491,7 +1448,7 @@ fun DashboardScreen(
                         filter { eq("user_id", profile.user_id) }
                     }.decodeList<UserProfile>()
                 }
-                teacherChannel = fetchedChannels.firstOrNull { it.handle != null }
+                teacherChannel = fetchedChannels.firstOrNull { it.handle != null && it.handle.isNotBlank() }
                 
                 try {
                     val fetchedMentors = withContext(Dispatchers.IO) {
@@ -1832,7 +1789,11 @@ fun DashboardScreen(
                                             filter { eq("user_id", profile.user_id) }
                                         }.decodeList<UserProfile>()
                                     }
-                                    teacherChannel = fetchedChannels.firstOrNull { it.handle != null }
+                                    val updatedProf = fetchedChannels.firstOrNull()
+                                    if (updatedProf != null) {
+                                        onProfileUpdate(updatedProf)
+                                        teacherChannel = if (updatedProf.handle != null && updatedProf.handle.isNotBlank()) updatedProf else null
+                                    }
                                 } catch (e: Exception) {
                                 } finally {
                                     isLoadingChannel = false
@@ -2106,9 +2067,9 @@ fun DashboardScreen(
                             accentColor = accentColor, 
                             onProfileUpdate = onProfileUpdate,
                             courses = courses,
-                            enrollments = enrollments
-                        ,
-                            onNavigateToMyEnrollments = { currentScreen = "my_enrollments" }
+                            enrollments = enrollments,
+                            onNavigateToMyEnrollments = { currentScreen = "my_enrollments" },
+                            onTeacherChannelSetupClick = { currentScreen = "create_channel" }
                         )
                     }
                 } else {
@@ -3047,7 +3008,8 @@ fun SettingsScreen(
     onProfileUpdate: (UserProfile) -> Unit,
     courses: List<CourseItem> = emptyList(),
     enrollments: List<Enrollment> = emptyList(),
-    onNavigateToMyEnrollments: () -> Unit = {}
+    onNavigateToMyEnrollments: () -> Unit = {},
+    onTeacherChannelSetupClick: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -3101,13 +3063,24 @@ fun SettingsScreen(
                 Column(
                     modifier = Modifier.padding(vertical = 8.dp)
                 ) {
-                    SettingItem(
-                        icon = Icons.Outlined.Person,
-                        title = "প্রোফাইল আপডেট".t(),
-                        subtitle = "আপনার নাম, ছবি ও অন্যান্য তথ্য পরিবর্তন করুন".t(),
-                        accentColor = accentColor,
-                        onClick = { showProfileEditDialog = true }
-                    )
+                    if (isTeacher) {
+                        val hasChannel = teacherChannel != null && !teacherChannel.handle.isNullOrBlank()
+                        SettingItem(
+                            icon = Icons.Outlined.Person,
+                            title = if (hasChannel) "চ্যানেল এডিট করুন".t() else "চ্যানেল সেটআপ করুন (অ্যাকাউন্ট সম্পন্ন)".t(),
+                            subtitle = if (hasChannel) "আপনার শিক্ষক চ্যানেলের নাম, হ্যান্ডেল ও অন্যান্য তথ্য পরিবর্তন করুন".t() else "কোর্স তৈরি করতে এবং শিক্ষক অ্যাকাউন্ট সম্পন্ন করতে চ্যানেল তৈরি করুন".t(),
+                            accentColor = accentColor,
+                            onClick = onTeacherChannelSetupClick
+                        )
+                    } else {
+                        SettingItem(
+                            icon = Icons.Outlined.Person,
+                            title = "প্রোফাইল আপডেট".t(),
+                            subtitle = "আপনার নাম, ছবি ও অন্যান্য তথ্য পরিবর্তন করুন".t(),
+                            accentColor = accentColor,
+                            onClick = { showProfileEditDialog = true }
+                        )
+                    }
                     Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
                     SettingItem(
                         icon = Icons.Default.Lock,
@@ -3800,6 +3773,22 @@ fun ProfileEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp)
                 )
+
+                OutlinedTextField(
+                    value = institution,
+                    onValueChange = { institution = it },
+                    label = { Text("Institution / School / College") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+
+                OutlinedTextField(
+                    value = contact,
+                    onValueChange = { contact = it },
+                    label = { Text("Contact Number") },
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp)
+                )
             }
         },
         confirmButton = {
@@ -3810,6 +3799,8 @@ fun ProfileEditDialog(
                             isSaving = true
                             val updatedProfile = profile.copy(
                                 full_name = name,
+                                institution = institution,
+                                contact = contact,
                                 profile_image_url = profileImageUrl
                             )
                             try {
@@ -3817,6 +3808,8 @@ fun ProfileEditDialog(
                                     supabase.from("profiles").update(
                                         {
                                             set("full_name", updatedProfile.full_name)
+                                            set("institution", updatedProfile.institution)
+                                            set("contact", updatedProfile.contact)
                                             updatedProfile.profile_image_url?.let {
                                                 set("profile_image_url", it)
                                             }
