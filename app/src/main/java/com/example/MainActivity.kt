@@ -438,7 +438,6 @@ fun MainAppContent() {
     }
 
     val handleLoginSuccess: (String, String) -> Unit = { email, userId ->
-        Toast.makeText(context, "ডাটাবেজ প্রোফাইল যাচাই করা হচ্ছে...", Toast.LENGTH_SHORT).show()
         coroutineScope.launch {
             var dbProfile: UserProfile? = null
             var dbFetchSuccess = false
@@ -1150,7 +1149,11 @@ fun LoginScreen(
             onClick = {
                 coroutineScope.launch {
                     try {
-                        supabase.auth.signInWith(provider = Google, redirectUrl = "shikkhaloy://login-callback")
+                        // Use Chrome Custom Tabs for a modern in-app Google Sign-In experience
+                        val url = supabase.auth.getOAuthUrl(provider = Google, redirectUrl = "shikkhaloy://login-callback")
+                        val builder = androidx.browser.customtabs.CustomTabsIntent.Builder()
+                        val customTabsIntent = builder.build()
+                        customTabsIntent.launchUrl(context, android.net.Uri.parse(url))
                     } catch(e: Exception) {
                         Toast.makeText(context, "Google Sign-in error: ${e.message}", Toast.LENGTH_SHORT).show()
                     }
@@ -1998,12 +2001,27 @@ fun DashboardScreen(
                     onBack = { currentScreen = "dashboard" }
                 )
             } else if (currentScreen == "course_detail" && selectedCourse != null) {
+                LaunchedEffect(selectedCourse!!.id) {
+                    val hasView = courseInteractions.any { it.course_id == selectedCourse!!.id && it.user_id == profile.user_id && !it.is_like }
+                    if (!hasView) {
+                        try {
+                            val newView = CourseInteraction(user_id = profile.user_id, course_id = selectedCourse!!.id, is_like = false)
+                            withContext(Dispatchers.IO) {
+                                supabase.from("course_interactions").insert(newView)
+                            }
+                            courseInteractions = courseInteractions + newView
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
+                    }
+                }
                 CourseDetailScreen(
                     course = selectedCourse!!,
                     profile = profile,
                     mentors = mentors,
                     userEnrollment = enrollments.find { it.course_id == selectedCourse!!.id && it.user_id == profile.user_id },
                     isLiked = courseInteractions.any { it.course_id == selectedCourse!!.id && it.user_id == profile.user_id && it.is_like },
+                    courseInteractions = courseInteractions,
                     initialSubjectId = initialSubjectId,
                     initialChapterId = initialChapterId,
                     initialClassId = initialClassId,
@@ -2032,7 +2050,7 @@ fun DashboardScreen(
                     onLikeToggle = {
                         coroutineScope.launch {
                             try {
-                                val existing = courseInteractions.find { it.course_id == selectedCourse!!.id && it.user_id == profile.user_id }
+                                val existing = courseInteractions.find { it.course_id == selectedCourse!!.id && it.user_id == profile.user_id && it.is_like }
                                 if (existing != null) {
                                     withContext(Dispatchers.IO) {
                                         supabase.from("course_interactions").delete {
@@ -2136,6 +2154,30 @@ fun DashboardScreen(
                             actingChannel = teacherChannel, 
                             courses = courses,
                             allChannels = allChannels,
+                            courseInteractions = courseInteractions,
+                            onLikeToggle = { course ->
+                                coroutineScope.launch {
+                                    try {
+                                        val existing = courseInteractions.find { it.course_id == course.id && it.user_id == profile.user_id && it.is_like }
+                                        if (existing != null) {
+                                            withContext(Dispatchers.IO) {
+                                                supabase.from("course_interactions").delete {
+                                                    filter { eq("id", existing.id) }
+                                                }
+                                            }
+                                            courseInteractions = courseInteractions.filter { it.id != existing.id }
+                                        } else {
+                                            val newInteraction = CourseInteraction(user_id = profile.user_id, course_id = course.id, is_like = true)
+                                            withContext(Dispatchers.IO) {
+                                                supabase.from("course_interactions").insert(newInteraction)
+                                            }
+                                            courseInteractions = courseInteractions + newInteraction
+                                        }
+                                    } catch(e: Exception) {
+                                        Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
                             onChannelClick = { channel ->
                                 selectedChannel = channel
                                 currentScreen = "channel_detail"
@@ -2282,6 +2324,30 @@ fun DashboardScreen(
                             profile = profile, 
                             courses = courses,
                             allChannels = allChannels,
+                            courseInteractions = courseInteractions,
+                            onLikeToggle = { course ->
+                                coroutineScope.launch {
+                                    try {
+                                        val existing = courseInteractions.find { it.course_id == course.id && it.user_id == profile.user_id && it.is_like }
+                                        if (existing != null) {
+                                            withContext(Dispatchers.IO) {
+                                                supabase.from("course_interactions").delete {
+                                                    filter { eq("id", existing.id) }
+                                                }
+                                            }
+                                            courseInteractions = courseInteractions.filter { it.id != existing.id }
+                                        } else {
+                                            val newInteraction = CourseInteraction(user_id = profile.user_id, course_id = course.id, is_like = true)
+                                            withContext(Dispatchers.IO) {
+                                                supabase.from("course_interactions").insert(newInteraction)
+                                            }
+                                            courseInteractions = courseInteractions + newInteraction
+                                        }
+                                    } catch(e: Exception) {
+                                        Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            },
                             onChannelClick = { channel ->
                                 selectedChannel = channel
                                 currentScreen = "channel_detail"

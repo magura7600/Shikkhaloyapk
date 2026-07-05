@@ -40,7 +40,7 @@ android {
     minSdk = 26
     targetSdk = 36
     versionCode = 8
-    versionName = "7.1"
+    versionName = "7.2"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -119,6 +119,7 @@ dependencies {
   implementation("androidx.credentials:credentials:1.3.0-rc01")
   implementation("androidx.credentials:credentials-play-services-auth:1.3.0-rc01")
   implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+  implementation("androidx.browser:browser:1.8.0")
   
   implementation(libs.androidx.compose.ui.graphics)
   implementation(libs.androidx.compose.ui.tooling.preview)

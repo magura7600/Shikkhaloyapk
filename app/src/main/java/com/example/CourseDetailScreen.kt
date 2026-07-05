@@ -33,6 +33,7 @@ import androidx.compose.foundation.verticalScroll
 
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Link
@@ -127,6 +128,7 @@ fun CourseDetailScreen(
     mentors: List<Mentor>,
     userEnrollment: Enrollment?,
     isLiked: Boolean,
+    courseInteractions: List<CourseInteraction> = emptyList(),
     pendingRequest: EnrollmentRequest? = null,
     onPurchaseClick: () -> Unit = {},
     onEnroll: (purchasedQuarters: String) -> Unit,
@@ -320,7 +322,14 @@ fun CourseDetailScreen(
         } else {
             val isInnerActive = isClassActive || isChapterActive
             if (userEnrollment == null && !isTeacher) {
-                UnenrolledCourseOverview(course = course, accentColor = accentColor)
+                UnenrolledCourseOverview(
+                    course = course,
+                    profile = profile,
+                    courseInteractions = courseInteractions,
+                    onLikeToggle = onLikeToggle,
+                    accentColor = accentColor,
+                    modifier = Modifier.padding(paddingValues)
+                )
             } else if (isInnerActive) {
             Box(
                 modifier = Modifier
@@ -4627,9 +4636,13 @@ fun AddResourceDialog(
 @Composable
 fun UnenrolledCourseOverview(
     course: CourseItem,
-    accentColor: Color
+    profile: UserProfile,
+    courseInteractions: List<CourseInteraction>,
+    onLikeToggle: () -> Unit,
+    accentColor: Color,
+    modifier: Modifier = Modifier
 ) {
-    Column(modifier = Modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
+    Column(modifier = modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
         Box(
             modifier = Modifier.fillMaxWidth().height(200.dp).background(Color.LightGray, RoundedCornerShape(16.dp))
         ) {
@@ -4652,14 +4665,89 @@ fun UnenrolledCourseOverview(
         Text(course.description, fontSize = 16.sp, color = Color.DarkGray)
         Spacer(modifier = Modifier.height(16.dp))
         
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Column {
                 Text("দাম", color = Color.Gray, fontSize = 12.sp)
-                Text(if (course.pricingOption == "Fully Free") "ফ্রি" else "৳${course.mainPrice}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = accentColor)
+                val originalPrice = course.mainPrice.toDoubleOrNull() ?: 0.0
+                val discountPriceVal = course.discountPrice.toDoubleOrNull() ?: 0.0
+                val hasDiscount = originalPrice > 0 && discountPriceVal > 0 && originalPrice > discountPriceVal
+                
+                if (course.pricingOption == "Fully Free") {
+                    Text("ফ্রি", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = accentColor)
+                } else if (hasDiscount) {
+                    val pct = (((originalPrice - discountPriceVal) / originalPrice) * 100).toInt()
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text("৳${course.discountPrice}", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = accentColor)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "৳${course.mainPrice}",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            style = androidx.compose.ui.text.TextStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0xFFFEE2E2), RoundedCornerShape(4.dp))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text("$pct% ছাড়", fontSize = 11.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    Text("৳${course.mainPrice}", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = accentColor)
+                }
             }
+            
             Column {
                 Text("মোট বিষয়", color = Color.Gray, fontSize = 12.sp)
                 Text("${course.subjects.size} টি", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(24.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column {
+                Text("পছন্দ (Likes)", color = Color.Gray, fontSize = 12.sp)
+                val likedByMe = courseInteractions.any { it.course_id == course.id && it.user_id == profile.user_id && it.is_like }
+                val totalLikes = courseInteractions.count { it.course_id == course.id && it.is_like }
+                
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable { onLikeToggle() }
+                ) {
+                    Icon(
+                        imageVector = if (likedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Like",
+                        tint = if (likedByMe) Color.Red else Color.Gray,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("$totalLikes টি", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = if (likedByMe) Color.Red else Color.Black)
+                }
+            }
+            Column {
+                Text("ভিউ (Views)", color = Color.Gray, fontSize = 12.sp)
+                val totalViews = courseInteractions.count { it.course_id == course.id && !it.is_like }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Visibility,
+                        contentDescription = "Views",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("$totalViews বার", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
             }
         }
         
@@ -4722,6 +4810,7 @@ fun UnenrolledCourseOverview(
                 }
             }
         }
+        Spacer(modifier = Modifier.height(120.dp))
     }
 }
 

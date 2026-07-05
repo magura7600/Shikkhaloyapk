@@ -32,6 +32,8 @@ fun ExploreFeedScreen(
     actingChannel: UserProfile? = null,
     courses: List<CourseItem> = emptyList(),
     allChannels: List<UserProfile> = emptyList(),
+    courseInteractions: List<CourseInteraction> = emptyList(),
+    onLikeToggle: ((CourseItem) -> Unit)? = null,
     onChannelClick: (UserProfile) -> Unit = {},
     onCourseClick: (CourseItem) -> Unit = {}
 ) {
@@ -200,11 +202,72 @@ fun ExploreFeedScreen(
                                     }
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Text(course.pricingOption, fontSize = 14.sp, color = accentColor, fontWeight = FontWeight.Bold)
-                                    if (course.pricingOption != "Fully Free" && course.mainPrice.isNotBlank()) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(course.pricingOption, fontSize = 14.sp, color = accentColor, fontWeight = FontWeight.Bold)
+                                        if (course.pricingOption != "Fully Free" && course.mainPrice.isNotBlank()) {
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            val orig = course.mainPrice.toDoubleOrNull() ?: 0.0
+                                            val disc = course.discountPrice.toDoubleOrNull() ?: 0.0
+                                            val hasD = orig > 0 && disc > 0 && orig > disc
+                                            
+                                            if (hasD) {
+                                                val pct = (((orig - disc) / orig) * 100).toInt()
+                                                Text("৳${course.discountPrice}", fontSize = 14.sp, fontWeight = FontWeight.Bold, color = accentColor)
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text(
+                                                    "৳${course.mainPrice}", 
+                                                    fontSize = 12.sp, 
+                                                    color = Color.Gray,
+                                                    style = androidx.compose.ui.text.TextStyle(textDecoration = androidx.compose.ui.text.style.TextDecoration.LineThrough)
+                                                )
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Box(
+                                                    modifier = Modifier
+                                                        .background(Color(0xFFFEE2E2), RoundedCornerShape(4.dp))
+                                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                ) {
+                                                    Text("$pct%", fontSize = 10.sp, color = Color.Red, fontWeight = FontWeight.Bold)
+                                                }
+                                            } else {
+                                                Text("৳${course.mainPrice}", fontSize = 14.sp, color = Color.Gray)
+                                            }
+                                        }
+                                    }
+                                    
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        val likedByMe = courseInteractions.any { it.course_id == course.id && it.user_id == profile.user_id && it.is_like }
+                                        val totalLikes = courseInteractions.count { it.course_id == course.id && it.is_like }
+                                        val totalViews = courseInteractions.count { it.course_id == course.id && !it.is_like }
+                                        
+                                        IconButton(
+                                            onClick = { onLikeToggle?.invoke(course) },
+                                            modifier = Modifier.size(28.dp)
+                                        ) {
+                                            Icon(
+                                                imageVector = if (likedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                contentDescription = "Like",
+                                                tint = if (likedByMe) Color.Red else Color.Gray,
+                                                modifier = Modifier.size(16.dp)
+                                            )
+                                        }
+                                        Spacer(modifier = Modifier.width(2.dp))
+                                        Text("$totalLikes", fontSize = 12.sp, color = Color.Gray)
+                                        
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("৳${course.mainPrice}", fontSize = 14.sp, color = Color.Gray)
+                                        
+                                        Icon(
+                                            imageVector = Icons.Default.Visibility,
+                                            contentDescription = "Views",
+                                            tint = Color.Gray,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("$totalViews", fontSize = 12.sp, color = Color.Gray)
                                     }
                                 }
                             }
