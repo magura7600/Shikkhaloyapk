@@ -34,7 +34,7 @@ jobs:
       env:
         KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 || secrets.RELEASE_KEYSTORE_BASE64 }}
       run: |
-        python3 -c "
+        python3 << 'EOF'
         import base64, os, sys, re
         raw_data = os.environ.get('KEYSTORE_BASE64', '').strip()
         if not raw_data:
@@ -91,7 +91,7 @@ jobs:
                 print(f'Magic bytes (first 4 bytes): {decoded[:4].hex().upper()}')
                 print('This almost certainly means your base64 string is corrupted or was generated from an incorrect file.')
                 print('Please verify your KEYSTORE_BASE64 secret contains a clean base64 string of your .jks/.p12 file.')
-                print('Command to generate on Windows PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes(\"your-file.jks\"))')
+                print('Command to generate on Windows PowerShell: [Convert]::ToBase64String([IO.File]::ReadAllBytes("your-file.jks"))')
                 print('Command to generate on Mac/Linux: base64 -i your-file.jks -o -  OR  openssl base64 -A -in your-file.jks')
             
             with open('my-upload-key.jks', 'wb') as f:
@@ -100,7 +100,7 @@ jobs:
         except Exception as e:
             print(f'ERROR: Exception occurred during base64 decoding: {e}')
             sys.exit(1)
-        "
+        EOF
       
     - name: Create .env file for secrets
       run: |
