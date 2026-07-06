@@ -332,12 +332,17 @@ fun CourseDetailScreen(
                     modifier = Modifier.padding(paddingValues)
                 )
             } else if (isInnerActive) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
-                    .background(Color(0xFFF1F5F9))
-            ) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(
+                            start = paddingValues.calculateStartPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                            end = paddingValues.calculateEndPadding(androidx.compose.ui.unit.LayoutDirection.Ltr),
+                            bottom = paddingValues.calculateBottomPadding(),
+                            top = 0.dp
+                        )
+                        .background(Color(0xFFF1F5F9))
+                ) {
                     CourseContentSection(
                         course = course,
                         mentors = mentors,
@@ -4412,12 +4417,13 @@ fun ChapterDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 0.dp)
+            .verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 12.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 20.dp),
+                .padding(bottom = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Card(
@@ -4425,48 +4431,32 @@ fun ChapterDetailScreen(
                 shape = CircleShape,
                 colors = CardDefaults.cardColors(containerColor = Color.White),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
-                modifier = Modifier.size(48.dp)
+                modifier = Modifier.size(42.dp)
             ) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
                         tint = Color(0xFF1E293B),
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
             
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .background(Color(0xFF3B82F6), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Default.ListAlt,
-                    contentDescription = "List",
-                    tint = Color.White,
-                    modifier = Modifier.size(26.dp)
-                )
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(modifier = Modifier.width(12.dp))
             
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = chapter.title,
-                    fontSize = 18.sp,
+                    fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E293B),
-                    lineHeight = 22.sp
+                    lineHeight = 20.sp
                 )
-                Spacer(modifier = Modifier.height(2.dp))
+                Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = "অধ্যায় বিস্তারিত - ${subject.title}",
-                    fontSize = 12.sp,
+                    fontSize = 11.sp,
                     color = Color(0xFF64748B),
                     fontWeight = FontWeight.Medium
                 )
@@ -4475,37 +4465,37 @@ fun ChapterDetailScreen(
             if (isTeacher) {
                 Card(
                     onClick = onAddClassClick,
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFF3B82F6)),
-                    modifier = Modifier.size(48.dp)
+                    modifier = Modifier.size(42.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Add Class",
                             tint = Color.White,
-                            modifier = Modifier.size(24.dp)
+                            modifier = Modifier.size(22.dp)
                         )
                     }
                 }
             }
         }
         
-        Spacer(modifier = Modifier.height(8.dp))
+        Spacer(modifier = Modifier.height(4.dp))
         
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(bottom = 16.dp)
+            modifier = Modifier.padding(bottom = 10.dp)
         ) {
             Box(
                 modifier = Modifier
-                    .size(16.dp)
+                    .size(12.dp)
                     .background(Color(0xFF3B82F6), CircleShape)
             )
-            Spacer(modifier = Modifier.width(12.dp))
+            Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "ক্লাস ও উপকরণসমূহ",
-                fontSize = 18.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E293B)
             )
@@ -4549,7 +4539,7 @@ fun ChapterDetailScreen(
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 12.dp)
+                        .padding(bottom = 8.dp)
                         .clickable {
                             if (canViewClass) {
                                 onViewClassDetail(clazz)
@@ -4557,37 +4547,40 @@ fun ChapterDetailScreen(
                                 Toast.makeText(mContext, "এই ক্লাসটি দেখার জন্য আপনাকে সঠিক কোয়ার্টার এনরোল করতে হবে", Toast.LENGTH_SHORT).show()
                             }
                         },
-                    shape = RoundedCornerShape(20.dp),
+                    shape = RoundedCornerShape(14.dp),
                     colors = CardDefaults.cardColors(containerColor = cardBgColor),
                     border = BorderStroke(1.dp, cardBorderColor)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.weight(1f)
+                            ) {
                                 Text(
                                     text = clazz.type,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF64748B)
                                 )
-                                Spacer(modifier = Modifier.height(4.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFFD1FAE5), RoundedCornerShape(6.dp))
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                        .background(if (clazz.recordedLink.isNotBlank()) Color(0xFFD1FAE5) else Color(0xFFFEE2E2), RoundedCornerShape(4.dp))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = if (clazz.recordedLink.isNotBlank()) "রেকর্ডেড" else "লাইভ",
-                                        color = Color(0xFF065F46),
-                                        fontSize = 11.sp,
+                                        color = if (clazz.recordedLink.isNotBlank()) Color(0xFF065F46) else Color(0xFF991B1B),
+                                        fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold
                                     )
                                 }
@@ -4597,24 +4590,27 @@ fun ChapterDetailScreen(
                                 if (isTeacher) {
                                     IconButton(
                                         onClick = { onEditClassClick(clazz) },
-                                        modifier = Modifier.size(36.dp)
+                                        modifier = Modifier.size(30.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Edit,
                                             contentDescription = "Edit Class",
-                                            tint = Color(0xFF64748B)
+                                            tint = Color(0xFF64748B),
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
                                     IconButton(
                                         onClick = { onDeleteClassClick(clazz) },
-                                        modifier = Modifier.size(36.dp)
+                                        modifier = Modifier.size(30.dp)
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.Delete,
                                             contentDescription = "Delete Class",
-                                            tint = Color.Red
+                                            tint = Color.Red,
+                                            modifier = Modifier.size(16.dp)
                                         )
                                     }
+                                    Spacer(modifier = Modifier.width(4.dp))
                                 }
                                 
                                 Card(
@@ -4627,7 +4623,7 @@ fun ChapterDetailScreen(
                                     },
                                     shape = CircleShape,
                                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                                    modifier = Modifier.size(40.dp),
+                                    modifier = Modifier.size(32.dp),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                 ) {
                                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -4635,35 +4631,36 @@ fun ChapterDetailScreen(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                             contentDescription = "Enter class",
                                             tint = Color(0xFF64748B),
-                                            modifier = Modifier.size(18.dp).rotate(180f)
+                                            modifier = Modifier.size(14.dp).rotate(180f)
                                         )
                                     }
                                 }
                             }
                         }
                         
-                        Spacer(modifier = Modifier.height(4.dp))
+                        Spacer(modifier = Modifier.height(2.dp))
                         
                         Text(
                             text = clazz.title,
-                            fontSize = 18.sp,
+                            fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
+                            color = Color(0xFF1E293B),
+                            lineHeight = 18.sp
                         )
                         
                         if (clazz.date.isNotBlank() || clazz.time.isNotBlank()) {
-                            Spacer(modifier = Modifier.height(4.dp))
+                            Spacer(modifier = Modifier.height(2.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = Icons.Default.DateRange,
                                     contentDescription = null,
                                     tint = Color(0xFF94A3B8),
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(14.dp)
                                 )
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "${clazz.date} • ${clazz.time}",
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     color = Color(0xFF64748B),
                                     fontWeight = FontWeight.Medium
                                 )
@@ -4672,11 +4669,11 @@ fun ChapterDetailScreen(
                         
                         val mentorObj = mentors.find { it.id == clazz.mentorId }
                         if (mentorObj != null) {
-                            Spacer(modifier = Modifier.height(12.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                             Row(
                                 modifier = Modifier
-                                    .background(Color.White, RoundedCornerShape(12.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp),
+                                    .background(Color.White, RoundedCornerShape(8.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 if (mentorObj.image_url.isNotBlank()) {
@@ -4684,7 +4681,7 @@ fun ChapterDetailScreen(
                                         model = mentorObj.image_url,
                                         contentDescription = null,
                                         modifier = Modifier
-                                            .size(24.dp)
+                                            .size(20.dp)
                                             .clip(CircleShape)
                                     )
                                 } else {
@@ -4692,13 +4689,13 @@ fun ChapterDetailScreen(
                                         imageVector = Icons.Default.Person,
                                         contentDescription = null,
                                         tint = Color.Gray,
-                                        modifier = Modifier.size(24.dp)
+                                        modifier = Modifier.size(20.dp)
                                     )
                                 }
-                                Spacer(modifier = Modifier.width(8.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Text(
                                     text = mentorObj.name.uppercase(),
-                                    fontSize = 11.sp,
+                                    fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
                                     color = Color(0xFF1E293B)
                                 )

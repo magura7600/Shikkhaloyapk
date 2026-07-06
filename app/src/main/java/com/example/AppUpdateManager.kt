@@ -172,35 +172,37 @@ object AppUpdateManager {
         withContext(Dispatchers.IO) {
             _downloadState.value = UpdateDownloadState.Downloading(0f)
             try {
-                val request = Request.Builder().url(url).build()
-                val response = client.newCall(request).execute()
-                
-                if (!response.isSuccessful) {
-                    throw Exception("Failed to download: HTTP ${response.code}")
-                }
-                
-                val body = response.body ?: throw Exception("Response body is empty")
-                val totalBytes = body.contentLength()
+                val sanitizedUrl = sanitizeUrl(url)
+                val request = Request.Builder().url(sanitizedUrl).build()
                 val apkDir = context.externalCacheDir ?: context.cacheDir
                 val apkFile = File(apkDir, "app_update_latest.apk")
                 
-                // Delete existing if any
-                if (apkFile.exists()) {
-                    apkFile.delete()
-                }
+                client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        throw Exception("Failed to download: HTTP ${response.code}")
+                    }
+                    
+                    val body = response.body ?: throw Exception("Response body is empty")
+                    val totalBytes = body.contentLength()
+                    
+                    // Delete existing if any
+                    if (apkFile.exists()) {
+                        apkFile.delete()
+                    }
 
-                body.byteStream().use { inputStream ->
-                    FileOutputStream(apkFile).use { outputStream ->
-                        val buffer = ByteArray(8192)
-                        var bytesRead: Int
-                        var downloadedBytes = 0L
-                        
-                        while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                            outputStream.write(buffer, 0, bytesRead)
-                            downloadedBytes += bytesRead
-                            if (totalBytes > 0) {
-                                val progress = downloadedBytes.toFloat() / totalBytes.toFloat()
-                                _downloadState.value = UpdateDownloadState.Downloading(progress)
+                    body.byteStream().use { inputStream ->
+                        FileOutputStream(apkFile).use { outputStream ->
+                            val buffer = ByteArray(8192)
+                            var bytesRead: Int
+                            var downloadedBytes = 0L
+                            
+                            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                                outputStream.write(buffer, 0, bytesRead)
+                                downloadedBytes += bytesRead
+                                if (totalBytes > 0) {
+                                    val progress = downloadedBytes.toFloat() / totalBytes.toFloat()
+                                    _downloadState.value = UpdateDownloadState.Downloading(progress)
+                                }
                             }
                         }
                     }

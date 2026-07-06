@@ -15,6 +15,7 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import java.io.File
 import java.io.FileOutputStream
 import java.io.InputStream
@@ -102,7 +103,8 @@ object OfflineDownloadManager {
                 val uniqueName = "dl_${System.currentTimeMillis()}_${title.hashCode()}.$ext"
                 val destinationFile = File(secureDir, uniqueName)
 
-                val request = Request.Builder().url(cleanUrl).build()
+                val sanitizedUrl = sanitizeUrl(cleanUrl)
+                val request = Request.Builder().url(sanitizedUrl).build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         throw Exception("Failed to download file: HTTP code ${response.code}")
@@ -110,24 +112,23 @@ object OfflineDownloadManager {
                     val body = response.body ?: throw Exception("Response body is null")
                     val contentLength = body.contentLength()
                     
-                    val inputStream: InputStream = body.byteStream()
-                    val outputStream = FileOutputStream(destinationFile)
-                    
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    var totalBytesRead = 0L
+                    body.byteStream().use { inputStream ->
+                        FileOutputStream(destinationFile).use { outputStream ->
+                            val buffer = ByteArray(8192)
+                            var bytesRead: Int
+                            var totalBytesRead = 0L
 
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                        totalBytesRead += bytesRead
-                        if (contentLength > 0) {
-                            val progress = totalBytesRead.toFloat() / contentLength.toFloat()
-                            updateDownloadState(cleanUrl, DownloadState.Downloading(progress))
+                            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                                outputStream.write(buffer, 0, bytesRead)
+                                totalBytesRead += bytesRead
+                                if (contentLength > 0) {
+                                    val progress = totalBytesRead.toFloat() / contentLength.toFloat()
+                                    updateDownloadState(cleanUrl, DownloadState.Downloading(progress))
+                                }
+                            }
+                            outputStream.flush()
                         }
                     }
-                    outputStream.flush()
-                    outputStream.close()
-                    inputStream.close()
 
                     // Create and save download record
                     val record = DownloadRecord(
@@ -185,23 +186,24 @@ object OfflineDownloadManager {
                 }
 
                 val tempFile = File(tempDir, "temp_${System.currentTimeMillis()}_view.pdf")
-                val request = Request.Builder().url(cleanUrl).build()
+                val sanitizedUrl = sanitizeUrl(cleanUrl)
+                val request = Request.Builder().url(sanitizedUrl).build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         throw Exception("Failed to fetch file: HTTP ${response.code}")
                     }
                     val body = response.body ?: throw Exception("Body is null")
                     
-                    val inputStream = body.byteStream()
-                    val outputStream = FileOutputStream(tempFile)
-                    val buffer = ByteArray(8192)
-                    var bytesRead: Int
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
+                    body.byteStream().use { inputStream ->
+                        FileOutputStream(tempFile).use { outputStream ->
+                            val buffer = ByteArray(8192)
+                            var bytesRead: Int
+                            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                                outputStream.write(buffer, 0, bytesRead)
+                            }
+                            outputStream.flush()
+                        }
                     }
-                    outputStream.flush()
-                    outputStream.close()
-                    inputStream.close()
 
                     withContext(Dispatchers.Main) {
                         onComplete(tempFile)
@@ -244,5 +246,73 @@ object OfflineDownloadManager {
                 e.printStackTrace()
             }
         }
+    }
+}
+
+/**
+ * Robustly decodes and encodes URL parts (e.g. spaces and Bengali characters)
+ * so that OkHttp doesn't fail with IllegalArgumentException on unencoded URLs.
+ */
+fun sanitizeUrl(url: String): String {
+    val trimmed = url.trim()
+    if (trimmed.isBlank()) return trimmed
+    
+    // 1. Try OkHttp HttpUrl parse directly (safest/fastest path if already perfectly formatted)
+    try {
+        trimmed.toHttpUrl()
+        return trimmed
+    } catch (e: Exception) {
+        // Fall through to manual encoding
+    }
+
+    // 2. Parse using Android's Uri which is extremely forgiving of raw spaces and unicode characters
+    return try {
+        val uri = android.net.Uri.parse(trimmed)
+        val scheme = uri.scheme ?: "https"
+        val host = uri.host ?: ""
+        val port = if (uri.port != -1) ":${uri.port}" else ""
+        val authority = if (host.isNotEmpty()) "$host$port" else uri.authority ?: ""
+        
+        // Encode each path segment correctly (getPathSegments() returns decoded segments)
+        val pathSegments = uri.pathSegments
+        val encodedPath = if (pathSegments.isNotEmpty()) {
+            "/" + pathSegments.joinToString("/") { segment ->
+                android.net.Uri.encode(segment)
+            }
+        } else {
+            ""
+        }
+        
+        // Encode each query parameter correctly
+        val query = uri.query
+        val encodedQuery = if (!query.isNullOrBlank()) {
+            "?" + uri.queryParameterNames.joinToString("&") { name ->
+                val value = uri.getQueryParameter(name)
+                if (value != null) {
+                    "${android.net.Uri.encode(name)}=${android.net.Uri.encode(value)}"
+                } else {
+                    android.net.Uri.encode(name)
+                }
+            }
+        } else {
+            ""
+        }
+        
+        // Encode fragment
+        val fragment = uri.fragment
+        val encodedFragment = if (!fragment.isNullOrBlank()) {
+            "#" + android.net.Uri.encode(fragment)
+        } else {
+            ""
+        }
+        
+        val rebuilt = "$scheme://$authority$encodedPath$encodedQuery$encodedFragment"
+        // Validate rebuilt URL with OkHttp
+        rebuilt.toHttpUrl()
+        rebuilt
+    } catch (e: Exception) {
+        e.printStackTrace()
+        // If everything fails, replace raw spaces with %20 as a fallback
+        trimmed.replace(" ", "%20")
     }
 }

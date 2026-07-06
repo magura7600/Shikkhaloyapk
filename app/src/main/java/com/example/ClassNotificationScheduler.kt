@@ -19,6 +19,8 @@ import org.json.JSONObject
 
 object ClassNotificationScheduler {
 
+    private val client by lazy { OkHttpClient() }
+
     fun parseClassTime(dateStr: String, timeStr: String): Long {
         if (dateStr.isBlank()) return 0L
         try {
@@ -179,7 +181,6 @@ object ClassNotificationScheduler {
 
         val sendAfterStr = String.format("%04d-%02d-%02d %02d:%02d:%02d %s", year, month, day, hour, minute, second, offsetStr)
 
-        val client = OkHttpClient()
         val mediaType = "application/json; charset=utf-8".toMediaType()
 
         val jsonBody = JSONObject().apply {

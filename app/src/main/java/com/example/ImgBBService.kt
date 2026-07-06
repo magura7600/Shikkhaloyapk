@@ -46,17 +46,18 @@ object ImgBBClient {
                 .post(requestBody)
                 .build()
 
-            val response = client.newCall(request).execute()
-            val responseBody = response.body?.string()
-            
-            if (response.isSuccessful && responseBody != null) {
-                val imgBBResponse = json.decodeFromString<ImgBBResponse>(responseBody)
-                if (imgBBResponse.success) {
-                    return@withContext imgBBResponse.data?.url
+            client.newCall(request).execute().use { response ->
+                val responseBody = response.body?.string()
+                
+                if (response.isSuccessful && responseBody != null) {
+                    val imgBBResponse = json.decodeFromString<ImgBBResponse>(responseBody)
+                    if (imgBBResponse.success) {
+                        return@withContext imgBBResponse.data?.url
+                    }
                 }
+                Log.e("ImgBBClient", "Upload failed: $responseBody")
+                null
             }
-            Log.e("ImgBBClient", "Upload failed: $responseBody")
-            null
         } catch (e: Exception) {
             Log.e("ImgBBClient", "Exception during upload", e)
             null

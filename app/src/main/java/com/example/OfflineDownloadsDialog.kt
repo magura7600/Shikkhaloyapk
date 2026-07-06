@@ -23,6 +23,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -129,74 +130,206 @@ fun OfflineDownloadsDialog(
                         selectedContentColor = accentColor,
                         unselectedContentColor = Color(0xFF64748B)
                     )
+                    Tab(
+                        selected = selectedTab == 2,
+                        onClick = { selectedTab = 2 },
+                        text = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Star, contentDescription = "Favorites", modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("পছন্দ ও সাম্প্রতিক", fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                            }
+                        },
+                        selectedContentColor = accentColor,
+                        unselectedContentColor = Color(0xFF64748B)
+                    )
                 }
 
-                val filteredDownloads = remember(downloads, selectedTab) {
-                    downloads.filter { 
-                        if (selectedTab == 0) it.fileType == "video" else it.fileType == "pdf" 
+                if (selectedTab == 2) {
+                    var favorites by remember { mutableStateOf(emptyList<FavoritePdf>()) }
+                    var recents by remember { mutableStateOf(emptyList<RecentPdf>()) }
+                    
+                    LaunchedEffect(Unit) {
+                        favorites = PdfHistoryManager.getFavorites(context)
+                        recents = PdfHistoryManager.getRecents(context)
                     }
-                }
-
-                if (filteredDownloads.isEmpty()) {
-                    EmptyDownloadsView(selectedTab)
-                } else {
-                    // Group downloads by course
-                    val groupedDownloads = remember(filteredDownloads) {
-                        filteredDownloads.groupBy { it.courseName.ifBlank { "অন্যান্য" } }
-                    }
-
-                    LazyColumn(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        groupedDownloads.forEach { (courseName, records) ->
-                            item {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Folder,
-                                        contentDescription = "Course",
-                                        tint = accentColor,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        text = courseName,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = Color(0xFF475569)
-                                    )
+                    
+                    if (favorites.isEmpty() && recents.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize().padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.Star, contentDescription = "No items", tint = Color(0xFF94A3B8), modifier = Modifier.size(64.dp))
+                                Spacer(modifier = Modifier.height(16.dp))
+                                Text("কোনো পছন্দের বা সাম্প্রতিক ফাইল নেই", fontWeight = FontWeight.Bold, color = Color(0xFF475569))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("পিডিএফ পড়ার সময় স্টার দিয়ে পছন্দ করতে পারেন।", fontSize = 12.sp, color = Color(0xFF64748B), textAlign = TextAlign.Center)
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize().padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            if (favorites.isNotEmpty()) {
+                                item {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(Icons.Default.Star, contentDescription = "Favorites", tint = Color(0xFFEAB308), modifier = Modifier.size(20.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("পছন্দের তালিকা (${favorites.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1E293B))
+                                    }
+                                }
+                                items(favorites) { fav ->
+                                    val isDownloaded = File(fav.filePath).exists()
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            val file = File(fav.filePath)
+                                            if (file.exists()) {
+                                                pdfToView = file
+                                                pdfTitleToView = fav.title
+                                                pdfUrlToView = fav.url
+                                            } else {
+                                                android.widget.Toast.makeText(context, "ডাউনলোডকৃত ফাইলটি স্থানীয় স্টোরেজে পাওয়া যায়নি!", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                    ) {
+                                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier.size(40.dp).background(Color(0xFFFEF08A), CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(Icons.Default.Star, contentDescription = "Favorite", tint = Color(0xFFCA8A04))
+                                            }
+                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(fav.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E293B), maxLines = 1)
+                                                Text(if (isDownloaded) "অফলাইন ডাউনলোডকৃত" else "অনলাইন / লিংক ড্যামেজ", fontSize = 11.sp, color = if (isDownloaded) Color(0xFF16A34A) else Color(0xFFEF4444))
+                                            }
+                                            IconButton(onClick = {
+                                                PdfHistoryManager.toggleFavorite(context, fav.title, fav.filePath, fav.url)
+                                                favorites = PdfHistoryManager.getFavorites(context)
+                                            }) {
+                                                Icon(Icons.Default.Delete, contentDescription = "Remove", tint = Color.Red.copy(alpha = 0.6f))
+                                            }
+                                        }
+                                    }
                                 }
                             }
-
-                            items(records, key = { it.id }) { record ->
-                                DownloadItemCard(
-                                    record = record,
-                                    onAction = {
-                                        val file = File(record.localPath)
-                                        if (file.exists()) {
-                                            if (record.fileType == "pdf") {
+                            
+                            if (recents.isNotEmpty()) {
+                                item {
+                                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
+                                        Icon(Icons.Default.History, contentDescription = "Recents", tint = accentColor, modifier = Modifier.size(20.dp))
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text("সাম্প্রতিক পঠিত (${recents.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1E293B))
+                                    }
+                                }
+                                items(recents) { rec ->
+                                    val isDownloaded = File(rec.filePath).exists()
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth().clickable {
+                                            val file = File(rec.filePath)
+                                            if (file.exists()) {
                                                 pdfToView = file
-                                                pdfTitleToView = record.title
-                                                pdfUrlToView = record.url
+                                                pdfTitleToView = rec.title
+                                                pdfUrlToView = rec.url
                                             } else {
-                                                videoToPlay = file
-                                                videoTitleToPlay = record.title
+                                                android.widget.Toast.makeText(context, "ডাউনলোডকৃত ফাইলটি স্থানীয় স্টোরেজে পাওয়া যায়নি!", android.widget.Toast.LENGTH_SHORT).show()
                                             }
-                                        } else {
-                                            android.widget.Toast.makeText(context, "ফাইলটি খুঁজে পাওয়া যায়নি!", android.widget.Toast.LENGTH_SHORT).show()
+                                        },
+                                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                                        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
+                                    ) {
+                                        Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                                            Box(
+                                                modifier = Modifier.size(40.dp).background(accentColor.copy(alpha = 0.1f), CircleShape),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Icon(Icons.Default.MenuBook, contentDescription = "Recent", tint = accentColor)
+                                            }
+                                            Spacer(modifier = Modifier.width(16.dp))
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Text(rec.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E293B), maxLines = 1)
+                                                Text(if (isDownloaded) "অফলাইন ডাউনলোডকৃত" else "অনলাইন / লিংক ড্যামেজ", fontSize = 11.sp, color = if (isDownloaded) Color(0xFF16A34A) else Color(0xFFEF4444))
+                                            }
+                                            Icon(Icons.Default.ChevronRight, contentDescription = "Open", tint = Color(0xFF94A3B8))
                                         }
-                                    },
-                                    onDelete = {
-                                        OfflineDownloadManager.deleteDownload(context, record)
-                                        downloads = OfflineDownloadManager.getDownloadRecords(context)
-                                    },
-                                    accentColor = accentColor
-                                )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                } else {
+                    val filteredDownloads = remember(downloads, selectedTab) {
+                        downloads.filter { 
+                            if (selectedTab == 0) it.fileType == "video" else it.fileType == "pdf" 
+                        }
+                    }
+
+                    if (filteredDownloads.isEmpty()) {
+                        EmptyDownloadsView(selectedTab)
+                    } else {
+                        // Group downloads by course
+                        val groupedDownloads = remember(filteredDownloads) {
+                            filteredDownloads.groupBy { it.courseName.ifBlank { "অন্যান্য" } }
+                        }
+
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            groupedDownloads.forEach { (courseName, records) ->
+                                item {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Outlined.Folder,
+                                            contentDescription = "Course",
+                                            tint = accentColor,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                        Text(
+                                            text = courseName,
+                                            fontSize = 15.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color(0xFF475569)
+                                        )
+                                    }
+                                }
+
+                                items(records, key = { it.id }) { record ->
+                                    DownloadItemCard(
+                                        record = record,
+                                        onAction = {
+                                            val file = File(record.localPath)
+                                            if (file.exists()) {
+                                                if (record.fileType == "pdf") {
+                                                    pdfToView = file
+                                                    pdfTitleToView = record.title
+                                                    pdfUrlToView = record.url
+                                                } else {
+                                                    videoToPlay = file
+                                                    videoTitleToPlay = record.title
+                                                }
+                                            } else {
+                                                android.widget.Toast.makeText(context, "ফাইলটি খুঁজে পাওয়া যায়নি!", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        },
+                                        onDelete = {
+                                            OfflineDownloadManager.deleteDownload(context, record)
+                                            downloads = OfflineDownloadManager.getDownloadRecords(context)
+                                        },
+                                        accentColor = accentColor
+                                    )
+                                }
                             }
                         }
                     }

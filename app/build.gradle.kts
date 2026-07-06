@@ -134,6 +134,9 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.okhttp)
   
+  // PDFBox for Android to search text and get precise coordinates
+  implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+  
   // Supabase
   implementation(libs.supabase.postgrest)
   implementation(libs.supabase.auth)
