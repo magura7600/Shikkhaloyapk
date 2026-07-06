@@ -199,65 +199,184 @@ object FacebookVideoExtractor {
                 val playableHdRegex = """"playable_url_quality_hd"\s*:\s*"([^"]+)"""".toRegex()
                 val sdSrcRegex = """"sd_src"\s*:\s*"([^"]+)"""".toRegex()
                 val hdSrcRegex = """"hd_src"\s*:\s*"([^"]+)"""".toRegex()
+                val hdNoRateLimitRegex = """"hd_src_no_ratelimit"\s*:\s*"([^"]+)"""".toRegex()
+                val sdNoRateLimitRegex = """"sd_src_no_ratelimit"\s*:\s*"([^"]+)"""".toRegex()
                 
-                var sdUrl = sdVideoRegex.find(unescapedHtml)?.groups?.get(1)?.value
-                    ?: sdSrcRegex.find(unescapedHtml)?.groups?.get(1)?.value
-                var hdUrl = hdVideoRegex.find(unescapedHtml)?.groups?.get(1)?.value
-                    ?: hdSrcRegex.find(unescapedHtml)?.groups?.get(1)?.value
-                var playable = playableRegex.find(unescapedHtml)?.groups?.get(1)?.value
-                var playableHd = playableHdRegex.find(unescapedHtml)?.groups?.get(1)?.value
+                // Extract progressive streams using findAll
+                hdVideoRegex.findAll(unescapedHtml).forEach { match ->
+                    val urlStr = match.groups[1]?.value
+                    if (!urlStr.isNullOrBlank()) {
+                        val clean = urlStr.replace("&amp;", "&").replace("\\/", "/")
+                        val resolved = resolveVideoDirectUrlRedirect(clean)
+                        links.add(VideoLink("720p (Direct)", resolved, isHd = true, hasAudio = true, height = 720))
+                    }
+                }
+                playableHdRegex.findAll(unescapedHtml).forEach { match ->
+                    val urlStr = match.groups[1]?.value
+                    if (!urlStr.isNullOrBlank()) {
+                        val clean = urlStr.replace("&amp;", "&").replace("\\/", "/")
+                        val resolved = resolveVideoDirectUrlRedirect(clean)
+                        links.add(VideoLink("720p (Direct)", resolved, isHd = true, hasAudio = true, height = 720))
+                    }
+                }
+                hdSrcRegex.findAll(unescapedHtml).forEach { match ->
+                    val urlStr = match.groups[1]?.value
+                    if (!urlStr.isNullOrBlank()) {
+                        val clean = urlStr.replace("&amp;", "&").replace("\\/", "/")
+                        val resolved = resolveVideoDirectUrlRedirect(clean)
+                        links.add(VideoLink("720p (Direct)", resolved, isHd = true, hasAudio = true, height = 720))
+                    }
+                }
+                hdNoRateLimitRegex.findAll(unescapedHtml).forEach { match ->
+                    val urlStr = match.groups[1]?.value
+                    if (!urlStr.isNullOrBlank()) {
+                        val clean = urlStr.replace("&amp;", "&").replace("\\/", "/")
+                        val resolved = resolveVideoDirectUrlRedirect(clean)
+                        links.add(VideoLink("720p (Direct)", resolved, isHd = true, hasAudio = true, height = 720))
+                    }
+                }
+                sdVideoRegex.findAll(unescapedHtml).forEach { match ->
+                    val urlStr = match.groups[1]?.value
+                    if (!urlStr.isNullOrBlank()) {
+                        val clean = urlStr.replace("&amp;", "&").replace("\\/", "/")
+                        val resolved = resolveVideoDirectUrlRedirect(clean)
+                        links.add(VideoLink("360p (Direct)", resolved, isHd = false, hasAudio = true, height = 360))
+                    }
+                }
+                playableRegex.findAll(unescapedHtml).forEach { match ->
+                    val urlStr = match.groups[1]?.value
+                    if (!urlStr.isNullOrBlank()) {
+                        val clean = urlStr.replace("&amp;", "&").replace("\\/", "/")
+                        val resolved = resolveVideoDirectUrlRedirect(clean)
+                        links.add(VideoLink("360p (Direct)", resolved, isHd = false, hasAudio = true, height = 360))
+                    }
+                }
+                sdSrcRegex.findAll(unescapedHtml).forEach { match ->
+                    val urlStr = match.groups[1]?.value
+                    if (!urlStr.isNullOrBlank()) {
+                        val clean = urlStr.replace("&amp;", "&").replace("\\/", "/")
+                        val resolved = resolveVideoDirectUrlRedirect(clean)
+                        links.add(VideoLink("360p (Direct)", resolved, isHd = false, hasAudio = true, height = 360))
+                    }
+                }
+                sdNoRateLimitRegex.findAll(unescapedHtml).forEach { match ->
+                    val urlStr = match.groups[1]?.value
+                    if (!urlStr.isNullOrBlank()) {
+                        val clean = urlStr.replace("&amp;", "&").replace("\\/", "/")
+                        val resolved = resolveVideoDirectUrlRedirect(clean)
+                        links.add(VideoLink("360p (Direct)", resolved, isHd = false, hasAudio = true, height = 360))
+                    }
+                }
                 
-                if (!hdUrl.isNullOrBlank()) {
-                    val cleanHd = hdUrl.replace("&amp;", "&").replace("\\/", "/")
-                    val resolvedHd = resolveVideoDirectUrlRedirect(cleanHd)
-                    links.add(VideoLink("720p", resolvedHd, isHd = true, hasAudio = true, height = 720))
-                }
-                if (!playableHd.isNullOrBlank()) {
-                    val cleanPlayableHd = playableHd.replace("&amp;", "&").replace("\\/", "/")
-                    val resolvedPlayableHd = resolveVideoDirectUrlRedirect(cleanPlayableHd)
-                    links.add(VideoLink("720p", resolvedPlayableHd, isHd = true, hasAudio = true, height = 720))
-                }
-                if (!sdUrl.isNullOrBlank()) {
-                    val cleanSd = sdUrl.replace("&amp;", "&").replace("\\/", "/")
-                    val resolvedSd = resolveVideoDirectUrlRedirect(cleanSd)
-                    links.add(VideoLink("360p", resolvedSd, isHd = false, hasAudio = true, height = 360))
-                }
-                if (!playable.isNullOrBlank()) {
-                    val cleanPlayable = playable.replace("&amp;", "&").replace("\\/", "/")
-                    val resolvedPlayable = resolveVideoDirectUrlRedirect(cleanPlayable)
-                    links.add(VideoLink("360p", resolvedPlayable, isHd = false, hasAudio = true, height = 360))
-                }
+                // 2. Scan for base_url and extract quality, height, width
+                val urlPattern = """"base_url"\s*:\s*"([^"]+)"""".toRegex()
+                val allUrlMatches = urlPattern.findAll(unescapedHtml).toList()
                 
-                // 2. Scan for og:video tags as ultimate backup
+                var extractedAudioUrl: String? = null
+                
+                // First pass: find the best audio stream
+                try {
+                    for (urlMatch in allUrlMatches) {
+                        val urlIndex = urlMatch.range.first
+                        val searchStart = (urlIndex - 1000).coerceAtLeast(0)
+                        val searchEnd = (urlIndex + 1000).coerceAtMost(unescapedHtml.length)
+                        val surroundingText = unescapedHtml.substring(searchStart, searchEnd)
+                        
+                        val isAudio = surroundingText.contains("audio/mp4", ignoreCase = true) || 
+                                     surroundingText.contains("audio/webm", ignoreCase = true) || 
+                                     surroundingText.contains("\"mime_type\":\"audio", ignoreCase = true) ||
+                                     (surroundingText.contains("audio", ignoreCase = true) && !surroundingText.contains("quality_label", ignoreCase = true))
+                        
+                        if (isAudio) {
+                            val rawUrl = urlMatch.groups[1]?.value ?: ""
+                            if (rawUrl.isNotBlank() && rawUrl.startsWith("http")) {
+                                val cleanUrl = rawUrl.replace("&amp;", "&").replace("\\/", "/")
+                                extractedAudioUrl = resolveVideoDirectUrlRedirect(cleanUrl)
+                                break // Use the first suitable audio stream
+                            }
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                // Second pass: extract all video streams (with and without quality_labels)
+                try {
+                    val heightPattern = """"height"\s*:\s*"?(\d+)"?""".toRegex()
+                    val labelInBlockPattern = """"quality_label"\s*:\s*"([^"]+)"""".toRegex()
+                    
+                    for (urlMatch in allUrlMatches) {
+                        val rawUrl = urlMatch.groups[1]?.value ?: ""
+                        if (rawUrl.isBlank() || !rawUrl.startsWith("http")) continue
+                        
+                        val urlIndex = urlMatch.range.first
+                        val searchStart = (urlIndex - 1200).coerceAtLeast(0)
+                        val searchEnd = (urlIndex + 1200).coerceAtMost(unescapedHtml.length)
+                        val surroundingText = unescapedHtml.substring(searchStart, searchEnd)
+                        
+                        // If it's an audio stream, skip it for video stream extraction
+                        val isAudio = surroundingText.contains("audio/mp4", ignoreCase = true) || 
+                                     surroundingText.contains("audio/webm", ignoreCase = true) || 
+                                     surroundingText.contains("\"mime_type\":\"audio", ignoreCase = true) ||
+                                     (surroundingText.contains("audio", ignoreCase = true) && !surroundingText.contains("quality_label", ignoreCase = true))
+                        if (isAudio) continue
+                        
+                        // Extract height from the nearest height field in surroundingText
+                        val centerOffset = urlIndex - searchStart
+                        val heightMatches = heightPattern.findAll(surroundingText).toList()
+                        val closestHeightMatch = heightMatches.minByOrNull { Math.abs(it.range.first - centerOffset) }
+                        val height = closestHeightMatch?.groups?.get(1)?.value?.toIntOrNull() ?: 0
+                        
+                        // Extract quality_label if present
+                        val labelMatches = labelInBlockPattern.findAll(surroundingText).toList()
+                        val closestLabelMatch = labelMatches.minByOrNull { Math.abs(it.range.first - centerOffset) }
+                        var label = closestLabelMatch?.groups?.get(1)?.value ?: ""
+                        
+                        // If label is missing but height is known, construct the label (e.g. 480p)
+                        if (label.isBlank() && height > 0) {
+                            label = "${height}p"
+                        }
+                        
+                        if (height > 0 || label.isNotBlank()) {
+                            val cleanUrl = rawUrl.replace("&amp;", "&").replace("\\/", "/")
+                            val resolvedUrl = resolveVideoDirectUrlRedirect(cleanUrl)
+                            val finalLabel = if (label.isNotBlank()) label else "${height}p"
+                            links.add(
+                                VideoLink(
+                                    quality = finalLabel,
+                                    url = resolvedUrl,
+                                    isHd = height >= 720,
+                                    hasAudio = false, // DASH video streams are video-only
+                                    height = height
+                                )
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+ 
+                // 3. Scan for og:video tags as ultimate backup
                 val ogVideoRegex = """<meta\s+property="og:video:secure_url"\s+content="([^"]+)"""".toRegex()
                 val ogVideoRegex2 = """<meta\s+property="og:video"\s+content="([^"]+)"""".toRegex()
-                var ogVideo = ogVideoRegex.find(unescapedHtml)?.groups?.get(1)?.value
+                val ogVideo = ogVideoRegex.find(unescapedHtml)?.groups?.get(1)?.value
                     ?: ogVideoRegex2.find(unescapedHtml)?.groups?.get(1)?.value
                 if (!ogVideo.isNullOrBlank()) {
                     val cleanOgVideo = ogVideo.replace("&amp;", "&").replace("\\/", "/")
                     val resolvedOgVideo = resolveVideoDirectUrlRedirect(cleanOgVideo)
                     val isHd = resolvedOgVideo.contains("hd") || resolvedOgVideo.contains("1080") || resolvedOgVideo.contains("720")
-                    val qualityLabel = if (isHd) "720p" else "360p"
+                    val qualityLabel = if (isHd) "720p (Direct)" else "360p (Direct)"
                     links.add(VideoLink(qualityLabel, resolvedOgVideo, isHd = isHd, hasAudio = true, height = if (isHd) 720 else 360))
                 }
                 
-                // Filter out any empty URLs and deduplicate to ensure unique "720p" and/or "360p" choices
+                // Filter out any empty URLs and deduplicate based on quality
                 val validLinks = links.filter { it.url.isNotBlank() }
                 val uniqueLinks = mutableListOf<VideoLink>()
                 val seenQualities = mutableSetOf<String>()
                 
-                // Prefer 720p first, then 360p
-                validLinks.firstOrNull { it.quality == "720p" }?.let {
-                    uniqueLinks.add(it)
-                    seenQualities.add("720p")
-                }
-                validLinks.firstOrNull { it.quality == "360p" }?.let {
-                    uniqueLinks.add(it)
-                    seenQualities.add("360p")
-                }
-                
-                // Fallback for any other custom qualities
-                validLinks.forEach { link ->
+                // Sort all discovered qualities by height descending (highest quality first)
+                val sortedLinks = validLinks.sortedWith(compareByDescending<VideoLink> { it.height }.thenBy { it.quality })
+                sortedLinks.forEach { link ->
                     if (link.quality !in seenQualities) {
                         uniqueLinks.add(link)
                         seenQualities.add(link.quality)
@@ -269,7 +388,8 @@ object FacebookVideoExtractor {
                         title = "Facebook Video",
                         description = "Web direct extracted video streams",
                         links = uniqueLinks,
-                        adaptiveUrl = uniqueLinks.first().url
+                        adaptiveUrl = uniqueLinks.first().url,
+                        audioUrl = extractedAudioUrl
                     )
                 }
             } else {

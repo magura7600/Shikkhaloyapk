@@ -2683,6 +2683,9 @@ fun VideoPlayer(
     DisposableEffect(Unit) {
         onDispose {
             exoPlayer.release()
+            if (activity != null) {
+                activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
         }
     }
 
@@ -2984,31 +2987,29 @@ fun VideoPlayer(
                         .fillMaxSize()
                         .background(Color.Black.copy(alpha = 0.3f))
                 )
-            }
-            
-            // Only lock icon is shown
-            IconButton(
-                onClick = { 
-                    isLocked = false
-                    controlsVisible = true
-                    Toast.makeText(context, "নিয়ন্ত্রণ প্যানেল আনলক করা হয়েছে", Toast.LENGTH_SHORT).show()
-                },
-                modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .padding(12.dp)
-                    .size(48.dp)
-                    .background(Color.Red.copy(alpha = 0.7f), CircleShape)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Lock,
-                    contentDescription = "Unlock screen",
-                    tint = Color.White,
-                    modifier = Modifier.size(24.dp)
-                )
-            }
 
-            // Quick helper text
-            if (controlsVisible) {
+                // Only lock icon is shown when controls are visible
+                IconButton(
+                    onClick = { 
+                        isLocked = false
+                        controlsVisible = true
+                        Toast.makeText(context, "নিয়ন্ত্রণ প্যানেল আনলক করা হয়েছে", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(12.dp)
+                        .size(48.dp)
+                        .background(Color.Red.copy(alpha = 0.7f), CircleShape)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Unlock screen",
+                        tint = Color.White,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                // Quick helper text
                 Text(
                     text = "প্যানেল আনলক করতে ওপরের লাল লক বাটনে ক্লিক করুন",
                     color = Color.White.copy(alpha = 0.8f),
@@ -3314,42 +3315,108 @@ fun VideoPlayer(
                         fontSize = 18.sp,
                         color = Color(0xFF1E293B)
                     )
-                    Spacer(modifier = Modifier.height(12.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     
-                    val speeds = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 2.0f)
-                    speeds.forEach { speed ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    playbackSpeed = speed
-                                    statusMessage = if (speed == 1.0f) "গতি: স্বাভাবিক" else "গতি: ${speed}x"
-                                    showSpeedDialog = false
-                                }
-                                .padding(vertical = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                    // Display current speed
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = String.format("%.2fx", playbackSpeed),
+                            fontSize = 28.sp,
+                            fontWeight = FontWeight.Black,
+                            color = Color(0xFF3B82F6)
+                        )
+                    }
+                    
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Granular Slider
+                    Text("সূক্ষ্ম সমন্বয় করুন (০.২৫x - ৩.০০x)", fontSize = 12.sp, color = Color(0xFF64748B))
+                    Slider(
+                        value = playbackSpeed,
+                        onValueChange = { 
+                            playbackSpeed = (Math.round(it * 100) / 100f).coerceIn(0.25f, 3.0f)
+                        },
+                        valueRange = 0.25f..3.0f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color(0xFF3B82F6),
+                            activeTrackColor = Color(0xFF3B82F6),
+                            inactiveTrackColor = Color(0xFFE2E8F0)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    
+                    // Fine Adjustment Buttons
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedButton(
+                            onClick = { playbackSpeed = (playbackSpeed - 0.05f).coerceIn(0.25f, 3.0f) },
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
-                            RadioButton(
-                                selected = playbackSpeed == speed, 
-                                onClick = null,
-                                colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF3B82F6))
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = if (speed == 1.0f) "স্বাভাবিক (১.০x)" else "${speed}x",
-                                fontSize = 15.sp,
-                                fontWeight = if (playbackSpeed == speed) FontWeight.Bold else FontWeight.Normal,
-                                color = Color(0xFF1E293B)
-                            )
+                            Text("- ০.০৫x", fontSize = 13.sp, color = Color(0xFF3B82F6))
+                        }
+                        
+                        OutlinedButton(
+                            onClick = { playbackSpeed = (playbackSpeed + 0.05f).coerceIn(0.25f, 3.0f) },
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp)
+                        ) {
+                            Text("+ ০.০৫x", fontSize = 13.sp, color = Color(0xFF3B82F6))
                         }
                     }
                     
+                    Spacer(modifier = Modifier.height(16.dp))
+                    
+                    // Quick Presets Header
+                    Text("দ্রুত গতি নির্বাচন করুন", fontSize = 12.sp, color = Color(0xFF64748B))
                     Spacer(modifier = Modifier.height(8.dp))
+                    
+                    val presets = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        presets.forEach { speed ->
+                            val isSelected = playbackSpeed == speed
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = if (isSelected) Color(0xFF3B82F6) else Color(0xFFF1F5F9),
+                                        shape = RoundedCornerShape(8.dp)
+                                    )
+                                    .clickable { 
+                                        playbackSpeed = speed
+                                    }
+                                    .padding(horizontal = 14.dp, vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = if (speed == 1.0f) "স্বাভাবিক" else "${speed}x",
+                                    color = if (isSelected) Color.White else Color(0xFF1E293B),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                    
+                    Spacer(modifier = Modifier.height(20.dp))
                     TextButton(
                         onClick = { showSpeedDialog = false }, 
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text("বাতিল করুন", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold)
+                        Text("ঠিক আছে", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -3440,6 +3507,33 @@ fun ClassDetailView(
     var activePdfTitle by remember { mutableStateOf("") }
     var activePdfUrl by remember { mutableStateOf("") }
     var downloadingPdfUrl by remember { mutableStateOf<String?>(null) }
+    var recordToDelete by remember { mutableStateOf<DownloadRecord?>(null) }
+
+    if (recordToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { recordToDelete = null },
+            title = { Text("ডাউনলোড ডিলিট করুন", fontWeight = FontWeight.Bold, color = Color.Red) },
+            text = { Text("আপনি কি নিশ্চিতভাবে এই ফাইলটি ('${recordToDelete!!.title}') ডিলিট করতে চান?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        OfflineDownloadManager.deleteDownload(context, recordToDelete!!)
+                        recordToDelete = null
+                        downloadsList = OfflineDownloadManager.getDownloadRecords(context)
+                        Toast.makeText(context, "ডিলিট সম্পন্ন হয়েছে!", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("ডিলিট করুন", color = Color.White)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { recordToDelete = null }) {
+                    Text("বাতিল")
+                }
+            }
+        )
+    }
 
     LaunchedEffect(Unit) {
         downloadsList = OfflineDownloadManager.getDownloadRecords(context)
@@ -3678,7 +3772,12 @@ fun ClassDetailView(
                                 className = clazz.title
                             )
                         } else if (isDownloaded) {
-                            Toast.makeText(context, "ভিডিওটি ইতিমধ্যে ডাউনলোড করা হয়েছে!", Toast.LENGTH_SHORT).show()
+                            val record = downloadsList.find { it.url == dlUrl }
+                            if (record != null) {
+                                recordToDelete = record
+                            } else {
+                                Toast.makeText(context, "ভিডিওটি ইতিমধ্যে ডাউনলোড করা হয়েছে!", Toast.LENGTH_SHORT).show()
+                            }
                         }
                     },
                     modifier = Modifier
@@ -3706,7 +3805,7 @@ fun ClassDetailView(
                         } else if (isDownloaded) {
                             Icon(Icons.Default.CheckCircle, contentDescription = "Downloaded", tint = Color.White)
                             Spacer(Modifier.width(8.dp))
-                            Text("ডাউনলোড সম্পন্ন", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("ডাউনলোড সম্পন্ন (ডিলিট করতে ট্যাপ করুন)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         } else if (downloadState is DownloadState.Downloading) {
                             val pct = (downloadState.progress * 100).toInt()
                             CircularProgressIndicator(
@@ -4005,12 +4104,28 @@ fun ClassDetailView(
 
                             // Download Button / Status
                             if (isDownloaded) {
-                                Icon(
-                                    imageVector = Icons.Default.CheckCircle,
-                                    contentDescription = "Downloaded",
-                                    tint = Color(0xFF10B981),
-                                    modifier = Modifier.size(28.dp)
-                                )
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Downloaded",
+                                        tint = Color(0xFF10B981),
+                                        modifier = Modifier.size(24.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    IconButton(
+                                        onClick = {
+                                            recordToDelete = downloadedRecord
+                                        },
+                                        modifier = Modifier.size(32.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Delete PDF",
+                                            tint = Color.Red,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
                             } else {
                                 IconButton(
                                     onClick = {
