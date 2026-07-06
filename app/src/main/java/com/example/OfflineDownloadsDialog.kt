@@ -44,6 +44,7 @@ fun OfflineDownloadsDialog(
     // Dialog states
     var pdfToView by remember { mutableStateOf<File?>(null) }
     var pdfTitleToView by remember { mutableStateOf("") }
+    var pdfUrlToView by remember { mutableStateOf("") }
     
     var videoToPlay by remember { mutableStateOf<File?>(null) }
     var videoTitleToPlay by remember { mutableStateOf("") }
@@ -181,6 +182,7 @@ fun OfflineDownloadsDialog(
                                             if (record.fileType == "pdf") {
                                                 pdfToView = file
                                                 pdfTitleToView = record.title
+                                                pdfUrlToView = record.url
                                             } else {
                                                 videoToPlay = file
                                                 videoTitleToPlay = record.title
@@ -207,6 +209,7 @@ fun OfflineDownloadsDialog(
             PdfViewerDialog(
                 file = pdfToView!!,
                 title = pdfTitleToView,
+                url = pdfUrlToView,
                 onClose = { pdfToView = null }
             )
         }

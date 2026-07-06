@@ -39,8 +39,8 @@ android {
     applicationId = "com.shikkhaloyai.app"
     minSdk = 26
     targetSdk = 36
-    versionCode = 8
-    versionName = "7.2"
+    versionCode = 9
+    versionName = "7.3"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }

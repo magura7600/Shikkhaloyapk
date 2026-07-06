@@ -87,6 +87,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import androidx.compose.animation.core.*
+import androidx.compose.animation.*
 import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
@@ -3432,6 +3433,7 @@ fun ClassDetailView(
     // PDF Viewer dialog states
     var activePdfToView by remember { mutableStateOf<File?>(null) }
     var activePdfTitle by remember { mutableStateOf("") }
+    var activePdfUrl by remember { mutableStateOf("") }
     var downloadingPdfUrl by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -3787,23 +3789,45 @@ fun ClassDetailView(
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
+                val mentorObj = remember(mentors, clazz.mentorId) { mentors.find { it.id == clazz.mentorId } }
                 Row(
                     modifier = Modifier
                         .background(Color(0xFFF8FAFC), RoundedCornerShape(24.dp))
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Box(modifier = Modifier.size(32.dp).background(Color(0xFFE2E8F0), CircleShape), contentAlignment = Alignment.Center) {
-                        Icon(Icons.Default.Person, contentDescription = "Mentor", tint = Color.Gray, modifier = Modifier.size(20.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .background(Color(0xFFE2E8F0), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        if (mentorObj != null && mentorObj.image_url.isNotBlank()) {
+                            coil.compose.AsyncImage(
+                                model = mentorObj.image_url,
+                                contentDescription = "Mentor Image",
+                                modifier = Modifier
+                                    .size(32.dp)
+                                    .clip(CircleShape),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.Person, contentDescription = "Mentor", tint = Color.Gray, modifier = Modifier.size(20.dp))
+                        }
                     }
                     Spacer(modifier = Modifier.width(8.dp))
-                    val mentorName = mentors.find { it.id == clazz.mentorId }?.name ?: "অজানা শিক্ষক"
+                    val mentorName = mentorObj?.name ?: "অজানা শিক্ষক"
                     Text(mentorName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 var isContentExpanded by remember { mutableStateOf(false) }
+                val rotationAngle by animateFloatAsState(
+                    targetValue = if (isContentExpanded) 180f else 0f,
+                    animationSpec = tween(durationMillis = 300, easing = FastOutSlowInEasing),
+                    label = "arrowRotation"
+                )
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -3815,17 +3839,23 @@ fun ClassDetailView(
                 ) {
                     Text("ক্লাসের বিষয়বস্তু", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Icon(
-                        if (isContentExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = "Expand",
-                        tint = Color(0xFF3B82F6)
+                        tint = Color(0xFF3B82F6),
+                        modifier = Modifier.rotate(rotationAngle)
                     )
                 }
-                if (isContentExpanded && clazz.description.isNotBlank()) {
+                AnimatedVisibility(
+                    visible = isContentExpanded && clazz.description.isNotBlank(),
+                    enter = fadeIn(animationSpec = tween(300)) + expandVertically(animationSpec = tween(300)),
+                    exit = fadeOut(animationSpec = tween(300)) + shrinkVertically(animationSpec = tween(300))
+                ) {
                     Text(
                         text = clazz.description,
                         color = Color.DarkGray,
                         fontSize = 14.sp,
-                        modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp)
+                        modifier = Modifier.padding(top = 12.dp, start = 4.dp, end = 4.dp),
+                        lineHeight = 20.sp
                     )
                 }
             }
@@ -3888,28 +3918,63 @@ fun ClassDetailView(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             
+                            // Helper lambdas for cloud storage links
+                            val isCloudOrWebUrl = remember {
+                                { url: String ->
+                                    val lower = url.trim().lowercase()
+                                    lower.contains("mega.nz") ||
+                                    lower.contains("drive.google.com") ||
+                                    lower.contains("docs.google.com") ||
+                                    lower.contains("dropbox.com") ||
+                                    lower.contains("mediafire.com") ||
+                                    lower.contains("facebook.com") ||
+                                    lower.contains("l.facebook.com") ||
+                                    lower.contains("l.php") ||
+                                    lower.contains("onedrive.live.com") ||
+                                    !lower.contains(".pdf")
+                                }
+                            }
+                            val openBrowserIntent = remember {
+                                { targetUrl: String ->
+                                    try {
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(targetUrl))
+                                        context.startActivity(intent)
+                                    } catch (e: Exception) {
+                                        Toast.makeText(context, "লিংক ওপেন করা সম্ভব হয়নি", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+
                             // View Button
                             Button(
                                 onClick = {
-                                    if (isDownloaded) {
-                                        activePdfToView = File(downloadedRecord!!.localPath)
-                                        activePdfTitle = pdf.title
+                                    if (isCloudOrWebUrl(pdf.url)) {
+                                        Toast.makeText(context, "ক্লাউড/ড্রাইভ লিংক ব্রাউজারে ওপেন করা হচ্ছে...", Toast.LENGTH_SHORT).show()
+                                        openBrowserIntent(pdf.url)
                                     } else {
-                                        downloadingPdfUrl = pdf.url
-                                        OfflineDownloadManager.downloadToCache(
-                                            context = context,
-                                            url = pdf.url,
-                                            title = pdf.title,
-                                            onComplete = { tempFile ->
-                                                downloadingPdfUrl = null
-                                                activePdfToView = tempFile
-                                                activePdfTitle = pdf.title
-                                            },
-                                            onError = { errMsg ->
-                                                downloadingPdfUrl = null
-                                                Toast.makeText(context, "ডাউনলোড ব্যর্থ হয়েছে: $errMsg", Toast.LENGTH_SHORT).show()
-                                            }
-                                        )
+                                        if (isDownloaded) {
+                                            activePdfToView = File(downloadedRecord!!.localPath)
+                                            activePdfTitle = pdf.title
+                                            activePdfUrl = pdf.url
+                                        } else {
+                                            downloadingPdfUrl = pdf.url
+                                            OfflineDownloadManager.downloadToCache(
+                                                context = context,
+                                                url = pdf.url,
+                                                title = pdf.title,
+                                                onComplete = { tempFile ->
+                                                    downloadingPdfUrl = null
+                                                    activePdfToView = tempFile
+                                                    activePdfTitle = pdf.title
+                                                    activePdfUrl = pdf.url
+                                                },
+                                                onError = { errMsg ->
+                                                    downloadingPdfUrl = null
+                                                    Toast.makeText(context, "সরাসরি ভিউ করা যায়নি, ব্রাউজারে ওপেন করা হচ্ছে...", Toast.LENGTH_SHORT).show()
+                                                    openBrowserIntent(pdf.url)
+                                                }
+                                            )
+                                        }
                                     }
                                 },
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
@@ -3944,15 +4009,20 @@ fun ClassDetailView(
                             } else {
                                 IconButton(
                                     onClick = {
-                                        if (downloadState !is DownloadState.Downloading) {
-                                            OfflineDownloadManager.downloadPermanently(
-                                                context = context,
-                                                url = pdf.url,
-                                                title = pdf.title,
-                                                fileType = "pdf",
-                                                courseName = courseName,
-                                                className = clazz.title
-                                            )
+                                        if (isCloudOrWebUrl(pdf.url)) {
+                                            Toast.makeText(context, "ক্লাউড/ড্রাইভ ফাইলটি ব্রাউজার থেকে ডাউনলোড করুন", Toast.LENGTH_LONG).show()
+                                            openBrowserIntent(pdf.url)
+                                        } else {
+                                            if (downloadState !is DownloadState.Downloading) {
+                                                OfflineDownloadManager.downloadPermanently(
+                                                    context = context,
+                                                    url = pdf.url,
+                                                    title = pdf.title,
+                                                    fileType = "pdf",
+                                                    courseName = courseName,
+                                                    className = clazz.title
+                                                )
+                                            }
                                         }
                                     },
                                     modifier = Modifier.size(36.dp)
@@ -3986,6 +4056,7 @@ fun ClassDetailView(
             PdfViewerDialog(
                 file = activePdfToView!!,
                 title = activePdfTitle,
+                url = activePdfUrl,
                 onClose = { activePdfToView = null }
             )
         }

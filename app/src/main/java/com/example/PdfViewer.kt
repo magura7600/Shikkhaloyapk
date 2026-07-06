@@ -43,12 +43,14 @@ import java.io.File
 fun PdfViewerDialog(
     file: File,
     title: String,
+    url: String = "",
     onClose: () -> Unit
 ) {
     var pageCount by remember { mutableStateOf(0) }
     var currentPageIndex by remember { mutableStateOf(0) }
     var pdfRenderer by remember { mutableStateOf<PdfRenderer?>(null) }
     var fileDescriptor by remember { mutableStateOf<ParcelFileDescriptor?>(null) }
+    var loadError by remember { mutableStateOf(false) }
     
     val context = LocalContext.current
     val lazyListState = rememberLazyListState()
@@ -62,8 +64,10 @@ fun PdfViewerDialog(
                 fileDescriptor = fd
                 pdfRenderer = renderer
                 pageCount = renderer.pageCount
+                loadError = false
             } catch (e: Exception) {
                 e.printStackTrace()
+                loadError = true
             }
         }
     }
@@ -125,7 +129,70 @@ fun PdfViewerDialog(
             },
             containerColor = Color(0xFFF1F5F9)
         ) { paddingValues ->
-            if (pdfRenderer == null) {
+            if (loadError) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .background(Color.White)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(64.dp)
+                                .background(Color(0xFFFEF2F2), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Error",
+                                tint = Color.Red,
+                                modifier = Modifier.size(36.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "ফাইলটি সরাসরি অ্যাপে ভিউ করা যাচ্ছে না",
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFF1E293B)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "এটি একটি ড্রাইভ, মেগা বা ফেসবুক লিংক হতে পারে যা সরাসরি অ্যাপে ভিউ করা যায় না। আপনি চাইলে নিচের বাটনে ক্লিক করে সরাসরি ব্রাউজারে এটি দেখতে বা ডাউনলোড করতে পারেন।",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                            lineHeight = 20.sp
+                        )
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Button(
+                            onClick = {
+                                try {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {
+                                    android.widget.Toast.makeText(context, "ব্রাউজার ওপেন করা যায়নি", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                            shape = RoundedCornerShape(12.dp),
+                            modifier = Modifier.fillMaxWidth().height(48.dp)
+                        ) {
+                            Text("ব্রাউজারে ভিউ ও ডাউনলোড করুন", color = Color.White, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        }
+                        Spacer(modifier = Modifier.height(12.dp))
+                        TextButton(onClick = onClose) {
+                            Text("ফিরে যান", color = Color.Gray)
+                        }
+                    }
+                }
+            } else if (pdfRenderer == null) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -138,10 +205,28 @@ fun PdfViewerDialog(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(paddingValues),
+                        .padding(paddingValues)
+                        .background(Color.White)
+                        .padding(24.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Could not load PDF document", color = Color.Red)
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Text(" Could not load PDF document", color = Color.Red)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = {
+                                try {
+                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                                    context.startActivity(intent)
+                                } catch (e: Exception) {}
+                            }
+                        ) {
+                            Text("ব্রাউজারে ওপেন করুন")
+                        }
+                    }
                 }
             } else {
                 Box(
