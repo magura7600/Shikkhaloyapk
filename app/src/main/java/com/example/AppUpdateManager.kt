@@ -98,12 +98,65 @@ object AppUpdateManager {
     }
 
     /**
+     * Gets the latest app update record.
+     */
+    suspend fun getLatestUpdate(): AppUpdate? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val updates = supabase.from("app_updates").select().decodeList<AppUpdate>()
+                updates.maxByOrNull { it.version_code }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
+        }
+    }
+
+    /**
      * Publishes a new update to Supabase.
      */
     suspend fun publishUpdate(update: AppUpdate): Result<Unit> {
         return withContext(Dispatchers.IO) {
             try {
                 supabase.from("app_updates").insert(update)
+                Result.success(Unit)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Updates an existing update record.
+     */
+    suspend fun updateUpdate(update: AppUpdate): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                supabase.from("app_updates").update(update) {
+                    filter {
+                        eq("id", update.id ?: 0)
+                    }
+                }
+                Result.success(Unit)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Result.failure(e)
+            }
+        }
+    }
+
+    /**
+     * Deletes an app update by ID.
+     */
+    suspend fun deleteUpdate(updateId: Int): Result<Unit> {
+        return withContext(Dispatchers.IO) {
+            try {
+                supabase.from("app_updates").delete {
+                    filter {
+                        eq("id", updateId)
+                    }
+                }
                 Result.success(Unit)
             } catch (e: Exception) {
                 e.printStackTrace()

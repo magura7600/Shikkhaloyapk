@@ -52,7 +52,11 @@ fun AdminDashboardContent(
     var allProfiles by remember { mutableStateOf(listOf<UserProfile>()) }
     var isLoadingProfiles by remember { mutableStateOf(false) }
     var latestNotice by remember { mutableStateOf<AppNotice?>(null) }
+    var latestAppUpdate by remember { mutableStateOf<AppUpdate?>(null) }
     var showSqlDialog by remember { mutableStateOf(false) }
+    var showEditUpdateDialog by remember { mutableStateOf(false) }
+    var showDeleteUpdateConfirm by remember { mutableStateOf(false) }
+    var isDeletingUpdate by remember { mutableStateOf(false) }
 
     // Fetch all profiles & active notice on load
     val fetchAllData = {
@@ -66,6 +70,10 @@ fun AdminDashboardContent(
                 
                 val notice = AppNoticeManager.getActiveNotice()
                 latestNotice = notice
+
+                // Fetch latest app update
+                val update = AppUpdateManager.getLatestUpdate()
+                latestAppUpdate = update
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -362,43 +370,134 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     border = BorderStroke(1.dp, Color(0xFFE2E8F0))
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.SystemUpdate,
-                                contentDescription = "Update",
-                                tint = Color(0xFF10B981)
-                            )
-                            Spacer(modifier = Modifier.width(10.dp))
-                            Column {
-                                Text(
-                                    text = "নতুন এপ সংস্করণ রিলিজ",
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 14.sp,
-                                    color = Color(0xFF1E293B)
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.SystemUpdate,
+                                    contentDescription = "Update",
+                                    tint = Color(0xFF10B981)
                                 )
-                                Text(
-                                    text = "এপিকে ফাইল আপডেট ও ফোর্সমোড পরিচালনা",
-                                    fontSize = 11.sp,
-                                    color = Color.Gray
-                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Column {
+                                    Text(
+                                        text = "নতুন এপ সংস্করণ রিলিজ",
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 14.sp,
+                                        color = Color(0xFF1E293B)
+                                    )
+                                    Text(
+                                        text = "এপিকে ফাইল আপডেট ও ফোর্সমোড পরিচালনা",
+                                        fontSize = 11.sp,
+                                        color = Color.Gray
+                                    )
+                                }
+                            }
+                            Button(
+                                onClick = onPublishUpdateClick,
+                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.CloudUpload, contentDescription = "Upload", modifier = Modifier.size(16.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("আপডেট দিন", fontSize = 11.sp)
                             }
                         }
-                        Button(
-                            onClick = onPublishUpdateClick,
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(Icons.Default.CloudUpload, contentDescription = "Upload", modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("আপডেট দিন", fontSize = 11.sp)
+
+                        if (latestAppUpdate != null) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                                border = BorderStroke(1.dp, Color(0xFFF1F5F9))
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Column {
+                                            Text(
+                                                text = "সর্বশেষ রিলিজ: v${latestAppUpdate!!.version_name}",
+                                                fontWeight = FontWeight.Bold,
+                                                fontSize = 13.sp,
+                                                color = Color(0xFF334155)
+                                            )
+                                            Text(
+                                                text = "ভার্সন কোড: ${latestAppUpdate!!.version_code}",
+                                                fontSize = 11.sp,
+                                                color = Color(0xFF64748B)
+                                            )
+                                        }
+                                        Text(
+                                            text = if (latestAppUpdate!!.is_force_update) "বাধ্যতামূলক ⚠️" else "ঐচ্ছিক 🟢",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = if (latestAppUpdate!!.is_force_update) Color.Red else Color(0xFF10B981)
+                                        )
+                                    }
+                                    
+                                    Spacer(modifier = Modifier.height(6.dp))
+                                    Text(
+                                        text = "চ্যাঞ্জেলগ: ${latestAppUpdate!!.changelog.ifBlank { "কোন বিবরণ নেই" }}",
+                                        fontSize = 11.sp,
+                                        color = Color(0xFF475569)
+                                    )
+                                    
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = "লিংক: ${latestAppUpdate!!.apk_url}",
+                                        fontSize = 10.sp,
+                                        color = Color(0xFF0284C7),
+                                        maxLines = 1
+                                    )
+
+                                    Spacer(modifier = Modifier.height(10.dp))
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.End,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        OutlinedButton(
+                                            onClick = { showEditUpdateDialog = true },
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF3B82F6)),
+                                            border = BorderStroke(1.dp, Color(0xFF3B82F6).copy(alpha = 0.5f)),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                            shape = RoundedCornerShape(6.dp),
+                                            modifier = Modifier.padding(end = 8.dp)
+                                        ) {
+                                            Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(12.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("এডিট করুন ✏️", fontSize = 10.sp)
+                                        }
+
+                                        OutlinedButton(
+                                            onClick = { showDeleteUpdateConfirm = true },
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.Red),
+                                            border = BorderStroke(1.dp, Color.Red.copy(alpha = 0.5f)),
+                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
+                                            shape = RoundedCornerShape(6.dp)
+                                        ) {
+                                            Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(12.dp))
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("ডিলিট করুন 🗑️", fontSize = 10.sp)
+                                        }
+                                    }
+                                }
+                            }
+                        } else {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "বর্তমানে কোনো অ্যাপ আপডেট রেকর্ড নেই।",
+                                fontSize = 11.sp,
+                                color = Color.Gray
+                            )
                         }
                     }
                 }
@@ -549,6 +648,67 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
             confirmButton = {
                 Button(onClick = { showSqlDialog = false }, colors = ButtonDefaults.buttonColors(containerColor = accentColor)) {
                     Text("ঠিক আছে")
+                }
+            }
+        )
+    }
+
+    if (showEditUpdateDialog && latestAppUpdate != null) {
+        PublishUpdateDialog(
+            accentColor = accentColor,
+            existingUpdate = latestAppUpdate,
+            onDismiss = { showEditUpdateDialog = false },
+            onPublished = {
+                fetchAllData()
+            }
+        )
+    }
+
+    if (showDeleteUpdateConfirm && latestAppUpdate != null) {
+        AlertDialog(
+            onDismissRequest = { if (!isDeletingUpdate) showDeleteUpdateConfirm = false },
+            shape = RoundedCornerShape(20.dp),
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red)
+                    Text("আপডেট ডিলিট করুন 🗑️", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            },
+            text = {
+                Text("আপনি কি নিশ্চিতভাবে সর্বশেষ রিলিজ হওয়া আপডেটটি (v${latestAppUpdate!!.version_name}) ডিলিট করতে চান? এটি করার পর ইউজাররা আর আপডেট চেক বা ডাউনলোড করতে পারবেন না।")
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        isDeletingUpdate = true
+                        scope.launch {
+                            val res = AppUpdateManager.deleteUpdate(latestAppUpdate!!.id ?: 0)
+                            isDeletingUpdate = false
+                            showDeleteUpdateConfirm = false
+                            if (res.isSuccess) {
+                                Toast.makeText(context, "আপডেট সফলভাবে ডিলিট করা হয়েছে! 🗑️", Toast.LENGTH_SHORT).show()
+                                fetchAllData()
+                            } else {
+                                Toast.makeText(context, "ডিলিট করতে ব্যর্থ হয়েছে।", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
+                    enabled = !isDeletingUpdate,
+                    shape = RoundedCornerShape(10.dp)
+                ) {
+                    if (isDeletingUpdate) {
+                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("ডিলিট করুন 🗑️")
+                    }
+                }
+            },
+            dismissButton = {
+                if (!isDeletingUpdate) {
+                    TextButton(onClick = { showDeleteUpdateConfirm = false }) {
+                        Text("বাতিল", color = Color(0xFF64748B))
+                    }
                 }
             }
         )

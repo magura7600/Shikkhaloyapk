@@ -4,6 +4,8 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,19 +30,47 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 
+fun isDirectApkUrl(url: String): Boolean {
+    val lower = url.trim().lowercase()
+    if (!lower.startsWith("http")) return false
+    
+    // Known cloud storage domains or web portals
+    if (lower.contains("mega.nz") || 
+        lower.contains("drive.google.com") || 
+        lower.contains("docs.google.com") || 
+        lower.contains("dropbox.com") || 
+        lower.contains("mediafire.com") || 
+        lower.contains("facebook.com") || 
+        lower.contains("l.facebook.com") || 
+        lower.contains("t.me") || 
+        lower.contains("telegram.org") || 
+        lower.contains("play.google.com") ||
+        (lower.contains("github.com") && !lower.contains("/releases/download/"))
+    ) {
+        return false
+    }
+    
+    val cleanUrl = url.split("?")[0]
+    return cleanUrl.endsWith(".apk", ignoreCase = true)
+}
+
 @Composable
 fun UpdatePromptDialog(
     update: AppUpdate,
     accentColor: Color,
+    isAdmin: Boolean = false,
     onDismiss: () -> Unit
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val downloadState by AppUpdateManager.downloadState.collectAsState()
+    
+    val isForce = update.is_force_update && !isAdmin
+    val isDirect = remember(update.apk_url) { isDirectApkUrl(update.apk_url) }
 
     AlertDialog(
         onDismissRequest = {
-            if (!update.is_force_update && downloadState !is UpdateDownloadState.Downloading) {
+            if (!isForce && downloadState !is UpdateDownloadState.Downloading) {
                 onDismiss()
             }
         },
@@ -113,7 +143,7 @@ fun UpdatePromptDialog(
                     lineHeight = 20.sp
                 )
 
-                if (update.is_force_update) {
+                if (isForce) {
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "⚠️ এই আপডেটটি করা বাধ্যতামূলক!",
@@ -123,65 +153,141 @@ fun UpdatePromptDialog(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(20.dp))
-
-                // Progress UI based on Download State
-                when (val state = downloadState) {
-                    is UpdateDownloadState.Downloading -> {
-                        val pct = (state.progress * 100).toInt()
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
+                // Telegram channel join card
+                Spacer(modifier = Modifier.height(12.dp))
+                Card(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable {
+                            try {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse("https://t.me/ShikkhaloyAi"))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "টেলিগ্রাম লিংক ওপেন করা সম্ভব হয়নি।", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE0F2FE)),
+                    border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Campaign,
+                            contentDescription = "Telegram Channel",
+                            tint = Color(0xFF0284C7),
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "ডাউনলোড হচ্ছে... $pct%",
-                                fontSize = 13.sp,
+                                text = "টেলিগ্রাম চ্যানেলে যুক্ত হোন 📢",
                                 fontWeight = FontWeight.Bold,
-                                color = accentColor
+                                fontSize = 13.sp,
+                                color = Color(0xFF0369A1)
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            LinearProgressIndicator(
-                                progress = { state.progress },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(8.dp)
-                                    .clip(RoundedCornerShape(4.dp)),
-                                color = accentColor,
-                                trackColor = accentColor.copy(alpha = 0.2f)
+                            Text(
+                                text = "নতুন ভার্সন ও সকল আপডেট সবার আগে পেতে আমাদের অফিশিয়াল চ্যানেলে যোগ দিন।",
+                                fontSize = 11.sp,
+                                color = Color(0xFF0284C7),
+                                lineHeight = 14.sp
                             )
                         }
                     }
-                    is UpdateDownloadState.Success -> {
+                }
+
+                if (!isDirect) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
+                        border = BorderStroke(1.dp, Color(0xFFFCD34D)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
                         Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                            modifier = Modifier.padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = "Success",
-                                tint = Color(0xFF10B981),
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Cloud Link Info",
+                                tint = Color(0xFFD97706),
                                 modifier = Modifier.size(20.dp)
                             )
-                            Spacer(modifier = Modifier.width(6.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = "ডাউনলোড সফল হয়েছে!",
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color(0xFF10B981)
+                                text = "এটি একটি এক্সটার্নাল/ক্লাউড লিংক (যেমন: Mega, Drive, Telegram)। বাটনটিতে ক্লিক করলে এটি আপনার ব্রাউজারে বা সংশ্লিষ্ট অ্যাপে ওপেন হবে এবং সেখান থেকে আপনি নতুন ভার্সনটি নামাতে পারবেন।",
+                                fontSize = 11.sp,
+                                color = Color(0xFF92400E),
+                                lineHeight = 15.sp
                             )
                         }
                     }
-                    is UpdateDownloadState.Error -> {
-                        Text(
-                            text = "ত্রুটি: ${state.message}",
-                            fontSize = 12.sp,
-                            color = Color.Red,
-                            textAlign = TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                // Progress UI based on Download State (only if direct APK)
+                if (isDirect) {
+                    when (val state = downloadState) {
+                        is UpdateDownloadState.Downloading -> {
+                            val pct = (state.progress * 100).toInt()
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "ডাউনলোড হচ্ছে... $pct%",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = accentColor
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                LinearProgressIndicator(
+                                    progress = { state.progress },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(8.dp)
+                                        .clip(RoundedCornerShape(4.dp)),
+                                    color = accentColor,
+                                    trackColor = accentColor.copy(alpha = 0.2f)
+                                )
+                            }
+                        }
+                        is UpdateDownloadState.Success -> {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.CheckCircle,
+                                    contentDescription = "Success",
+                                    tint = Color(0xFF10B981),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "ডাউনলোড সফল হয়েছে!",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF10B981)
+                                )
+                            }
+                        }
+                        is UpdateDownloadState.Error -> {
+                            Text(
+                                text = "ত্রুটি: ${state.message}",
+                                fontSize = 12.sp,
+                                color = Color.Red,
+                                textAlign = TextAlign.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                        else -> {}
                     }
-                    else -> {}
                 }
             }
         },
@@ -189,44 +295,65 @@ fun UpdatePromptDialog(
             val state = downloadState
             Button(
                 onClick = {
-                    when (state) {
-                        is UpdateDownloadState.Success -> {
-                            AppUpdateManager.installApk(context, state.apkFile)
+                    if (!isDirect) {
+                        try {
+                            val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(update.apk_url))
+                            context.startActivity(intent)
+                            Toast.makeText(context, "ক্লাউড/ড্রাইভ লিংক ব্রাউজারে ওপেন করা হচ্ছে...", Toast.LENGTH_SHORT).show()
+                            if (!isForce) {
+                                onDismiss()
+                            }
+                        } catch (e: Exception) {
+                            Toast.makeText(context, "লিংক ওপেন করা সম্ভব হয়নি।", Toast.LENGTH_SHORT).show()
                         }
-                        is UpdateDownloadState.Downloading -> {
-                            // Do nothing, downloading
-                        }
-                        else -> {
-                            scope.launch {
-                                AppUpdateManager.downloadApk(context, update.apk_url)
+                    } else {
+                        when (state) {
+                            is UpdateDownloadState.Success -> {
+                                AppUpdateManager.installApk(context, state.apkFile)
+                            }
+                            is UpdateDownloadState.Downloading -> {
+                                // Do nothing, downloading
+                            }
+                            else -> {
+                                scope.launch {
+                                    AppUpdateManager.downloadApk(context, update.apk_url)
+                                }
                             }
                         }
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (state is UpdateDownloadState.Success) Color(0xFF10B981) else accentColor
+                    containerColor = if (state is UpdateDownloadState.Success && isDirect) Color(0xFF10B981) else accentColor
                 ),
                 shape = RoundedCornerShape(10.dp)
             ) {
-                when (state) {
-                    is UpdateDownloadState.Downloading -> {
-                        Text("ডাউনলোড হচ্ছে...")
+                if (!isDirect) {
+                    if (update.apk_url.contains("t.me") || update.apk_url.contains("telegram")) {
+                        Text("টেলিগ্রাম থেকে আপডেট করুন 📢")
+                    } else {
+                        Text("ব্রাউজারে আপডেট করুন 🌐")
                     }
-                    is UpdateDownloadState.Success -> {
-                        Text("ইনস্টল করুন ⚙️")
-                    }
-                    is UpdateDownloadState.Error -> {
-                        Text("আবার চেষ্টা করুন 🔄")
-                    }
-                    else -> {
-                        Text("আপডেট করুন 📥")
+                } else {
+                    when (state) {
+                        is UpdateDownloadState.Downloading -> {
+                            Text("ডাউনলোড হচ্ছে...")
+                        }
+                        is UpdateDownloadState.Success -> {
+                            Text("ইনস্টল করুন ⚙️")
+                        }
+                        is UpdateDownloadState.Error -> {
+                            Text("আবার চেষ্টা করুন 🔄")
+                        }
+                        else -> {
+                            Text("আপডেট করুন 📥")
+                        }
                     }
                 }
             }
         },
         dismissButton = {
             val state = downloadState
-            if (!update.is_force_update && state !is UpdateDownloadState.Downloading) {
+            if (!isForce && state !is UpdateDownloadState.Downloading) {
                 TextButton(onClick = {
                     AppUpdateManager.resetState()
                     onDismiss()
@@ -241,6 +368,7 @@ fun UpdatePromptDialog(
 @Composable
 fun PublishUpdateDialog(
     accentColor: Color,
+    existingUpdate: AppUpdate? = null,
     onDismiss: () -> Unit,
     onPublished: () -> Unit
 ) {
@@ -248,11 +376,11 @@ fun PublishUpdateDialog(
     val scope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
 
-    var versionCodeInput by remember { mutableStateOf("") }
-    var versionNameInput by remember { mutableStateOf("") }
-    var apkUrlInput by remember { mutableStateOf("") }
-    var changelogInput by remember { mutableStateOf("") }
-    var isForceUpdate by remember { mutableStateOf(false) }
+    var versionCodeInput by remember { mutableStateOf(existingUpdate?.version_code?.toString() ?: "") }
+    var versionNameInput by remember { mutableStateOf(existingUpdate?.version_name ?: "") }
+    var apkUrlInput by remember { mutableStateOf(existingUpdate?.apk_url ?: "") }
+    var changelogInput by remember { mutableStateOf(existingUpdate?.changelog ?: "") }
+    var isForceUpdate by remember { mutableStateOf(existingUpdate?.is_force_update ?: false) }
     
     var isSubmitting by remember { mutableStateOf(false) }
     var showSqlInstructions by remember { mutableStateOf(false) }
@@ -295,7 +423,7 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                     modifier = Modifier.size(26.dp)
                 )
                 Text(
-                    text = "নতুন আপডেট রিলিজ করুন 📣",
+                    text = if (existingUpdate != null) "আপডেট এডিট করুন ✏️" else "নতুন আপডেট রিলিজ করুন 📣",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
                     color = Color(0xFF1E293B)
@@ -463,21 +591,28 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                     isSubmitting = true
                     scope.launch {
                         val updateRecord = AppUpdate(
+                            id = existingUpdate?.id,
                             version_code = vCode,
                             version_name = versionNameInput,
                             apk_url = apkUrlInput,
                             changelog = changelogInput,
                             is_force_update = isForceUpdate
                         )
-                        val result = AppUpdateManager.publishUpdate(updateRecord)
+                        val result = if (existingUpdate != null) {
+                            AppUpdateManager.updateUpdate(updateRecord)
+                        } else {
+                            AppUpdateManager.publishUpdate(updateRecord)
+                        }
                         isSubmitting = false
                         if (result.isSuccess) {
-                            Toast.makeText(context, "আপডেট সফলভাবে পাবলিশ হয়েছে! 🎉", Toast.LENGTH_LONG).show()
+                            val successMsg = if (existingUpdate != null) "আপডেট সফলভাবে এডিট হয়েছে! ✏️" else "আপডেট সফলভাবে পাবলিশ হয়েছে! 🎉"
+                            Toast.makeText(context, successMsg, Toast.LENGTH_LONG).show()
                             onPublished()
                             onDismiss()
                         } else {
                             val errMsg = result.exceptionOrNull()?.message ?: "Unknown error"
-                            Toast.makeText(context, "পাবলিশ ব্যর্থ হয়েছে: $errMsg", Toast.LENGTH_LONG).show()
+                            val failMsg = if (existingUpdate != null) "এডিট ব্যর্থ হয়েছে: $errMsg" else "পাবলিশ ব্যর্থ হয়েছে: $errMsg"
+                            Toast.makeText(context, failMsg, Toast.LENGTH_LONG).show()
                         }
                     }
                 },
@@ -492,7 +627,7 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                         strokeWidth = 2.dp
                     )
                 } else {
-                    Text("পাবলিশ করুন 🚀")
+                    Text(if (existingUpdate != null) "সংরক্ষণ করুন 💾" else "পাবলিশ করুন 🚀")
                 }
             }
         },

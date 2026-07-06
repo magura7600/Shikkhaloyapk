@@ -614,10 +614,20 @@ fun MainAppContent() {
         }
     }
 
+    val userIsAdmin = remember(appState) {
+        val state = appState
+        if (state is AppState.Dashboard) {
+            state.profile.role == "admin"
+        } else {
+            false
+        }
+    }
+
     if (activeUpdateToPrompt != null) {
         UpdatePromptDialog(
             update = activeUpdateToPrompt!!,
             accentColor = Color(0xFF6366F1),
+            isAdmin = userIsAdmin,
             onDismiss = { activeUpdateToPrompt = null }
         )
     }
@@ -3597,6 +3607,7 @@ fun SettingsScreen(
         UpdatePromptDialog(
             update = manualUpdateToPrompt!!,
             accentColor = accentColor,
+            isAdmin = isAdmin,
             onDismiss = { manualUpdateToPrompt = null }
         )
     }
