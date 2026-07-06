@@ -99,16 +99,18 @@ class PdfRenderManager(
         pdfRenderer = PdfRenderer(fileDescriptor!!)
         pageCount = pdfRenderer?.pageCount ?: 0
 
-        // Fixed high capacity page cache to ensure extremely smooth buttery scrolling
-        // on all devices without constantly evicting and reloading/re-rendering pages.
-        maxCacheSize = 32
+        // Use 1/6th of the available maximum JVM memory in Kilobytes.
+        val maxMemoryKb = (Runtime.getRuntime().maxMemory() / 1024).toInt()
+        val cacheSizeKb = (maxMemoryKb / 6).coerceAtLeast(4096) // Use at least 4MB (4096 KB)
+        maxCacheSize = cacheSizeKb
 
-        // We use an LRU Cache to cache loaded pages for buttery scrolling
-        bitmapCache = object : LruCache<Int, Bitmap>(maxCacheSize) {
+        // We use an LRU Cache sized in KB to cache loaded pages for buttery scrolling without OOM
+        bitmapCache = object : LruCache<Int, Bitmap>(cacheSizeKb) {
+            override fun sizeOf(key: Int, value: Bitmap): Int {
+                return value.byteCount / 1024
+            }
             override fun entryRemoved(evicted: Boolean, key: Int?, oldValue: Bitmap?, newValue: Bitmap?) {
                 // Since Android Oreo (API 26+), native memory for Bitmaps is managed cleanly by JVM GC.
-                // Releasing/recycling here manually during scrolling causes "trying to use recycled bitmap" 
-                // white pages or crashes because Jetpack Compose may still be drawing the evicted image.
                 // We drop the cache reference and let GC safely garbage-collect it when it leaves the viewport.
             }
         }
@@ -138,12 +140,44 @@ class PdfRenderManager(
     private fun renderPage(pageIndex: Int): Bitmap? {
         if (pdfRenderer == null) return null
         
+        var page: PdfRenderer.Page? = null
         try {
-            val page = pdfRenderer!!.openPage(pageIndex)
-            val width = (page.width * scaleFactor).toInt()
-            val height = (page.height * scaleFactor).toInt()
+            page = pdfRenderer!!.openPage(pageIndex)
+            var currentScale = scaleFactor
+            var bitmap: Bitmap? = null
             
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            // Try to allocate bitmap. If OOM, run GC and scale down to retry
+            var attempts = 0
+            while (attempts < 3) {
+                try {
+                    val width = (page.width * currentScale).toInt().coerceAtLeast(100)
+                    val height = (page.height * currentScale).toInt().coerceAtLeast(100)
+                    bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    break
+                } catch (oom: OutOfMemoryError) {
+                    System.gc()
+                    currentScale *= 0.6f
+                    attempts++
+                }
+            }
+            
+            if (bitmap == null) {
+                // Minimum fallback using memory efficient RGB_565
+                try {
+                    val width = page.width.coerceAtLeast(100)
+                    val height = page.height.coerceAtLeast(100)
+                    bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+                } catch (oom: OutOfMemoryError) {
+                    System.gc()
+                    try {
+                        val width = (page.width * 0.5f).toInt().coerceAtLeast(100)
+                        val height = (page.height * 0.5f).toInt().coerceAtLeast(100)
+                        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+                    } catch (t2: Throwable) {
+                        return null
+                    }
+                }
+            }
             
             // Clean white background before rendering
             bitmap.eraseColor(android.graphics.Color.WHITE)
@@ -151,8 +185,11 @@ class PdfRenderManager(
             page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
             page.close()
             return bitmap
-        } catch (e: Exception) {
-            e.printStackTrace()
+        } catch (t: Throwable) {
+            t.printStackTrace()
+            try {
+                page?.close()
+            } catch (e: Exception) {}
             return null
         }
     }
@@ -167,13 +204,19 @@ class PdfRenderManager(
             }
             
             if (pdfRenderer == null) return null
+            var page: PdfRenderer.Page? = null
             try {
-                val page = pdfRenderer!!.openPage(pageIndex)
+                page = pdfRenderer!!.openPage(pageIndex)
                 // Small resolution thumbnail for sidebar preview
                 val width = (page.width * 0.4f).toInt().coerceAtLeast(100)
                 val height = (page.height * 0.4f).toInt().coerceAtLeast(140)
                 
-                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                var bitmap = try {
+                    Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                } catch (oom: OutOfMemoryError) {
+                    System.gc()
+                    Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+                }
                 bitmap.eraseColor(android.graphics.Color.WHITE)
                 
                 page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
@@ -181,8 +224,11 @@ class PdfRenderManager(
                 
                 thumbnailCache.put(pageIndex, bitmap)
                 return bitmap
-            } catch (e: Exception) {
-                e.printStackTrace()
+            } catch (t: Throwable) {
+                t.printStackTrace()
+                try {
+                    page?.close()
+                } catch (e: Exception) {}
                 return null
             }
         }
@@ -278,7 +324,7 @@ fun PdfViewerDialog(
 
     // Comfort/Accessibility States
     var pdfTheme by remember { mutableStateOf(PdfTheme.Light) }
-    var isReadingMode by remember { mutableStateOf(false) }
+    var isReadingMode by remember { mutableStateOf(true) }
     var isRotationLocked by remember { mutableStateOf(false) }
     var isLargeTextMode by remember { mutableStateOf(false) }
     var isHighContrastMode by remember { mutableStateOf(false) }
@@ -852,7 +898,8 @@ fun PdfViewerDialog(
                                     fitMode = fitMode,
                                     modifier = Modifier.fillMaxSize(),
                                     pdfTheme = pdfTheme,
-                                    isHighContrastMode = isHighContrastMode
+                                    isHighContrastMode = isHighContrastMode,
+                                    onPageTap = { isReadingMode = !isReadingMode }
                                 )
                             }
                         } else {
@@ -872,7 +919,8 @@ fun PdfViewerDialog(
                                             .fillMaxWidth()
                                             .wrapContentHeight(),
                                         pdfTheme = pdfTheme,
-                                        isHighContrastMode = isHighContrastMode
+                                        isHighContrastMode = isHighContrastMode,
+                                        onPageTap = { isReadingMode = !isReadingMode }
                                     )
                                 }
                             }
@@ -1397,7 +1445,8 @@ fun PdfPageItem(
     fitMode: PdfFitMode,
     modifier: Modifier = Modifier,
     pdfTheme: PdfTheme = PdfTheme.Light,
-    isHighContrastMode: Boolean = false
+    isHighContrastMode: Boolean = false,
+    onPageTap: () -> Unit = {}
 ) {
     var bitmap by remember(pageIndex) { mutableStateOf<Bitmap?>(null) }
     
@@ -1477,6 +1526,9 @@ fun PdfPageItem(
                         } else {
                             scale = 2.5f
                         }
+                    },
+                    onTap = {
+                        onPageTap()
                     }
                 )
             }

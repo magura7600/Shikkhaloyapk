@@ -2183,6 +2183,27 @@ fun AddEditSubjectDialog(
     var newIconUrl by remember { mutableStateOf(initialSubject?.iconUrl ?: "") }
     var isUploadingLogo by remember { mutableStateOf(false) }
     
+    // Custom Slider States for visual color selection
+    var sliderHue by remember { mutableStateOf(350f) }
+    var sliderSaturation by remember { mutableStateOf(0.6f) }
+    var sliderValue by remember { mutableStateOf(1.0f) }
+
+    LaunchedEffect(newColorHex) {
+        try {
+            val cleanHex = if (newColorHex.startsWith("#")) newColorHex else "#$newColorHex"
+            if (cleanHex.length == 7 || cleanHex.length == 9) {
+                val colorInt = android.graphics.Color.parseColor(cleanHex)
+                val hsv = FloatArray(3)
+                android.graphics.Color.colorToHSV(colorInt, hsv)
+                sliderHue = hsv[0]
+                sliderSaturation = hsv[1]
+                sliderValue = hsv[2]
+            }
+        } catch (e: Exception) {
+            // Ignore temporary parsing errors while typing
+        }
+    }
+    
     val logoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
     ) { uri ->
@@ -2341,10 +2362,12 @@ fun AddEditSubjectDialog(
                 ) {
                     OutlinedTextField(
                         value = newColorHex,
-                        onValueChange = { 
-                            newColorHex = it
+                        onValueChange = { input ->
+                            // Automatically add # if missing and restrict to HEX characters
+                            val cleaned = if (input.isNotEmpty() && !input.startsWith("#")) "#$input" else input
+                            newColorHex = cleaned
                         },
-                        label = { Text("নিজের মতো কাস্টম কালার কোড (HEX)") },
+                        label = { Text("কাস্টম কালার কোড (HEX)") },
                         placeholder = { Text("#FF6B6B") },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
@@ -2353,7 +2376,8 @@ fun AddEditSubjectDialog(
                     
                     // Color Preview
                     val previewColor = try {
-                        Color(android.graphics.Color.parseColor(newColorHex))
+                        val cleanHex = if (newColorHex.startsWith("#")) newColorHex else "#$newColorHex"
+                        Color(android.graphics.Color.parseColor(cleanHex))
                     } catch (e: Exception) {
                         Color.Gray
                     }
@@ -2371,6 +2395,149 @@ fun AddEditSubjectDialog(
                         Text("প্রিভিউ", fontSize = 11.sp, color = Color.Gray)
                     }
                 }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Interactive sliders to visually pick any custom color
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
+                ) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text("কালার স্লাইডার ব্যবহার করে রং পছন্দ করুন:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        
+                        // Hue slider
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("রং পরিবর্তন (Hue)", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Text("${sliderHue.toInt()}°", fontSize = 12.sp, color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(14.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(
+                                        Brush.horizontalGradient(
+                                            listOf(
+                                                Color.Red, Color.Yellow, Color.Green, Color.Cyan, 
+                                                Color.Blue, Color.Magenta, Color.Red
+                                            )
+                                        )
+                                    )
+                            )
+                            Slider(
+                                value = sliderHue,
+                                onValueChange = { valHue ->
+                                    sliderHue = valHue
+                                    val colorInt = android.graphics.Color.HSVToColor(floatArrayOf(sliderHue, sliderSaturation, sliderValue))
+                                    newColorHex = String.format("#%06X", 0xFFFFFF and colorInt)
+                                },
+                                valueRange = 0f..360f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.White,
+                                    activeTrackColor = Color.Transparent,
+                                    inactiveTrackColor = Color.Transparent
+                                ),
+                                modifier = Modifier.height(28.dp)
+                            )
+                        }
+
+                        // Saturation slider
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("কালারের ঘনত্ব (Saturation)", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Text("${(sliderSaturation * 100).toInt()}%", fontSize = 12.sp, color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val saturationGradient = remember(sliderHue) {
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color.White, 
+                                        Color(android.graphics.Color.HSVToColor(floatArrayOf(sliderHue, 1f, 1f)))
+                                    )
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(14.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(saturationGradient)
+                            )
+                            Slider(
+                                value = sliderSaturation,
+                                onValueChange = { valSat ->
+                                    sliderSaturation = valSat
+                                    val colorInt = android.graphics.Color.HSVToColor(floatArrayOf(sliderHue, sliderSaturation, sliderValue))
+                                    newColorHex = String.format("#%06X", 0xFFFFFF and colorInt)
+                                },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.White,
+                                    activeTrackColor = Color.Transparent,
+                                    inactiveTrackColor = Color.Transparent
+                                ),
+                                modifier = Modifier.height(28.dp)
+                            )
+                        }
+
+                        // Value/Brightness/Lightness slider
+                        Column {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text("উজ্জ্বলতা (Brightness)", fontSize = 12.sp, fontWeight = FontWeight.Medium)
+                                Text("${(sliderValue * 100).toInt()}%", fontSize = 12.sp, color = Color.Gray)
+                            }
+                            Spacer(modifier = Modifier.height(4.dp))
+                            val valueGradient = remember(sliderHue, sliderSaturation) {
+                                Brush.horizontalGradient(
+                                    listOf(
+                                        Color.Black, 
+                                        Color(android.graphics.Color.HSVToColor(floatArrayOf(sliderHue, sliderSaturation, 1f)))
+                                    )
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(14.dp)
+                                    .clip(RoundedCornerShape(7.dp))
+                                    .background(valueGradient)
+                            )
+                            Slider(
+                                value = sliderValue,
+                                onValueChange = { valVal ->
+                                    sliderValue = valVal
+                                    val colorInt = android.graphics.Color.HSVToColor(floatArrayOf(sliderHue, sliderSaturation, sliderValue))
+                                    newColorHex = String.format("#%06X", 0xFFFFFF and colorInt)
+                                },
+                                valueRange = 0f..1f,
+                                colors = SliderDefaults.colors(
+                                    thumbColor = Color.White,
+                                    activeTrackColor = Color.Transparent,
+                                    inactiveTrackColor = Color.Transparent
+                                ),
+                                modifier = Modifier.height(28.dp)
+                            )
+                        }
+                    }
+                }
+                
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 val isMainCourse = initialSubject == null || initialSubject.sourceCourseId == null || initialSubject.sourceCourseId == course.id
