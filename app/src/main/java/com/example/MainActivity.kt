@@ -1571,6 +1571,15 @@ fun DashboardScreen(
                 } catch(e:Exception) { emptyList() }
             }
             courseInteractions = fetchedInteractions
+
+            try {
+                val fetchedMentors = withContext(Dispatchers.IO) {
+                    supabase.from("mentors").select().decodeList<Mentor>()
+                }
+                mentors = fetchedMentors
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
         } catch (e: Exception) {
             Toast.makeText(context, "Error loading courses: ${e.message}", Toast.LENGTH_SHORT).show()
         }
