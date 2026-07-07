@@ -42,6 +42,7 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.DateRange
+import androidx.compose.material.icons.filled.EventAvailable
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.PlayCircle
@@ -147,7 +148,10 @@ fun CourseDetailScreen(
     var isAddingSubjectTopBar by remember { mutableStateOf(false) }
     val mContext = LocalContext.current
     val isTeacher = course.channel_id == profile.user_id
-    
+    androidx.compose.runtime.LaunchedEffect(course) {
+        NotificationScheduler.scheduleClassNotifications(mContext, course)
+    }
+        
     var selectedChapterForView by remember { mutableStateOf<CourseChapter?>(null) }
     var selectedClassForView by remember { mutableStateOf<CourseClass?>(null) }
     val isClassActive = selectedClassForView != null
@@ -706,11 +710,20 @@ fun CourseContentSection(
                                             val start = java.time.LocalDate.parse(quarterObj.startDate, formatter)
                                             val end = java.time.LocalDate.parse(quarterObj.endDate, formatter)
                                             val today = java.time.LocalDate.now()
+                                            
+                                            val hasClasses = course.subjects.flatMap { it.chapters }.filter { (it.quarter.ifBlank { "Quarter 1" }) == qName }.flatMap { it.classes }.isNotEmpty()
                                             if (today.isBefore(start)) {
-                                                quarterStatus = "পড়ানো হবে"
-                                                statusBgColor = if (isSelected) Color(0xFF93C5FD).copy(alpha = 0.3f) else Color(0xFFDBEAFE)
-                                                statusTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
+                                                if (hasClasses) {
+                                                    quarterStatus = "পড়ানো হচ্ছে"
+                                                    statusBgColor = if (isSelected) Color(0xFFFEF08A).copy(alpha = 0.3f) else Color(0xFFFEF9C3)
+                                                    statusTextColor = if (isSelected) Color.White else Color(0xFF854D0E)
+                                                } else {
+                                                    quarterStatus = "পড়ানো হবে"
+                                                    statusBgColor = if (isSelected) Color(0xFF93C5FD).copy(alpha = 0.3f) else Color(0xFFDBEAFE)
+                                                    statusTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
+                                                }
                                             } else if (today.isAfter(end)) {
+
                                                 quarterStatus = "পড়ানো শেষ"
                                                 statusBgColor = if (isSelected) Color(0xFFD1FAE5).copy(alpha = 0.3f) else Color(0xFFD1FAE5)
                                                 statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
@@ -1078,11 +1091,20 @@ fun CourseContentSection(
                                             val start = java.time.LocalDate.parse(quarterObj.startDate, formatter)
                                             val end = java.time.LocalDate.parse(quarterObj.endDate, formatter)
                                             val today = java.time.LocalDate.now()
+                                            
+                                            val hasClasses = course.subjects.flatMap { it.chapters }.filter { (it.quarter.ifBlank { "Quarter 1" }) == qName }.flatMap { it.classes }.isNotEmpty()
                                             if (today.isBefore(start)) {
-                                                quarterStatus = "পড়ানো হবে"
-                                                statusBgColor = if (isSelected) Color(0xFF93C5FD).copy(alpha = 0.3f) else Color(0xFFDBEAFE)
-                                                statusTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
+                                                if (hasClasses) {
+                                                    quarterStatus = "পড়ানো হচ্ছে"
+                                                    statusBgColor = if (isSelected) Color(0xFFFEF08A).copy(alpha = 0.3f) else Color(0xFFFEF9C3)
+                                                    statusTextColor = if (isSelected) Color.White else Color(0xFF854D0E)
+                                                } else {
+                                                    quarterStatus = "পড়ানো হবে"
+                                                    statusBgColor = if (isSelected) Color(0xFF93C5FD).copy(alpha = 0.3f) else Color(0xFFDBEAFE)
+                                                    statusTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
+                                                }
                                             } else if (today.isAfter(end)) {
+
                                                 quarterStatus = "পড়ানো শেষ"
                                                 statusBgColor = if (isSelected) Color(0xFFD1FAE5).copy(alpha = 0.3f) else Color(0xFFD1FAE5)
                                                 statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
@@ -1277,12 +1299,33 @@ fun CourseContentSection(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 24.dp)
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                        .padding(16.dp),
+                        .padding(vertical = 32.dp)
+                        .background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
+                        .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("এই কোয়ার্টারে কোনো অধ্যায় যোগ করা হয়নি।", color = Color.Gray, fontSize = 14.sp)
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(
+                            imageVector = Icons.Default.EventAvailable,
+                            contentDescription = "Empty",
+                            modifier = Modifier.size(64.dp),
+                            tint = Color(0xFF94A3B8)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text(
+                            text = "এই কোয়ার্টারে ক্লাস শুরু হয়নি",
+                            color = Color(0xFF475569),
+                            fontSize = 18.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "খুব শীঘ্রই এই কোয়ার্টারের ক্লাস শুরু হবে। প্রস্তুতি নিতে থাকুন!",
+                            color = Color(0xFF64748B),
+                            fontSize = 14.sp,
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        )
+                    }
                 }
             } else {
                 chaptersToShow.forEach { chapter ->
@@ -2848,10 +2891,15 @@ fun VideoPlayer(
     }
 
     DisposableEffect(Unit) {
+        val originalBrightness = activity?.window?.attributes?.screenBrightness ?: -1f
         onDispose {
             exoPlayer.release()
             if (activity != null) {
                 activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                // Restore original brightness
+                val lp = activity.window.attributes
+                lp.screenBrightness = originalBrightness
+                activity.window.attributes = lp
             }
         }
     }

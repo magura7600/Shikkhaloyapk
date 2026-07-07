@@ -9,9 +9,12 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +25,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -29,6 +33,7 @@ import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.File
+import androidx.compose.foundation.shape.RoundedCornerShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -93,39 +98,125 @@ fun PdfViewerDialog(
             }
         }
 
+        val listState = rememberLazyListState()
+        val firstVisibleItemIndex by remember { derivedStateOf { listState.firstVisibleItemIndex } }
+
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text(title, fontSize = 16.sp, maxLines = 1) },
+                    title = { 
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.fillMaxWidth().padding(end = 48.dp) // Offset for back button to center text
+                        ) {
+                            Text(
+                                text = "ক্লাসের লেকচার ফাইল:", 
+                                fontSize = 18.sp, 
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF1E293B)
+                            )
+                            if (pageCount > 0) {
+                                Text(
+                                    text = "পৃষ্ঠা: ${firstVisibleItemIndex + 1} / $pageCount",
+                                    fontSize = 14.sp,
+                                    color = Color(0xFF1E3A8A)
+                                )
+                            }
+                        }
+                    },
                     navigationIcon = {
                         IconButton(onClick = onClose) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF1E293B))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.White
-                    )
+                    ),
+                    modifier = Modifier
                 )
             },
-            containerColor = Color(0xFFE5E7EB) // Light gray background for contrast
+            containerColor = Color(0xFFE8EDF1)
         ) { paddingValues ->
             if (error) {
                 Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
                     Text("পিডিএফ লোড করা যায়নি।", color = Color.Red, fontSize = 16.sp)
                 }
             } else if (pageCount > 0 && pdfRenderer != null) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(paddingValues),
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    items(pageCount) { index ->
-                        PdfPageSimple(pdfRenderer!!, index)
+                var scale by remember { mutableStateOf(1f) }
+                var offsetX by remember { mutableStateOf(0f) }
+                var offsetY by remember { mutableStateOf(0f) }
+
+                val state = rememberTransformableState { zoomChange, offsetChange, _ ->
+                    scale = (scale * zoomChange).coerceIn(1f, 5f)
+                    if (scale > 1f) {
+                        offsetX += offsetChange.x
+                        offsetY += offsetChange.y
+                    } else {
+                        offsetX = 0f
+                        offsetY = 0f
                     }
                 }
-            } else {
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(paddingValues)
+                        .clipToBounds()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onDoubleTap = {
+                                        scale = 1f
+                                        offsetX = 0f
+                                        offsetY = 0f
+                                    }
+                                )
+                            }
+                            .transformable(state = state)
+                    ) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .graphicsLayer(
+                                scaleX = scale,
+                                scaleY = scale,
+                                translationX = offsetX,
+                                translationY = offsetY
+                            ),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        userScrollEnabled = scale == 1f // Only allow scrolling when not zoomed
+                    ) {
+                        items(pageCount) { index ->
+                            PdfPageSimple(pdfRenderer!!, index)
+                        }
+                    }
+                }
+                
+                // Floating Page Indicator
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopCenter)
+                        .padding(top = 16.dp)
+                        .background(
+                            color = Color(0xAA000000),
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        text = "পৃষ্ঠা: ${firstVisibleItemIndex + 1} / $pageCount",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        } else {
                 Box(modifier = Modifier.fillMaxSize().padding(paddingValues), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator()
                 }
@@ -145,7 +236,6 @@ fun PdfPageSimple(pdfRenderer: PdfRenderer, pageIndex: Int) {
                 var bmp: Bitmap? = null
                 synchronized(pdfRenderer) {
                     val page = pdfRenderer.openPage(pageIndex)
-                    // High resolution for clear zooming (2.0f)
                     val width = (page.width * 2f).toInt()
                     val height = (page.height * 2f).toInt()
                     
@@ -153,7 +243,6 @@ fun PdfPageSimple(pdfRenderer: PdfRenderer, pageIndex: Int) {
                         bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                     } catch (e: OutOfMemoryError) {
                         System.gc()
-                        // Fallback to standard resolution if high-res fails
                         bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
                     }
                     
@@ -177,48 +266,17 @@ fun PdfPageSimple(pdfRenderer: PdfRenderer, pageIndex: Int) {
         }
     }
 
-    var scale by remember { mutableStateOf(1f) }
-    var offsetX by remember { mutableStateOf(0f) }
-    var offsetY by remember { mutableStateOf(0f) }
-
-    val state = rememberTransformableState { zoomChange, offsetChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 5f)
-        if (scale > 1f) {
-            offsetX += offsetChange.x
-            offsetY += offsetChange.y
-        } else {
-            offsetX = 0f
-            offsetY = 0f
-        }
-    }
-
     Card(
         modifier = Modifier.fillMaxWidth().clipToBounds(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+        shape = RoundedCornerShape(8.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         if (bitmap != null) {
             Image(
                 bitmap = bitmap!!.asImageBitmap(),
                 contentDescription = "Page ${pageIndex + 1}",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .transformable(state = state)
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onDoubleTap = {
-                                scale = 1f
-                                offsetX = 0f
-                                offsetY = 0f
-                            }
-                        )
-                    }
-                    .graphicsLayer(
-                        scaleX = scale,
-                        scaleY = scale,
-                        translationX = offsetX,
-                        translationY = offsetY
-                    ),
+                modifier = Modifier.fillMaxWidth(),
                 contentScale = ContentScale.FillWidth
             )
         } else if (pageError) {
@@ -229,7 +287,16 @@ fun PdfPageSimple(pdfRenderer: PdfRenderer, pageIndex: Int) {
                     .background(Color.White),
                 contentAlignment = Alignment.Center
             ) {
-                Text("পৃষ্ঠাটি লোড করা যায়নি", color = Color.Red)
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        Icons.Filled.Warning,
+                        contentDescription = "Error",
+                        tint = Color.Red,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("পৃষ্ঠাটি লোড করা যায়নি", color = Color.Red, fontSize = 14.sp)
+                }
             }
         } else {
             Box(
