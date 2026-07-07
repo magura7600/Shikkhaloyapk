@@ -7,9 +7,9 @@ import android.os.ParcelFileDescriptor
 import android.util.LruCache
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTransformGestures
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -17,8 +17,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ErrorOutline
-import androidx.compose.material.icons.filled.MenuBook
-import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +30,6 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,8 +40,7 @@ import kotlinx.coroutines.withContext
 import java.io.File
 
 /**
- * A highly reliable and thread-safe wrapper around native Android [PdfRenderer].
- * Safely handles memory constraints, scaling, and OOM fallbacks.
+ * Clean, lightweight, and memory-safe PDF Renderer wrapper.
  */
 class SimplePdfRenderer(private val file: File) {
     private var fileDescriptor: ParcelFileDescriptor? = null
@@ -63,37 +59,26 @@ class SimplePdfRenderer(private val file: File) {
     }
 
     /**
-     * Renders a given PDF page to a Bitmap on a background thread.
-     * Scale 1.5f provides sharp, readable text on most screen sizes.
+     * Renders a page directly in ARGB_8888 format (required by native PdfRenderer).
      */
-    fun renderPage(pageIndex: Int, scale: Float = 1.5f): Bitmap? {
+    fun renderPage(pageIndex: Int): Bitmap? {
         val renderer = pdfRenderer ?: return null
         synchronized(this) {
             if (pageIndex < 0 || pageIndex >= pageCount) return null
             var page: PdfRenderer.Page? = null
             try {
                 page = renderer.openPage(pageIndex)
-                val width = (page.width * scale).toInt().coerceAtLeast(100)
-                val height = (page.height * scale).toInt().coerceAtLeast(100)
+                // Use a standard clear rendering scale (1.5f provides crisp text without huge memory)
+                val width = (page.width * 1.5f).toInt().coerceAtLeast(100)
+                val height = (page.height * 1.5f).toInt().coerceAtLeast(100)
                 
-                var bitmap: Bitmap? = null
-                try {
-                    bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                } catch (oom: OutOfMemoryError) {
-                    System.gc()
-                    try {
-                        bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
-                    } catch (t: Throwable) {
-                        // Fallback to low-res safe scaling if still struggling
-                        val lowerWidth = (width * 0.6f).toInt().coerceAtLeast(100)
-                        val lowerHeight = (height * 0.6f).toInt().coerceAtLeast(100)
-                        bitmap = Bitmap.createBitmap(lowerWidth, lowerHeight, Bitmap.Config.RGB_565)
-                    }
-                }
-                
-                bitmap?.eraseColor(android.graphics.Color.WHITE)
-                page.render(bitmap!!, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                bitmap.eraseColor(android.graphics.Color.WHITE)
+                page.render(bitmap, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                 return bitmap
+            } catch (oom: OutOfMemoryError) {
+                System.gc()
+                return null
             } catch (e: Exception) {
                 e.printStackTrace()
                 return null
@@ -120,9 +105,9 @@ class SimplePdfRenderer(private val file: File) {
 }
 
 /**
- * Standalone clean utility to map numeric strings to Bengali localized digits.
+ * Bengali digits helper for localization.
  */
-private fun convertToBengaliDigitsLocal(input: String): String {
+private fun toBengaliDigits(input: String): String {
     val bengaliDigits = charArrayOf('০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯')
     val builder = StringBuilder()
     for (char in input) {
@@ -136,8 +121,8 @@ private fun convertToBengaliDigitsLocal(input: String): String {
 }
 
 /**
- * Beautifully simplified, modern full-screen PDF Viewer Dialog.
- * Light, fast, supports vertical smooth scrolling, pinch-to-zoom, and memory-safe caching.
+ * Complete replacement for PdfViewerDialog.
+ * Beautiful, ultra-simple, vertically scrollable pages with buttery rendering and custom double-tap + pinch-to-zoom.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -158,7 +143,7 @@ fun PdfViewerDialog(
         withContext(Dispatchers.IO) {
             try {
                 if (!file.exists() || file.length() == 0L) {
-                    throw Exception("File empty or does not exist")
+                    throw Exception("File is empty or missing")
                 }
                 val r = SimplePdfRenderer(file)
                 if (r.pageCount > 0) {
@@ -175,24 +160,20 @@ fun PdfViewerDialog(
         }
     }
 
-    // Safely release system files and handles
     DisposableEffect(renderer) {
         onDispose {
             renderer?.close()
         }
     }
 
-    // Keep memory cache of rendered pages to ensure smooth butter scrolling
-    val bitmapCache = remember { LruCache<Int, Bitmap>(10) }
+    // High performance localized bitmap cache (retains last 8 pages for fast scrolling)
+    val bitmapCache = remember { LruCache<Int, Bitmap>(8) }
     val lazyListState = rememberLazyListState()
 
-    // Determine the first visible page index dynamically
-    val visiblePageIndex = remember {
+    val visiblePageIndex by remember {
         derivedStateOf {
-            val layoutInfo = lazyListState.layoutInfo
-            val visibleItems = layoutInfo.visibleItemsInfo
-            if (visibleItems.isEmpty()) 0
-            else visibleItems.first().index
+            val visibleItems = lazyListState.layoutInfo.visibleItemsInfo
+            if (visibleItems.isEmpty()) 0 else visibleItems.first().index
         }
     }
 
@@ -204,6 +185,7 @@ fun PdfViewerDialog(
             dismissOnClickOutside = false
         )
     ) {
+        // Force full screen window
         val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
         LaunchedEffect(dialogWindow) {
             dialogWindow?.let { window ->
@@ -219,48 +201,40 @@ fun PdfViewerDialog(
             topBar = {
                 CenterAlignedTopAppBar(
                     title = {
-                        Text(
-                            text = title,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = title,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurface
+                            )
+                            if (pageCount > 0) {
+                                Text(
+                                    text = "পৃষ্ঠা: ${toBengaliDigits((visiblePageIndex + 1).toString())} / ${toBengaliDigits(pageCount.toString())}",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
                     },
                     navigationIcon = {
                         IconButton(onClick = onClose) {
                             Icon(
                                 imageVector = Icons.Default.ArrowBack,
                                 contentDescription = "Back",
-                                tint = MaterialTheme.colorScheme.primary
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
                         }
                     },
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(4.dp)
-                    ),
-                    actions = {
-                        if (url.isNotBlank()) {
-                            IconButton(onClick = {
-                                try {
-                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {
-                                    android.widget.Toast.makeText(context, "ব্রাউজারে ওপেন করা যায়নি", android.widget.Toast.LENGTH_SHORT).show()
-                                }
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Default.OpenInBrowser,
-                                    contentDescription = "Open in browser",
-                                    tint = MaterialTheme.colorScheme.primary
-                                )
-                            }
-                        }
-                    }
+                        containerColor = MaterialTheme.colorScheme.surface
+                    )
                 )
             },
-            containerColor = Color(0xFFF1F5F9) // Clean slate theme background to highlight sheet pages
+            containerColor = Color(0xFFE2E8F0) // Clean slate-gray neutral backdrop to emphasize the white paper pages
         ) { paddingValues ->
             Box(
                 modifier = Modifier
@@ -277,7 +251,7 @@ fun PdfViewerDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Default.ErrorOutline,
-                            contentDescription = "Corrupted",
+                            contentDescription = "Corrupted File",
                             tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(64.dp)
                         )
@@ -292,8 +266,7 @@ fun PdfViewerDialog(
                         Text(
                             text = "ফাইলটি ক্ষতিগ্রস্থ বা খালি হতে পারে।",
                             fontSize = 14.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                         Spacer(modifier = Modifier.height(24.dp))
                         Button(
@@ -330,41 +303,10 @@ fun PdfViewerDialog(
                             verticalArrangement = Arrangement.spacedBy(16.dp)
                         ) {
                             items(pageCount) { index ->
-                                PdfPageItem(
+                                PdfPageCard(
                                     renderer = activeRenderer,
                                     pageIndex = index,
                                     bitmapCache = bitmapCache
-                                )
-                            }
-                        }
-
-                        // Floating Pill Indicator for current page index
-                        Card(
-                            modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .padding(16.dp)
-                                .shadow(8.dp, RoundedCornerShape(24.dp)),
-                            shape = RoundedCornerShape(24.dp),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceColorAtElevation(6.dp)
-                            )
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.MenuBook,
-                                    contentDescription = "Page Index Indicator",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    text = "${convertToBengaliDigitsLocal((visiblePageIndex.value + 1).toString())} / ${convertToBengaliDigitsLocal(pageCount.toString())}",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
                                 )
                             }
                         }
@@ -376,20 +318,20 @@ fun PdfViewerDialog(
 }
 
 /**
- * Individual PDF Page Composable.
- * Features background rendering, tap-to-zoom, dynamic pinch to zoom, and memory caching.
+ * Beautiful, reliable PDF Page container.
+ * Renders on a worker thread and supports intuitive pinch-to-zoom & double tap zoom.
  */
 @Composable
-fun PdfPageItem(
+fun PdfPageCard(
     renderer: SimplePdfRenderer,
     pageIndex: Int,
-    bitmapCache: LruCache<Int, Bitmap>,
-    modifier: Modifier = Modifier
+    bitmapCache: LruCache<Int, Bitmap>
 ) {
     var bitmap by remember(pageIndex) { mutableStateOf<Bitmap?>(bitmapCache.get(pageIndex)) }
     var isLoading by remember(pageIndex) { mutableStateOf(bitmap == null) }
     var hasError by remember(pageIndex) { mutableStateOf(false) }
 
+    // Load page bitmap asynchronously
     LaunchedEffect(pageIndex) {
         if (bitmap == null) {
             isLoading = true
@@ -419,51 +361,77 @@ fun PdfPageItem(
         }
     }
 
+    // Zoom and translation gestures
     var scale by remember { mutableStateOf(1f) }
-    var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var offsetX by remember { mutableStateOf(0f) }
+    var offsetY by remember { mutableStateOf(0f) }
 
-    val state = rememberTransformableState { zoomChange, offsetChange, _ ->
-        scale = (scale * zoomChange).coerceIn(1f, 4f)
-        offset += offsetChange
-        if (scale == 1f) {
-            offset = androidx.compose.ui.geometry.Offset.Zero
-        }
+    val aspectRatio = if (bitmap != null) {
+        bitmap!!.width.toFloat() / bitmap!!.height.toFloat()
+    } else {
+        0.707f // A4 standard ratio fallback
     }
 
     Card(
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(12.dp))
+            .shadow(6.dp, RoundedCornerShape(12.dp))
+            .border(1.dp, Color(0xFFCBD5E1), RoundedCornerShape(12.dp))
             .clip(RoundedCornerShape(12.dp)),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .aspectRatio(if (bitmap != null) bitmap!!.width.toFloat() / bitmap!!.height.toFloat() else 0.707f)
+                .aspectRatio(aspectRatio)
                 .background(Color.White)
                 .pointerInput(Unit) {
+                    detectTransformGestures { _, pan, zoom, _ ->
+                        scale = (scale * zoom).coerceIn(1f, 4f)
+                        if (scale > 1f) {
+                            offsetX += pan.x
+                            offsetY += pan.y
+                            
+                            // Prevent dragging page completely off the screen
+                            val maxOffsetX = (size.width * (scale - 1)) / 2
+                            val maxOffsetY = (size.height * (scale - 1)) / 2
+                            offsetX = offsetX.coerceIn(-maxOffsetX, maxOffsetX)
+                            offsetY = offsetY.coerceIn(-maxOffsetY, maxOffsetY)
+                        } else {
+                            offsetX = 0f
+                            offsetY = 0f
+                        }
+                    }
+                }
+                .pointerInput(Unit) {
+                    // Quick double-tap zoom
                     detectTapGestures(
                         onDoubleTap = {
-                            scale = if (scale > 1f) 1f else 2f
-                            offset = androidx.compose.ui.geometry.Offset.Zero
+                            if (scale > 1f) {
+                                scale = 1f
+                                offsetX = 0f
+                                offsetY = 0f
+                            } else {
+                                scale = 2.5f
+                            }
                         }
                     )
-                }
-                .transformable(state = state),
+                },
             contentAlignment = Alignment.Center
         ) {
             if (isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(36.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    strokeWidth = 3.dp
-                )
+                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(36.dp),
+                        strokeWidth = 3.dp
+                    )
+                }
             } else if (hasError || bitmap == null) {
                 Column(
+                    modifier = Modifier.fillMaxSize(),
                     horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center,
-                    modifier = Modifier.padding(16.dp)
+                    verticalArrangement = Arrangement.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.ErrorOutline,
@@ -475,7 +443,8 @@ fun PdfPageItem(
                     Text(
                         text = "পৃষ্ঠাটি লোড করা যায়নি",
                         fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.error
+                        color = MaterialTheme.colorScheme.error,
+                        fontWeight = FontWeight.Medium
                     )
                 }
             } else {
@@ -487,8 +456,8 @@ fun PdfPageItem(
                         .graphicsLayer(
                             scaleX = scale,
                             scaleY = scale,
-                            translationX = offset.x,
-                            translationY = offset.y
+                            translationX = offsetX,
+                            translationY = offsetY
                         ),
                     contentScale = ContentScale.Fit
                 )
