@@ -160,12 +160,15 @@ fun CourseDetailScreen(
     // Check automatic quarter selection based on current date
     var initialSelectedQuarterName by remember { mutableStateOf<String?>(null) }
     var selectedSubjectForView by remember { mutableStateOf<CourseSubject?>(null) }
+    var showLearningResourcesForSubject by remember { mutableStateOf<CourseSubject?>(null) }
 
     BackHandler(enabled = true) {
         if (selectedClassForView != null) {
             selectedClassForView = null
         } else if (selectedChapterForView != null) {
             selectedChapterForView = null
+        } else if (showLearningResourcesForSubject != null) {
+            showLearningResourcesForSubject = null
         } else if (selectedSubjectForView != null) {
             selectedSubjectForView = null
         } else {
@@ -378,6 +381,8 @@ fun CourseDetailScreen(
                         onCourseUpdate = onCourseUpdate,
                         selectedSubjectForView = selectedSubjectForView,
                         onSelectedSubjectChange = { s: CourseSubject? -> selectedSubjectForView = s },
+                        showLearningResourcesForSubject = showLearningResourcesForSubject,
+                        onShowLearningResourcesForSubjectChange = { s -> showLearningResourcesForSubject = s },
                         selectedChapterForView = selectedChapterForView,
                         onSelectedChapterChange = { ch: CourseChapter? -> selectedChapterForView = ch },
                         selectedClassForView = selectedClassForView,
@@ -412,6 +417,8 @@ fun CourseDetailScreen(
                             onCourseUpdate = onCourseUpdate,
                             selectedSubjectForView = selectedSubjectForView,
                             onSelectedSubjectChange = { s: CourseSubject? -> selectedSubjectForView = s },
+                            showLearningResourcesForSubject = showLearningResourcesForSubject,
+                            onShowLearningResourcesForSubjectChange = { s -> showLearningResourcesForSubject = s },
                             selectedChapterForView = selectedChapterForView,
                             onSelectedChapterChange = { ch: CourseChapter? -> selectedChapterForView = ch },
                             selectedClassForView = selectedClassForView,
@@ -444,6 +451,8 @@ fun CourseContentSection(
     onCourseUpdate: ((CourseItem) -> Unit)? = null,
     selectedSubjectForView: CourseSubject?,
     onSelectedSubjectChange: (CourseSubject?) -> Unit,
+    showLearningResourcesForSubject: CourseSubject?,
+    onShowLearningResourcesForSubjectChange: (CourseSubject?) -> Unit,
     selectedChapterForView: CourseChapter?,
     onSelectedChapterChange: (CourseChapter?) -> Unit,
     selectedClassForView: CourseClass?,
@@ -577,6 +586,23 @@ fun CourseContentSection(
             },
             onViewClassDetail = { clazz ->
                 onSelectedClassChange(clazz)
+            }
+        )
+    } else if (showLearningResourcesForSubject != null) {
+        val subject = currentSubject ?: showLearningResourcesForSubject
+        LearningResourcesScreen(
+            subject = subject,
+            course = course,
+            isTeacher = isTeacher,
+            accentColor = accentColor,
+            onBack = { onShowLearningResourcesForSubjectChange(null) },
+            onUpdateSubject = { updatedSubject ->
+                onSelectedSubjectChange(updatedSubject)
+                val updatedSubjects = course.subjects.map { if (it.id == updatedSubject.id) updatedSubject else it }
+                onUpdate(updatedSubjects)
+                syncSubjectToAllCourses(updatedSubject)
+                // keep the dialog open with the updated subject
+                onShowLearningResourcesForSubjectChange(updatedSubject)
             }
         )
     } else if (selectedSubjectForView == null) {
@@ -1164,7 +1190,7 @@ fun CourseContentSection(
 
             // 2. Learning Resources Banner (Screenshot 2 style)
             Card(
-                onClick = { isResourcesExpanded = !isResourcesExpanded },
+                onClick = { onShowLearningResourcesForSubjectChange(subj) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 16.dp),
@@ -1194,72 +1220,11 @@ fun CourseContentSection(
                         )
                     }
                     Text(
-                        text = if (isResourcesExpanded) "↓" else "→",
+                        text = "→",
                         color = Color.White,
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
-                }
-            }
-            if (isResourcesExpanded) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                        .background(Color.White, RoundedCornerShape(12.dp))
-                        .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp))
-                        .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    if (subj.learningResources.isEmpty()) {
-                        Text("কোনো রিসোর্স যোগ করা হয়নি।", color = Color.Gray, fontSize = 14.sp)
-                    } else {
-                        subj.learningResources.forEachIndexed { index, resource ->
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .clickable {
-                                        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse(resource.url))
-                                        try { mContext.startActivity(intent) } catch (e: Exception) { }
-                                    }
-                                    .padding(vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Icon(Icons.Default.Link, contentDescription = "Link", tint = Color(0xFF3B82F6), modifier = Modifier.size(20.dp))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Text(resource.title, color = Color(0xFF1D4ED8), fontWeight = FontWeight.Medium, fontSize = 15.sp, modifier = Modifier.weight(1f))
-                                if (isTeacher) {
-                                    IconButton(
-                                        onClick = {
-                                            val updatedResources = subj.learningResources.toMutableList().apply { removeAt(index) }
-                                            val updatedSubject = subj.copy(learningResources = updatedResources)
-                                            val updatedSubjects = course.subjects.map { if (it.id == subj.id) updatedSubject else it }
-                                            onUpdate(updatedSubjects)
-                                            syncSubjectToAllCourses(updatedSubject)
-                                        },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red, modifier = Modifier.size(16.dp))
-                                    }
-                                }
-                            }
-                            if (index < subj.learningResources.size - 1) {
-                                Divider(color = Color(0xFFE2E8F0))
-                            }
-                        }
-                    }
-                    if (isTeacher) {
-                        Button(
-                            onClick = { isAddingResource = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEFF6FF), contentColor = Color(0xFF1D4ED8)),
-                            shape = RoundedCornerShape(8.dp)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add", modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("নতুন রিসোর্স যোগ করুন")
-                        }
-                    }
                 }
             }
             
@@ -2854,6 +2819,18 @@ fun VideoPlayer(
         }
     }
 
+    // Keep screen on while playing
+    DisposableEffect(isPlaying, activity) {
+        if (isPlaying) {
+            activity?.window?.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        } else {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+        onDispose {
+            activity?.window?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
+
     // Observe player listener
     DisposableEffect(exoPlayer) {
         val listener = object : androidx.media3.common.Player.Listener {
@@ -3961,10 +3938,11 @@ fun ClassDetailView(
         }
 
         // Video Player Placeholder or Actual Player or Live Countdown Timer
-        if (isClassUpcoming(clazz)) {
+        // Video Player Placeholder or Actual Player or Live Countdown Timer
+        // Video Player Placeholder or Actual Player or Live Countdown Timer
+        if (clazz.recordedLink.isBlank()) {
             val targetTime = getClassCalendar(clazz.date, clazz.time)?.timeInMillis ?: 0L
             var timeRemainingMillis by remember { mutableStateOf(0L) }
-
             LaunchedEffect(targetTime) {
                 while (true) {
                     val now = System.currentTimeMillis()
@@ -3975,11 +3953,35 @@ fun ClassDetailView(
                     kotlinx.coroutines.delay(1000)
                 }
             }
-
             val days = timeRemainingMillis / (1000 * 60 * 60 * 24)
             val hours = (timeRemainingMillis / (1000 * 60 * 60)) % 24
             val minutes = (timeRemainingMillis / (1000 * 60)) % 60
             val seconds = (timeRemainingMillis / 1000) % 60
+            
+            val isLiveActive = timeRemainingMillis <= 0L
+            val isWaitingForLive = isLiveActive && clazz.liveLink.isBlank()
+            
+            DisposableEffect(isWaitingForLive) {
+                var mediaPlayer: android.media.MediaPlayer? = null
+                if (isWaitingForLive) {
+                    try {
+                        val waitingMusicRes = context.resources.getIdentifier("waiting_music", "raw", context.packageName)
+                        if (waitingMusicRes != 0) {
+                            mediaPlayer = android.media.MediaPlayer.create(context, waitingMusicRes)
+                            mediaPlayer?.isLooping = true
+                            mediaPlayer?.start()
+                        }
+                    } catch (e: Exception) {}
+                }
+                onDispose {
+                    try {
+                        if (mediaPlayer?.isPlaying == true) {
+                            mediaPlayer?.stop()
+                        }
+                        mediaPlayer?.release()
+                    } catch (e: Exception) {}
+                }
+            }
 
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
@@ -3995,72 +3997,117 @@ fun ClassDetailView(
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(accentColor.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
-                            .border(1.dp, accentColor, RoundedCornerShape(20.dp))
+                            .background(if (isLiveActive) Color(0xFFEF4444) else accentColor.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
+                            .border(1.dp, if (isLiveActive) Color(0xFFEF4444) else accentColor, RoundedCornerShape(20.dp))
                             .padding(horizontal = 16.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(
                                 modifier = Modifier
                                     .size(8.dp)
-                                    .background(accentColor, CircleShape)
+                                    .background(if (isLiveActive) Color.White else accentColor, CircleShape)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                "লাইভ ক্লাস শুরু হতে বাকি",
+                                if (isLiveActive && !isWaitingForLive) "লাইভ ক্লাস চলছে" else if (isWaitingForLive) "ক্লাস শুরু হচ্ছে..." else "লাইভ ক্লাস শুরু হতে বাকি",
                                 color = Color.White,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CountdownUnit(value = days, label = "দিন")
-                        CountdownDivider()
-                        CountdownUnit(value = hours, label = "ঘণ্টা")
-                        CountdownDivider()
-                        CountdownUnit(value = minutes, label = "মিনিট")
-                        CountdownDivider()
-                        CountdownUnit(value = seconds, label = "সেকেন্ড")
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Surface(
-                        color = Color.White.copy(alpha = 0.05f),
-                        shape = RoundedCornerShape(16.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
+                    
+                    if (isWaitingForLive) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        // Pulsing / glowing animation for "Getting ready"
+                        val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition()
+                        val scale by infiniteTransition.animateFloat(
+                            initialValue = 1f,
+                            targetValue = 1.05f,
+                            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                                animation = androidx.compose.animation.core.tween(1000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                            )
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color.White.copy(alpha = 0.1f), RoundedCornerShape(16.dp))
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.DateRange,
-                                contentDescription = null,
-                                tint = accentColor,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Text(
-                                text = "${if (clazz.date.isNotBlank()) clazz.date else "5 May 2026"} • ${if (clazz.time.isNotBlank()) clazz.time else "11:01 AM"}",
-                                color = Color.LightGray,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Medium
-                            )
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(
+                                    imageVector = Icons.Default.Edit,
+                                    contentDescription = null,
+                                    tint = Color(0xFF34D399),
+                                    modifier = Modifier.size(32.dp).graphicsLayer(scaleX = scale, scaleY = scale)
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "ক্লাস শুরু হচ্ছে!",
+                                    color = Color.White,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "খাতা কলম নিয়ে রেডি হন",
+                                    color = Color.LightGray,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
                         }
                     }
-
+                    
+                    if (!isLiveActive) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            CountdownUnit(value = days, label = "দিন")
+                            CountdownDivider()
+                            CountdownUnit(value = hours, label = "ঘণ্টা")
+                            CountdownDivider()
+                            CountdownUnit(value = minutes, label = "মিনিট")
+                            CountdownDivider()
+                            CountdownUnit(value = seconds, label = "সেকেন্ড")
+                        }
+                    }
+                    
+                    if (!isWaitingForLive) {
+                        Spacer(modifier = Modifier.height(24.dp))
+                        Surface(
+                            color = Color.White.copy(alpha = 0.05f),
+                            shape = RoundedCornerShape(16.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.DateRange,
+                                    contentDescription = null,
+                                    tint = if (isLiveActive) Color(0xFFEF4444) else accentColor,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Text(
+                                    text = "${if (clazz.date.isNotBlank()) clazz.date else "5 May 2026"} • ${if (clazz.time.isNotBlank()) clazz.time else "11:01 AM"}",
+                                    color = Color.LightGray,
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                    
                     if (clazz.liveLink.isNotBlank()) {
                         Spacer(modifier = Modifier.height(20.dp))
-                        val isLiveActive = timeRemainingMillis <= 0L
                         Button(
                             onClick = {
                                 if (clazz.liveLink.startsWith("http://") || clazz.liveLink.startsWith("https://")) {
@@ -4078,7 +4125,7 @@ fun ClassDetailView(
                                 .fillMaxWidth()
                                 .height(52.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isLiveActive) accentColor else Color.Gray.copy(alpha = 0.3f),
+                                containerColor = if (isLiveActive) Color(0xFFEF4444) else Color.Gray.copy(alpha = 0.3f),
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(26.dp)
@@ -5414,3 +5461,328 @@ fun UnenrolledCourseOverview(
     }
 }
 
+
+@Composable
+fun LearningResourcesScreen(
+    subject: CourseSubject,
+    course: CourseItem,
+    isTeacher: Boolean,
+    accentColor: Color,
+    onBack: () -> Unit,
+    onUpdateSubject: (CourseSubject) -> Unit
+) {
+    val context = LocalContext.current
+    val downloadStates by OfflineDownloadManager.downloadStates.collectAsState()
+    var downloadsList by remember { mutableStateOf<List<DownloadRecord>>(emptyList()) }
+
+    LaunchedEffect(Unit) {
+        downloadsList = OfflineDownloadManager.getDownloadRecords(context)
+    }
+    LaunchedEffect(downloadStates) {
+        downloadsList = OfflineDownloadManager.getDownloadRecords(context)
+    }
+
+    var activePdfToView by remember { mutableStateOf<File?>(null) }
+    var activePdfTitle by remember { mutableStateOf("") }
+    var activePdfUrl by remember { mutableStateOf("") }
+    var downloadingPdfUrl by remember { mutableStateOf<String?>(null) }
+    var recordToDelete by remember { mutableStateOf<DownloadRecord?>(null) }
+    var isAddingResource by remember { mutableStateOf(false) }
+
+    if (recordToDelete != null) {
+        AlertDialog(
+            onDismissRequest = { recordToDelete = null },
+            title = { Text("ডিলিট নিশ্চিত করুন", fontWeight = FontWeight.Bold) },
+            text = { Text("আপনি কি নিশ্চিত যে আপনি এই পিডিএফটি ডিলিট করতে চান?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        OfflineDownloadManager.deleteDownload(context, recordToDelete!!)
+                        recordToDelete = null
+                        downloadsList = OfflineDownloadManager.getDownloadRecords(context)
+                        Toast.makeText(context, "ডিলিট সম্পন্ন হয়েছে!", Toast.LENGTH_SHORT).show()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
+                ) {
+                    Text("ডিলিট করুন")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { recordToDelete = null }) {
+                    Text("বাতিল")
+                }
+            }
+        )
+    }
+
+    if (isAddingResource) {
+        AddResourceDialog(
+            onDismiss = { isAddingResource = false },
+            onAdd = { title, url ->
+                val updatedResources = subject.learningResources.toMutableList().apply { add(PdfLink(title, url)) }
+                val updatedSubject = subject.copy(learningResources = updatedResources)
+                onUpdateSubject(updatedSubject)
+                isAddingResource = false
+            }
+        )
+    }
+
+    Scaffold(
+        topBar = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(Color.White)
+                    .padding(horizontal = 16.dp, vertical = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onBack, modifier = Modifier.size(32.dp)) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = Color.Black)
+                }
+                Spacer(modifier = Modifier.width(12.dp))
+                Text(
+                    text = "বিষয়ভিত্তিক লার্নিং রিসোর্স",
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        },
+        containerColor = Color(0xFFF1F5F9), // Light gray background
+        floatingActionButton = {
+            if (isTeacher) {
+                FloatingActionButton(
+                    onClick = { isAddingResource = true },
+                    containerColor = accentColor,
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Resource")
+                }
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (subject.learningResources.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.MenuBook, contentDescription = "Empty", modifier = Modifier.size(64.dp), tint = Color.Gray.copy(alpha = 0.5f))
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("কোনো রিসোর্স যোগ করা হয়নি", color = Color.Gray, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    }
+                }
+            } else {
+                subject.learningResources.forEachIndexed { index, pdf ->
+                    val downloadedRecord = remember(downloadsList, pdf.url) {
+                        downloadsList.find { it.url == pdf.url }
+                    }
+                    val isDownloaded = downloadedRecord != null
+                    val downloadState = downloadStates[pdf.url]
+                    
+                    val isCloudOrWebUrl = remember {
+                        { url: String ->
+                            val lower = url.trim().lowercase()
+                            lower.contains("mega.nz") ||
+                            lower.contains("drive.google.com") ||
+                            lower.contains("docs.google.com") ||
+                            lower.contains("dropbox.com") ||
+                            lower.contains("mediafire.com") ||
+                            lower.contains("facebook.com") ||
+                            lower.contains("l.facebook.com") ||
+                            lower.contains("l.php") ||
+                            lower.contains("onedrive.live.com") ||
+                            !lower.contains(".pdf")
+                        }
+                    }
+                    val openBrowserIntent = remember {
+                        { targetUrl: String ->
+                            try {
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(targetUrl))
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "লিংক ওপেন করা সম্ভব হয়নি", Toast.LENGTH_SHORT).show()
+                            }
+                        }
+                    }
+
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                        shape = RoundedCornerShape(16.dp),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(48.dp)
+                                    .background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(12.dp)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.MenuBook,
+                                    contentDescription = "Resource",
+                                    tint = accentColor,
+                                    modifier = Modifier.size(24.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = pdf.title,
+                                    fontSize = 15.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color(0xFF1E293B)
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = if (isDownloaded) "অফলাইন (ডাউনলোডকৃত)" else "অনলাইন রিসোর্স",
+                                    fontSize = 12.sp,
+                                    color = if (isDownloaded) Color(0xFF10B981) else Color(0xFF64748B),
+                                    fontWeight = if (isDownloaded) FontWeight.Bold else FontWeight.Normal
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            
+                            // Delete from Course (Teacher only)
+                            if (isTeacher) {
+                                IconButton(
+                                    onClick = {
+                                        val updatedResources = subject.learningResources.toMutableList().apply { removeAt(index) }
+                                        val updatedSubject = subject.copy(learningResources = updatedResources)
+                                        onUpdateSubject(updatedSubject)
+                                    },
+                                    modifier = Modifier.size(32.dp)
+                                ) {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete", tint = Color.Red, modifier = Modifier.size(20.dp))
+                                }
+                            }
+                            
+                            // View Button
+                            Button(
+                                onClick = {
+                                    if (isCloudOrWebUrl(pdf.url)) {
+                                        Toast.makeText(context, "ক্লাউড/ড্রাইভ লিংক ব্রাউজারে ওপেন করা হচ্ছে...", Toast.LENGTH_SHORT).show()
+                                        openBrowserIntent(pdf.url)
+                                    } else {
+                                        if (isDownloaded) {
+                                            activePdfToView = File(downloadedRecord!!.localPath)
+                                            activePdfTitle = pdf.title
+                                            activePdfUrl = pdf.url
+                                        } else {
+                                            downloadingPdfUrl = pdf.url
+                                            OfflineDownloadManager.downloadToCache(
+                                                context = context,
+                                                url = pdf.url,
+                                                title = pdf.title,
+                                                onComplete = { tempFile ->
+                                                    downloadingPdfUrl = null
+                                                    activePdfToView = tempFile
+                                                    activePdfTitle = pdf.title
+                                                    activePdfUrl = pdf.url
+                                                },
+                                                onError = { errMsg ->
+                                                    downloadingPdfUrl = null
+                                                    Toast.makeText(context, "সরাসরি ভিউ করা যায়নি, ব্রাউজারে ওপেন করা হচ্ছে...", Toast.LENGTH_SHORT).show()
+                                                    openBrowserIntent(pdf.url)
+                                                }
+                                            )
+                                        }
+                                    }
+                                },
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                modifier = Modifier.height(36.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = accentColor.copy(alpha = 0.15f),
+                                    contentColor = accentColor
+                                )
+                            ) {
+                                if (downloadingPdfUrl == pdf.url) {
+                                    CircularProgressIndicator(
+                                        color = accentColor,
+                                        modifier = Modifier.size(14.dp),
+                                        strokeWidth = 1.5.dp
+                                    )
+                                } else {
+                                    Text("ভিউ", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.width(4.dp))
+
+                            // Download Button / Status
+                            if (isDownloaded) {
+                                IconButton(
+                                    onClick = { recordToDelete = downloadedRecord },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.CheckCircle,
+                                        contentDescription = "Downloaded",
+                                        tint = Color(0xFF10B981)
+                                    )
+                                }
+                            } else {
+                                IconButton(
+                                    onClick = {
+                                        if (isCloudOrWebUrl(pdf.url)) {
+                                            Toast.makeText(context, "ক্লাউড/ড্রাইভ ফাইলটি ব্রাউজার থেকে ডাউনলোড করুন", Toast.LENGTH_LONG).show()
+                                            openBrowserIntent(pdf.url)
+                                        } else {
+                                            if (downloadState !is DownloadState.Downloading) {
+                                                OfflineDownloadManager.downloadPermanently(
+                                                    context = context,
+                                                    url = pdf.url,
+                                                    title = pdf.title,
+                                                    fileType = "pdf",
+                                                    courseName = course.title,
+                                                    className = subject.title
+                                                )
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.size(36.dp)
+                                ) {
+                                    if (downloadState is DownloadState.Downloading) {
+                                        CircularProgressIndicator(
+                                            color = accentColor,
+                                            modifier = Modifier.size(18.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Download,
+                                            contentDescription = "Download",
+                                            tint = Color(0xFF64748B)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    if (activePdfToView != null) {
+        PdfViewerDialog(
+            file = activePdfToView!!,
+            title = activePdfTitle,
+            url = activePdfUrl,
+            onClose = { activePdfToView = null }
+        )
+    }
+}

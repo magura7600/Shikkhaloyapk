@@ -37,7 +37,13 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.asCoroutineDispatcher
 import java.io.File
+import java.util.concurrent.Executors
+
+// Single-threaded dispatcher to ensure thread safety with Android's PdfRenderer
+private val pdfDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -64,39 +70,53 @@ fun PdfViewerDialog(
     }
 
     LaunchedEffect(file) {
-        withContext(Dispatchers.IO) {
+        val oldRenderer = pdfRenderer
+        val oldFd = fileDescriptor
+        withContext(pdfDispatcher) {
             try {
+                if (oldRenderer != null || oldFd != null) {
+                    try {
+                        oldRenderer?.close()
+                        oldFd?.close()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
                 if (file.exists() && file.length() > 0) {
                     val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
                     val renderer = PdfRenderer(fd)
                     withContext(Dispatchers.Main) {
-                        try {
-                            pdfRenderer?.close()
-                            fileDescriptor?.close()
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
                         fileDescriptor = fd
                         pdfRenderer = renderer
                         pageCount = renderer.pageCount
                     }
                 } else {
-                    error = true
+                    withContext(Dispatchers.Main) {
+                        error = true
+                    }
                 }
             } catch (e: Exception) {
                 e.printStackTrace()
-                error = true
+                withContext(Dispatchers.Main) {
+                    error = true
+                }
             }
         }
     }
 
     DisposableEffect(pdfRenderer, fileDescriptor) {
         onDispose {
-            try {
-                pdfRenderer?.close()
-                fileDescriptor?.close()
-            } catch (e: Exception) {
-                e.printStackTrace()
+            val r = pdfRenderer
+            val fd = fileDescriptor
+            if (r != null || fd != null) {
+                kotlinx.coroutines.CoroutineScope(pdfDispatcher).launch {
+                    try {
+                        r?.close()
+                        fd?.close()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
             }
         }
     }
@@ -250,39 +270,37 @@ fun ZoomablePdfPage(
     LaunchedEffect(pageIndex) {
         if (bitmap != null) return@LaunchedEffect
 
-        withContext(Dispatchers.IO) {
+        withContext(pdfDispatcher) {
             try {
                 var bmp: Bitmap? = null
-                synchronized(pdfRenderer) {
-                    val page = pdfRenderer.openPage(pageIndex)
-                    try {
-                        val width = (page.width * 2f).toInt()
-                        val height = (page.height * 2f).toInt()
+                val page = pdfRenderer.openPage(pageIndex)
+                try {
+                    val width = (page.width * 2f).toInt()
+                    val height = (page.height * 2f).toInt()
 
+                    try {
+                        bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                    } catch (e: OutOfMemoryError) {
+                        System.gc()
                         try {
-                            bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                        } catch (e: OutOfMemoryError) {
-                            System.gc()
+                            val fallbackWidth = (page.width * 1.5f).toInt()
+                            val fallbackHeight = (page.height * 1.5f).toInt()
+                            bmp = Bitmap.createBitmap(fallbackWidth, fallbackHeight, Bitmap.Config.ARGB_8888)
+                        } catch (e2: OutOfMemoryError) {
                             try {
-                                val fallbackWidth = (page.width * 1.5f).toInt()
-                                val fallbackHeight = (page.height * 1.5f).toInt()
-                                bmp = Bitmap.createBitmap(fallbackWidth, fallbackHeight, Bitmap.Config.ARGB_8888)
-                            } catch (e2: OutOfMemoryError) {
-                                try {
-                                    bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.RGB_565)
-                                } catch (e3: OutOfMemoryError) {
-                                    e3.printStackTrace()
-                                }
+                                bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.RGB_565)
+                            } catch (e3: OutOfMemoryError) {
+                                e3.printStackTrace()
                             }
                         }
-
-                        if (bmp != null) {
-                            bmp!!.eraseColor(android.graphics.Color.WHITE)
-                            page.render(bmp!!, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                        }
-                    } finally {
-                        page.close()
                     }
+
+                    if (bmp != null) {
+                        bmp!!.eraseColor(android.graphics.Color.WHITE)
+                        page.render(bmp!!, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    }
+                } finally {
+                    page.close()
                 }
 
                 if (bmp != null) {
