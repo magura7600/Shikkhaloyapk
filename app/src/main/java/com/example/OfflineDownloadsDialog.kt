@@ -130,19 +130,7 @@ fun OfflineDownloadsDialog(
                         selectedContentColor = accentColor,
                         unselectedContentColor = Color(0xFF64748B)
                     )
-                    Tab(
-                        selected = selectedTab == 2,
-                        onClick = { selectedTab = 2 },
-                        text = {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.Star, contentDescription = "Favorites", modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text("পছন্দ ও সাম্প্রতিক", fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            }
-                        },
-                        selectedContentColor = accentColor,
-                        unselectedContentColor = Color(0xFF64748B)
-                    )
+
                 }
 
                 if (selectedTab == 2) {

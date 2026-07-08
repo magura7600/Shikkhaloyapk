@@ -187,9 +187,9 @@ fun PdfViewerDialog(
                                 translationX = offsetX,
                                 translationY = offsetY
                             ),
-                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
-                        userScrollEnabled = scale == 1f // Only allow scrolling when not zoomed
+                        contentPadding = PaddingValues(0.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                        userScrollEnabled = true // Always allow scrolling to load new pages
                     ) {
                         items(pageCount) { index ->
                             PdfPageSimple(pdfRenderer!!, index)
@@ -268,8 +268,8 @@ fun PdfPageSimple(pdfRenderer: PdfRenderer, pageIndex: Int) {
 
     Card(
         modifier = Modifier.fillMaxWidth().clipToBounds(),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        shape = androidx.compose.ui.graphics.RectangleShape,
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         colors = CardDefaults.cardColors(containerColor = Color.White)
     ) {
         if (bitmap != null) {

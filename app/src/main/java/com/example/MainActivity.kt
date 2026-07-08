@@ -1189,8 +1189,8 @@ fun OnboardingScreen(
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
 
-    var selectedRole by remember { mutableStateOf<String?>(null) } // "teacher" or "student"
-    var isSavingProfile by remember { mutableStateOf(false) }
+    var selectedRole by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<String?>(null) } // "teacher" or "student"
+    var isSavingProfile by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
 
     val defaultName = remember(email) {
         val user = try { supabase.auth.currentUserOrNull() } catch(e: Exception) { null }

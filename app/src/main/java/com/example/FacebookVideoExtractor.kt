@@ -201,6 +201,8 @@ object FacebookVideoExtractor {
                 val hdSrcRegex = """"hd_src"\s*:\s*"([^"]+)"""".toRegex()
                 val hdNoRateLimitRegex = """"hd_src_no_ratelimit"\s*:\s*"([^"]+)"""".toRegex()
                 val sdNoRateLimitRegex = """"sd_src_no_ratelimit"\s*:\s*"([^"]+)"""".toRegex()
+                val hd1080Regex = """"1080_src"\s*:\s*"([^"]+)"""".toRegex()
+                val hqRegex = """"hq_src"\s*:\s*"([^"]+)"""".toRegex()
                 
                 // Extract progressive streams using findAll
                 hdVideoRegex.findAll(unescapedHtml).forEach { match ->
