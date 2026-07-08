@@ -22,7 +22,7 @@ object NotificationScheduler {
             }
         }
         
-        val dateFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+        val dateFormatter = DateTimeFormatter.ofPattern("d/M/yyyy")
         val timeFormatter = DateTimeFormatter.ofPattern("hh:mm a") // Ex: "10:30 AM" or "10:30 PM"
         
         val now = LocalDateTime.now()
@@ -30,19 +30,19 @@ object NotificationScheduler {
         course.subjects.flatMap { it.chapters }.flatMap { it.classes }.forEach { classItem ->
             try {
                 if (classItem.date.isNotBlank() && classItem.time.isNotBlank()) {
-                    val date = LocalDate.parse(classItem.date, dateFormatter)
+                    val date = LocalDate.parse(classItem.date.trim(), dateFormatter)
                     
                     // Parse time. Some might use "hh:mm a", some might use "HH:mm". Let's handle generic format safely if possible.
                     // First try "hh:mm a", if fails, try "h:mm a"
                     var time: LocalTime? = null
                     try {
-                        time = LocalTime.parse(classItem.time, timeFormatter)
+                        time = LocalTime.parse(classItem.time.trim(), timeFormatter)
                     } catch (e: Exception) {
                         try {
-                            time = LocalTime.parse(classItem.time, DateTimeFormatter.ofPattern("h:mm a"))
+                            time = LocalTime.parse(classItem.time.trim(), DateTimeFormatter.ofPattern("h:mm a"))
                         } catch (e2: Exception) {
                             // Fallback
-                            time = LocalTime.parse(classItem.time, DateTimeFormatter.ofPattern("HH:mm"))
+                            time = LocalTime.parse(classItem.time.trim(), DateTimeFormatter.ofPattern("HH:mm"))
                         }
                     }
                     

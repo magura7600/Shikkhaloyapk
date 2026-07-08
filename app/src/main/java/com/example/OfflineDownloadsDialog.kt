@@ -557,6 +557,16 @@ fun OfflineVideoPlayerDialog(
 
         val configuration = androidx.compose.ui.platform.LocalConfiguration.current
         val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        var isManualFullscreen by remember(isLandscape) { mutableStateOf(isLandscape) }
+
+        androidx.activity.compose.BackHandler(enabled = isManualFullscreen) {
+            isManualFullscreen = false
+            val activity = context.findActivity()
+            if (activity != null) {
+                activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            }
+        }
+
         Scaffold(
             topBar = {
                 if (!VideoPipState.isInPip && !isLandscape) {
@@ -601,6 +611,18 @@ fun OfflineVideoPlayerDialog(
                             .fillMaxWidth()
                             .aspectRatio(16f / 9f)
                             .background(Color.Black)
+                    },
+                    isFullscreen = isManualFullscreen,
+                    onFullscreenToggle = { fullscreen ->
+                        isManualFullscreen = fullscreen
+                        val activity = context.findActivity()
+                        if (activity != null) {
+                            activity.requestedOrientation = if (fullscreen) {
+                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                            } else {
+                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            }
+                        }
                     }
                 )
             }

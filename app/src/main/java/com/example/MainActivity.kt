@@ -1533,18 +1533,28 @@ fun DashboardScreen(
         }
     }
 
+    var enteredWithNetwork by remember { mutableStateOf(false) }
+
     LaunchedEffect(Unit) {
+        var elapsedSeconds = 0
         while (true) {
             val hasInternet = NetworkUtils.hasActualInternetAccess(context)
             isOffline = !hasInternet
-            if (!hasInternet && !hasPromptedOffline) {
-                // Connection lost or unavailable, automatically show Offline Downloads Dialog
-                showOfflineDownloadsGlobal = true
-                hasPromptedOffline = true
-                Toast.makeText(context, "কোনো ইন্টারনেট সংযোগ নেই! অফলাইন মোড চালু করা হয়েছে।", Toast.LENGTH_LONG).show()
-            } else if (hasInternet) {
-                // If internet is restored, allow prompting again when disconnected next time
+            if (hasInternet) {
+                enteredWithNetwork = true
                 hasPromptedOffline = false
+            } else {
+                if (!enteredWithNetwork) {
+                    if (elapsedSeconds >= 120) {
+                        if (!hasPromptedOffline) {
+                            showOfflineDownloadsGlobal = true
+                            hasPromptedOffline = true
+                            Toast.makeText(context, "কোনো ইন্টারনেট সংযোগ নেই! অফলাইন মোড চালু করা হয়েছে।", Toast.LENGTH_LONG).show()
+                        }
+                    } else {
+                        elapsedSeconds += 8
+                    }
+                }
             }
             kotlinx.coroutines.delay(8000) // check every 8 seconds
         }
@@ -2541,7 +2551,7 @@ fun StudentDashboardContent(
             subject.chapters.forEach { chapter ->
                 chapter.classes.forEach { courseClass ->
                     try {
-                        dates.add(java.time.LocalDate.parse(courseClass.date, formatter))
+                        dates.add(java.time.LocalDate.parse(courseClass.date.trim(), formatter))
                     } catch (e: Exception) {}
                 }
             }
@@ -2557,7 +2567,7 @@ fun StudentDashboardContent(
             subject.chapters.forEach { chapter ->
                 chapter.classes.forEach { courseClass ->
                     try {
-                        val classDate = java.time.LocalDate.parse(courseClass.date, formatter)
+                        val classDate = java.time.LocalDate.parse(courseClass.date.trim(), formatter)
                         if (classDate == selectedDate) {
                             classList.add(Triple(courseClass, chapter, subject))
                         }
@@ -2574,7 +2584,7 @@ fun StudentDashboardContent(
     
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.spacedBy(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
         contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 80.dp, bottom = 100.dp)
     ) {
         // Class Routine Card
@@ -2583,29 +2593,29 @@ fun StudentDashboardContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .shadow(
-                        elevation = 16.dp,
-                        shape = RoundedCornerShape(24.dp),
-                        spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
-                        ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                        elevation = 6.dp,
+                        shape = RoundedCornerShape(16.dp),
+                        spotColor = Color(0xFF94A3B8).copy(alpha = 0.15f),
+                        ambientColor = Color(0xFF94A3B8).copy(alpha = 0.15f)
                     ),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
-                shape = RoundedCornerShape(24.dp),
-                border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF818CF8), Color(0xFFC084FC))))
+                colors = CardDefaults.cardColors(containerColor = Color.White),
+                shape = RoundedCornerShape(16.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF818CF8).copy(alpha = 0.6f), Color(0xFFC084FC).copy(alpha = 0.6f))))
             ) {
-                Column(modifier = Modifier.padding(24.dp)) {
+                Column(modifier = Modifier.padding(16.dp)) {
                     Text(
                         "Class Routine",
-                        fontSize = 24.sp,
+                        fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = Color(0xFF1E293B)
                     )
-                    Spacer(modifier = Modifier.height(4.dp))
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         "Check your daily class schedule",
-                        fontSize = 15.sp,
+                        fontSize = 13.sp,
                         color = Color(0xFF64748B)
                     )
-                    Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(modifier = Modifier.height(16.dp))
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -2617,16 +2627,16 @@ fun StudentDashboardContent(
                                 containerColor = accentColor,
                                 contentColor = Color.White
                             ),
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(12.dp),
                             modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 8.dp)
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
                         ) {
-                            Icon(Icons.Outlined.CalendarToday, contentDescription = "Calendar", modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(if (isCalendarExpanded) "Hide Calendar" else "Weekly Routine", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                            Icon(Icons.Outlined.CalendarToday, contentDescription = "Calendar", modifier = Modifier.size(16.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(if (isCalendarExpanded) "Hide Calendar" else "Weekly Routine", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.weight(1f))
-                            Icon(Icons.Default.ArrowForward, contentDescription = "Go", modifier = Modifier.size(20.dp))
+                            Icon(Icons.Default.ArrowForward, contentDescription = "Go", modifier = Modifier.size(16.dp))
                         }
 
                         if (selectedDate != java.time.LocalDate.now()) {
@@ -2640,14 +2650,14 @@ fun StudentDashboardContent(
                                     containerColor = Color.White,
                                     contentColor = Color(0xFF1E293B)
                                 ),
-                                shape = RoundedCornerShape(16.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.5.dp, Color(0xFFCBD5E1)),
-                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 14.dp),
-                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                                shape = RoundedCornerShape(12.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                             ) {
-                                Icon(Icons.Outlined.Today, contentDescription = "Today", modifier = Modifier.size(20.dp), tint = Color(0xFF1E293B))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Today", fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                                Icon(Icons.Outlined.Today, contentDescription = "Today", modifier = Modifier.size(16.dp), tint = Color(0xFF1E293B))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text("Today", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -2665,7 +2675,7 @@ fun StudentDashboardContent(
             ) {
                 Text(
                     viewingMonth.format(monthFormatter),
-                    fontSize = 18.sp,
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
                     color = Color(0xFF1E293B)
                 )
@@ -2674,41 +2684,41 @@ fun StudentDashboardContent(
                         IconButton(
                             onClick = { viewingMonth = viewingMonth.minusMonths(1) },
                             modifier = Modifier
-                                .size(36.dp)
-                                .background(Color.White, RoundedCornerShape(8.dp))
-                                .padding(4.dp)
+                                .size(30.dp)
+                                .background(Color.White, RoundedCornerShape(6.dp))
+                                .padding(2.dp)
                         ) {
-                            Icon(Icons.Default.ChevronLeft, contentDescription = "Prev Month", tint = Color.Gray)
+                            Icon(Icons.Default.ChevronLeft, contentDescription = "Prev Month", tint = Color.Gray, modifier = Modifier.size(18.dp))
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
+                        Spacer(modifier = Modifier.width(6.dp))
                         IconButton(
                             onClick = { viewingMonth = viewingMonth.plusMonths(1) },
                             modifier = Modifier
-                                .size(36.dp)
-                                .background(Color.White, RoundedCornerShape(8.dp))
-                                .padding(4.dp)
+                                .size(30.dp)
+                                .background(Color.White, RoundedCornerShape(6.dp))
+                                .padding(2.dp)
                         ) {
-                            Icon(Icons.Default.ChevronRight, contentDescription = "Next Month", tint = Color.Gray)
+                            Icon(Icons.Default.ChevronRight, contentDescription = "Next Month", tint = Color.Gray, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
             }
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(10.dp))
             
             if (isCalendarExpanded) {
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    shape = RoundedCornerShape(16.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF60A5FA), Color(0xFF3B82F6))))
+                    shape = RoundedCornerShape(12.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF60A5FA).copy(alpha = 0.5f), Color(0xFF3B82F6).copy(alpha = 0.5f))))
                 ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
+                    Column(modifier = Modifier.padding(12.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat").forEach { day ->
                                 Text(
                                     text = day,
-                                    fontSize = 12.sp,
+                                    fontSize = 11.sp,
                                     color = Color.Gray,
                                     fontWeight = FontWeight.Medium,
                                     modifier = Modifier.weight(1f),
@@ -2716,7 +2726,7 @@ fun StudentDashboardContent(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         
                         val firstDayOfMonth = viewingMonth.atDay(1)
                         val daysInMonth = viewingMonth.lengthOfMonth()
@@ -2740,30 +2750,30 @@ fun StudentDashboardContent(
                                         Column(
                                             modifier = Modifier
                                                 .weight(1f)
-                                                .height(48.dp)
-                                                .clip(RoundedCornerShape(8.dp))
+                                                .height(38.dp)
+                                                .clip(RoundedCornerShape(6.dp))
                                                 .clickable { 
                                                     selectedDate = date 
                                                 }
                                                 .then(if (isSelected) Modifier.background(accentColor.copy(alpha = 0.1f)) else Modifier)
-                                                .then(if (isSelected) Modifier.padding(2.dp).background(Color.White, RoundedCornerShape(8.dp)) else Modifier)
-                                                .then(if (isSelected) Modifier.padding(2.dp).background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(6.dp)) else Modifier)
-                                                .then(if (!isSelected && isToday) Modifier.border(1.5.dp, accentColor, RoundedCornerShape(8.dp)) else Modifier),
+                                                .then(if (isSelected) Modifier.padding(1.dp).background(Color.White, RoundedCornerShape(6.dp)) else Modifier)
+                                                .then(if (isSelected) Modifier.padding(1.dp).background(accentColor.copy(alpha = 0.1f), RoundedCornerShape(5.dp)) else Modifier)
+                                                .then(if (!isSelected && isToday) Modifier.border(1.dp, accentColor, RoundedCornerShape(6.dp)) else Modifier),
                                             horizontalAlignment = Alignment.CenterHorizontally,
                                             verticalArrangement = Arrangement.Center
                                         ) {
                                             Text(
                                                 text = dayCounter.toString(),
-                                                fontSize = 14.sp,
+                                                fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = if (isSelected) accentColor else if (isToday) accentColor else Color.DarkGray
                                             )
                                             if (hasClass) {
-                                                Spacer(modifier = Modifier.height(2.dp))
+                                                Spacer(modifier = Modifier.height(1.dp))
                                                 Row(horizontalArrangement = Arrangement.Center) {
-                                                    Box(modifier = Modifier.size(4.dp).background(accentColor, CircleShape))
-                                                    Spacer(modifier = Modifier.width(2.dp))
-                                                    Box(modifier = Modifier.size(4.dp).background(accentColor, CircleShape))
+                                                    Box(modifier = Modifier.size(3.dp).background(accentColor, CircleShape))
+                                                    Spacer(modifier = Modifier.width(1.dp))
+                                                    Box(modifier = Modifier.size(3.dp).background(accentColor, CircleShape))
                                                 }
                                             }
                                         }
@@ -2771,7 +2781,7 @@ fun StudentDashboardContent(
                                     }
                                 }
                             }
-                            Spacer(modifier = Modifier.height(8.dp))
+                            Spacer(modifier = Modifier.height(4.dp))
                         }
                     }
                 }
@@ -2779,19 +2789,22 @@ fun StudentDashboardContent(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color.White, RoundedCornerShape(16.dp))
-                        .padding(vertical = 12.dp, horizontal = 8.dp),
+                        .background(Color.White, RoundedCornerShape(12.dp))
+                        .padding(vertical = 8.dp, horizontal = 6.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    IconButton(onClick = { 
-                        selectedDate = selectedDate.minusDays(1)
-                        viewingMonth = java.time.YearMonth.from(selectedDate)
-                    }) {
+                    IconButton(
+                        onClick = { 
+                            selectedDate = selectedDate.minusDays(1)
+                            viewingMonth = java.time.YearMonth.from(selectedDate)
+                        },
+                        modifier = Modifier.size(28.dp)
+                    ) {
                         Icon(Icons.Default.ChevronLeft, contentDescription = "Prev", tint = Color.Gray, modifier = Modifier
-                            .size(32.dp)
+                            .size(24.dp)
                             .background(Color(0xFFF1F5F9), CircleShape)
-                            .padding(4.dp))
+                            .padding(2.dp))
                     }
                     
                     val prevDate = selectedDate.minusDays(1)
@@ -2802,29 +2815,29 @@ fun StudentDashboardContent(
                     }) {
                         Text(
                             text = if (isPrevToday) "Today" else prevDate.dayOfWeek.name.take(3).capitalize(), 
-                            fontSize = 12.sp, 
+                            fontSize = 11.sp, 
                             color = if (isPrevToday) accentColor else Color.Gray, 
                             fontWeight = if (isPrevToday) FontWeight.Bold else FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(prevDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isPrevToday) accentColor else Color.DarkGray)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(prevDate.dayOfMonth.toString(), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isPrevToday) accentColor else Color.DarkGray)
                     }
 
                     val isSelectedToday = selectedDate == java.time.LocalDate.now()
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier
-                            .background(accentColor, RoundedCornerShape(12.dp))
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                            .background(accentColor, RoundedCornerShape(8.dp))
+                            .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
                             text = if (isSelectedToday) "Today" else selectedDate.dayOfWeek.name.take(3).capitalize(), 
-                            fontSize = 12.sp, 
+                            fontSize = 11.sp, 
                             color = Color.White, 
                             fontWeight = FontWeight.Bold
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(selectedDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color.White)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(selectedDate.dayOfMonth.toString(), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color.White)
                     }
 
                     val nextDate = selectedDate.plusDays(1)
@@ -2835,22 +2848,25 @@ fun StudentDashboardContent(
                     }) {
                         Text(
                             text = if (isNextToday) "Today" else nextDate.dayOfWeek.name.take(3).capitalize(), 
-                            fontSize = 12.sp, 
+                            fontSize = 11.sp, 
                             color = if (isNextToday) accentColor else Color.Gray, 
                             fontWeight = if (isNextToday) FontWeight.Bold else FontWeight.Medium
                         )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(nextDate.dayOfMonth.toString(), fontSize = 16.sp, fontWeight = FontWeight.Bold, color = if (isNextToday) accentColor else Color.DarkGray)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(nextDate.dayOfMonth.toString(), fontSize = 14.sp, fontWeight = FontWeight.Bold, color = if (isNextToday) accentColor else Color.DarkGray)
                     }
                     
-                    IconButton(onClick = { 
-                        selectedDate = selectedDate.plusDays(1) 
-                        viewingMonth = java.time.YearMonth.from(selectedDate)
-                    }) {
+                    IconButton(
+                        onClick = { 
+                            selectedDate = selectedDate.plusDays(1) 
+                            viewingMonth = java.time.YearMonth.from(selectedDate)
+                        },
+                        modifier = Modifier.size(28.dp)
+                    ) {
                         Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = Color.Gray, modifier = Modifier
-                            .size(32.dp)
+                            .size(24.dp)
                             .background(Color(0xFFF1F5F9), CircleShape)
-                            .padding(4.dp))
+                            .padding(2.dp))
                     }
                 }
             }
@@ -2861,7 +2877,7 @@ fun StudentDashboardContent(
             val dateLabel = if (selectedDate == java.time.LocalDate.now()) "Today's Routine" else "Routine for ${selectedDate.dayOfMonth} ${selectedDate.month.name.take(3)}"
             Text(
                 dateLabel,
-                fontSize = 18.sp,
+                fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
                 color = Color(0xFF1E293B)
             )
@@ -2871,35 +2887,35 @@ fun StudentDashboardContent(
         if (focusCourse == null) {
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth().height(200.dp)
+                    modifier = Modifier.fillMaxWidth().height(140.dp)
                         .shadow(
-                            elevation = 16.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
-                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(16.dp),
+                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.15f),
+                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.15f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
-                    shape = RoundedCornerShape(24.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF9CA3AF), Color(0xFFD1D5DB))))
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("কোনো কোর্স সিলেক্ট করা নেই।", color = Color.Gray)
+                        Text("কোনো কোর্স সিলেক্ট করা নেই।", color = Color.Gray, fontSize = 14.sp)
                     }
                 }
             }
         } else if (classesForDate.isEmpty()) {
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth().height(200.dp)
+                    modifier = Modifier.fillMaxWidth().height(150.dp)
                         .shadow(
-                            elevation = 16.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
-                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(16.dp),
+                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.15f),
+                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.15f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
-                    shape = RoundedCornerShape(24.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF34D399), Color(0xFF10B981))))
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF34D399).copy(alpha = 0.5f), Color(0xFF10B981).copy(alpha = 0.5f))))
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -2908,23 +2924,17 @@ fun StudentDashboardContent(
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(64.dp)
-                                .background(Color(0xFFF8FAFC), RoundedCornerShape(20.dp))
-                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(20.dp)),
+                                .size(48.dp)
+                                .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("🐧", fontSize = 32.sp)
+                            Text("🐧", fontSize = 24.sp)
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
+                        Spacer(modifier = Modifier.height(10.dp))
                         Text(
-                            "You have no live classes or",
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B)
-                        )
-                        Text(
-                            "exams on this date.",
-                            fontSize = 15.sp,
+                            "You have no live classes or exams on this date.",
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             color = Color(0xFF64748B)
                         )
@@ -2937,41 +2947,41 @@ fun StudentDashboardContent(
                 Card(
                     modifier = Modifier.fillMaxWidth()
                         .shadow(
-                            elevation = 16.dp,
-                            shape = RoundedCornerShape(24.dp),
-                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
-                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                            elevation = 4.dp,
+                            shape = RoundedCornerShape(16.dp),
+                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.15f),
+                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.15f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
-                    shape = RoundedCornerShape(24.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF472B6), Color(0xFFEC4899))))
+                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                    shape = RoundedCornerShape(16.dp),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF472B6).copy(alpha = 0.5f), Color(0xFFEC4899).copy(alpha = 0.5f))))
                 ) {
-                    Column(modifier = Modifier.padding(24.dp)) {
+                    Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(subject.title, color = accentColor, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Box(modifier = Modifier.size(4.dp).background(Color(0xFFCBD5E1), CircleShape))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(courseClass.type, color = Color(0xFF334155), fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                            Text(subject.title, color = accentColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Box(modifier = Modifier.size(3.dp).background(Color(0xFFCBD5E1), CircleShape))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(courseClass.type, color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                             Spacer(modifier = Modifier.weight(1f))
                             Box(
                                 modifier = Modifier
-                                    .background(Color(0xFFFEF2F2), RoundedCornerShape(8.dp))
-                                    .border(1.dp, Color(0xFFFECACA), RoundedCornerShape(8.dp))
-                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    .background(Color(0xFFFEF2F2), RoundedCornerShape(6.dp))
+                                    .border(1.dp, Color(0xFFFECACA), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Text("মিসড", color = Color(0xFFEF4444), fontSize = 11.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("মিসড", color = Color(0xFFEF4444), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
                             }
                         }
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Text("${chapter.title} - ${courseClass.title}", fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF0F172A))
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("${chapter.title} - ${courseClass.title}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                        Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF64748B))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(courseClass.time, fontSize = 14.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
+                            Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF64748B))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(courseClass.time, fontSize = 12.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
                         }
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(modifier = Modifier.height(14.dp))
                         Button(
                             onClick = { onClassClick(courseClass, chapter, subject, focusCourse) },
                             modifier = Modifier.fillMaxWidth(),
@@ -2979,13 +2989,13 @@ fun StudentDashboardContent(
                                 containerColor = Color(0xFFF1F5F9),
                                 contentColor = accentColor
                             ),
-                            shape = RoundedCornerShape(16.dp),
-                            contentPadding = PaddingValues(vertical = 14.dp),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(vertical = 10.dp),
                             elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
                         ) {
-                            Icon(Icons.Outlined.PlayCircleOutline, contentDescription = "Play", modifier = Modifier.size(20.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("রেকর্ডেড ভিডিও দেখো", fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                            Icon(Icons.Outlined.PlayCircleOutline, contentDescription = "Play", modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text("রেকর্ডেড ভিডিও দেখো", fontWeight = FontWeight.Bold, fontSize = 13.sp)
                         }
                     }
                 }

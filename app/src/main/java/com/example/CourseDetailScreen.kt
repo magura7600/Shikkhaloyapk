@@ -175,16 +175,31 @@ fun CourseDetailScreen(
     LaunchedEffect(course.quarters) {
         if (course.quarters.isNotEmpty()) {
             val currentDate = java.time.LocalDate.now()
-            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
-            val activeQuarter = course.quarters.find { quarter ->
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy")
+            
+            // Map quarters to their parsed dates and sort them chronologically
+            val quartersWithDates = course.quarters.mapNotNull { quarter ->
                 try {
-                    val start = java.time.LocalDate.parse(quarter.startDate, formatter)
-                    val end = java.time.LocalDate.parse(quarter.endDate, formatter)
-                    !currentDate.isBefore(start) && !currentDate.isAfter(end)
-                } catch(e: Exception) {
-                    false
+                    val start = java.time.LocalDate.parse(quarter.startDate.trim(), formatter)
+                    val end = java.time.LocalDate.parse(quarter.endDate.trim(), formatter)
+                    Triple(quarter, start, end)
+                } catch (e: Exception) {
+                    null
                 }
+            }.sortedBy { it.second }
+            
+            val activeQuarter = if (quartersWithDates.isNotEmpty()) {
+                // Find the first quarter where the currentDate is on or before the end date.
+                // This correctly selects the current active quarter, or the next upcoming quarter if we are in a gap between quarters.
+                val found = quartersWithDates.find { (_, _, end) ->
+                    !currentDate.isAfter(end)
+                }
+                // Fallback to the last quarter if all quarters have ended
+                found?.first ?: quartersWithDates.last().first
+            } else {
+                null
             }
+            
             if (activeQuarter != null) {
                 initialSelectedQuarterName = activeQuarter.name
             }
@@ -706,9 +721,9 @@ fun CourseContentSection(
 
                                     if (quarterObj != null && quarterObj.startDate.isNotBlank() && quarterObj.endDate.isNotBlank()) {
                                         try {
-                                            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
-                                            val start = java.time.LocalDate.parse(quarterObj.startDate, formatter)
-                                            val end = java.time.LocalDate.parse(quarterObj.endDate, formatter)
+                                            val formatter = java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy")
+                                            val start = java.time.LocalDate.parse(quarterObj.startDate.trim(), formatter)
+                                            val end = java.time.LocalDate.parse(quarterObj.endDate.trim(), formatter)
                                             val today = java.time.LocalDate.now()
                                             
                                             val hasClasses = course.subjects.flatMap { it.chapters }.filter { (it.quarter.ifBlank { "Quarter 1" }) == qName }.flatMap { it.classes }.isNotEmpty()
@@ -1087,9 +1102,9 @@ fun CourseContentSection(
 
                                     if (quarterObj != null && quarterObj.startDate.isNotBlank() && quarterObj.endDate.isNotBlank()) {
                                         try {
-                                            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
-                                            val start = java.time.LocalDate.parse(quarterObj.startDate, formatter)
-                                            val end = java.time.LocalDate.parse(quarterObj.endDate, formatter)
+                                            val formatter = java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy")
+                                            val start = java.time.LocalDate.parse(quarterObj.startDate.trim(), formatter)
+                                            val end = java.time.LocalDate.parse(quarterObj.endDate.trim(), formatter)
                                             val today = java.time.LocalDate.now()
                                             
                                             val hasClasses = course.subjects.flatMap { it.chapters }.filter { (it.quarter.ifBlank { "Quarter 1" }) == qName }.flatMap { it.classes }.isNotEmpty()
@@ -2668,7 +2683,9 @@ fun VideoPlayer(
     onPositionChanged: (Long) -> Unit = {},
     initialPlaying: Boolean = true,
     onPlayingChanged: (Boolean) -> Unit = {},
-    onQualityChanged: (VideoLink) -> Unit = {}
+    onQualityChanged: (VideoLink) -> Unit = {},
+    isFullscreen: Boolean = false,
+    onFullscreenToggle: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
@@ -2683,6 +2700,8 @@ fun VideoPlayer(
     var currentPosition by remember { mutableStateOf(initialPosition) }
     var duration by remember { mutableStateOf(0L) }
     var playbackSpeed by remember { mutableStateOf(1.0f) }
+    var interactionCount by remember { mutableStateOf(0) }
+    var dragDismissJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
     
     var isBuffering by remember { mutableStateOf(false) }
     var statusMessage by remember { mutableStateOf<String?>(null) }
@@ -2859,7 +2878,11 @@ fun VideoPlayer(
 
     LaunchedEffect(videoOptions, currentNonAdaptiveQuality) {
         val currentPos = if (exoPlayer.currentPosition > 0L) exoPlayer.currentPosition else initialPosition
-        val wasPlaying = exoPlayer.isPlaying
+        val wasPlaying = if (exoPlayer.playbackState == androidx.media3.common.Player.STATE_IDLE) {
+            initialPlaying
+        } else {
+            exoPlayer.playWhenReady
+        }
         
         val targetLink = videoOptions.links.find { it.quality == currentNonAdaptiveQuality } ?: videoOptions.links.firstOrNull()
         if (targetLink != null) {
@@ -2893,15 +2916,30 @@ fun VideoPlayer(
         if (currentPos > 0L) {
             exoPlayer.seekTo(currentPos)
         }
-        exoPlayer.playWhenReady = if (exoPlayer.currentPosition > 0L) wasPlaying else initialPlaying
+        exoPlayer.playWhenReady = wasPlaying
+    }
+
+    // Observe host activity lifecycle to pause playback on background/pause
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, exoPlayer) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
+                exoPlayer.pause()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
     }
 
     DisposableEffect(Unit) {
+        val originalOrientation = activity?.requestedOrientation ?: android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
         val originalBrightness = activity?.window?.attributes?.screenBrightness ?: -1f
         onDispose {
             exoPlayer.release()
             if (activity != null) {
-                activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                activity.requestedOrientation = originalOrientation
                 // Restore original brightness
                 val lp = activity.window.attributes
                 lp.screenBrightness = originalBrightness
@@ -2911,19 +2949,16 @@ fun VideoPlayer(
     }
 
     // Hide controls automatically, but NOT when user is interacting
-    LaunchedEffect(controlsVisible, isLocked, isDraggingSlider, showSpeedDialog, showQualitySelector) {
+    LaunchedEffect(controlsVisible, isLocked, isDraggingSlider, showSpeedDialog, showQualitySelector, interactionCount) {
         if (controlsVisible && !isLocked && !isDraggingSlider && !showSpeedDialog && !showQualitySelector) {
             kotlinx.coroutines.delay(4500L)
             controlsVisible = false
         }
     }
 
-    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-
     // Keep SystemBars behavior elegant on landscape full screen
-    DisposableEffect(isLandscape) {
-        if (isLandscape && activity != null) {
+    DisposableEffect(isFullscreen) {
+        if (isFullscreen && activity != null) {
             val window = activity.window
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
@@ -2933,7 +2968,13 @@ fun VideoPlayer(
             val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
             insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
         }
-        onDispose {}
+        onDispose {
+            if (activity != null) {
+                val window = activity.window
+                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
+        }
     }
 
     Box(
@@ -2943,6 +2984,7 @@ fun VideoPlayer(
                 detectTapGestures(
                     onDoubleTap = { offset ->
                         if (!isLocked) {
+                            interactionCount++
                             val halfWidth = size.width / 2
                             if (offset.x < halfWidth) {
                                 val newPos = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
@@ -2959,6 +3001,9 @@ fun VideoPlayer(
                     },
                     onTap = {
                         controlsVisible = !controlsVisible
+                        if (controlsVisible) {
+                            interactionCount++
+                        }
                     }
                 )
             }
@@ -2966,10 +3011,13 @@ fun VideoPlayer(
                 if (!isLocked) {
                     Modifier.pointerInput(Unit) {
                         detectVerticalDragGestures(
-                            onDragStart = { _ -> },
+                            onDragStart = { _ -> 
+                                dragDismissJob?.cancel()
+                            },
                             onDragEnd = {
-                                scope.launch {
-                                    kotlinx.coroutines.delay(800L)
+                                dragDismissJob?.cancel()
+                                dragDismissJob = scope.launch {
+                                    kotlinx.coroutines.delay(1200L)
                                     showVolumeIndicator = false
                                     showBrightnessIndicator = false
                                 }
@@ -3009,6 +3057,7 @@ fun VideoPlayer(
                     player = exoPlayer
                     useController = false // Disable default controllers
                     this.resizeMode = resizeMode
+                    keepScreenOn = true // Keep screen on during active playback
                 }
             },
             update = { playerView ->
@@ -3263,12 +3312,11 @@ fun VideoPlayer(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // Back button only when in landscape full screen
-                    if (isLandscape) {
+                    if (isFullscreen) {
                         IconButton(
                             onClick = {
-                                if (activity != null) {
-                                    activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                }
+                                interactionCount++
+                                onFullscreenToggle(false)
                             },
                             modifier = Modifier
                                 .background(Color.Black.copy(alpha = 0.4f), CircleShape)
@@ -3287,6 +3335,7 @@ fun VideoPlayer(
                         // Aspect Ratio Toggle
                         Button(
                             onClick = {
+                                interactionCount++
                                 scale = 1f
                                 offset = androidx.compose.ui.geometry.Offset.Zero
                                 resizeMode = when (resizeMode) {
@@ -3321,7 +3370,10 @@ fun VideoPlayer(
 
                         // 1. Speed selector pill button
                         Button(
-                            onClick = { showSpeedDialog = true },
+                            onClick = { 
+                                interactionCount++
+                                showSpeedDialog = true 
+                            },
                             colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.6f)),
                             contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                             modifier = Modifier.height(36.dp),
@@ -3335,7 +3387,10 @@ fun VideoPlayer(
                         // 2. Video quality selector pill button
                         if (videoOptions.links.size > 1) {
                             Button(
-                                onClick = { showQualitySelector = true },
+                                onClick = { 
+                                    interactionCount++
+                                    showQualitySelector = true 
+                                },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.6f)),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
                                 modifier = Modifier.height(36.dp),
@@ -3350,6 +3405,7 @@ fun VideoPlayer(
                         // 3. Lock Screen button
                         IconButton(
                             onClick = { 
+                                interactionCount++
                                 isLocked = true
                                 Toast.makeText(context, "নিয়ন্ত্রণ প্যানেল লক করা হয়েছে", Toast.LENGTH_SHORT).show()
                             },
@@ -3371,6 +3427,7 @@ fun VideoPlayer(
                     // Rewind 10s button
                     IconButton(
                         onClick = {
+                            interactionCount++
                             val newPos = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
                             exoPlayer.seekTo(newPos)
                             currentPosition = newPos
@@ -3390,6 +3447,7 @@ fun VideoPlayer(
                     // Play / Pause button
                     IconButton(
                         onClick = {
+                            interactionCount++
                             if (exoPlayer.isPlaying) {
                                 exoPlayer.pause()
                             } else {
@@ -3411,6 +3469,7 @@ fun VideoPlayer(
                     // Fast Forward 10s button
                     IconButton(
                         onClick = {
+                            interactionCount++
                             val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(exoPlayer.duration)
                             exoPlayer.seekTo(newPos)
                             currentPosition = newPos
@@ -3456,6 +3515,7 @@ fun VideoPlayer(
                             if (ThemeManager.isPipEnabled) {
                                 IconButton(
                                     onClick = {
+                                        interactionCount++
                                         VideoPipState.onEnterPip?.invoke()
                                     },
                                     modifier = Modifier
@@ -3475,20 +3535,15 @@ fun VideoPlayer(
                             // Fullscreen Landscape/Portrait Toggle
                             IconButton(
                                 onClick = {
-                                    if (activity != null) {
-                                        activity.requestedOrientation = if (isLandscape) {
-                                            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                                        } else {
-                                            android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                                        }
-                                    }
+                                    interactionCount++
+                                    onFullscreenToggle(!isFullscreen)
                                 },
                                 modifier = Modifier
                                     .size(36.dp)
                                     .background(Color.Black.copy(alpha = 0.4f), CircleShape)
                             ) {
                                 Icon(
-                                    imageVector = if (isLandscape) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
+                                    imageVector = if (isFullscreen) Icons.Default.FullscreenExit else Icons.Default.Fullscreen,
                                     contentDescription = "Toggle Landscape Fullscreen",
                                     tint = Color.White,
                                     modifier = Modifier.size(20.dp)
@@ -3502,10 +3557,12 @@ fun VideoPlayer(
                     Slider(
                         value = sliderValue,
                         onValueChange = {
+                            interactionCount++
                             isDraggingSlider = true
                             dragPosition = it
                         },
                         onValueChangeFinished = {
+                            interactionCount++
                             exoPlayer.seekTo(dragPosition.toLong())
                             currentPosition = dragPosition.toLong()
                             isDraggingSlider = false
@@ -3715,6 +3772,7 @@ fun ClassDetailView(
     onBack: () -> Unit
 ) {
     val context = LocalContext.current
+    val activity = remember(context) { context.findActivity() }
     var videoOptions by remember { mutableStateOf<VideoOptions?>(null) }
     var savedVideoPosition by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(0L) }
     var savedVideoPlaying by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
@@ -3778,8 +3836,29 @@ fun ClassDetailView(
         }
     }
 
+    var isManualFullscreen by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
-    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+    val isDeviceLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+    // Automatically sync fullscreen state with physical device orientation changes
+    LaunchedEffect(isDeviceLandscape) {
+        isManualFullscreen = isDeviceLandscape
+        if (activity != null) {
+            if (!isDeviceLandscape) {
+                // Reset manual override when physically in portrait to let sensor work freely
+                activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+            }
+        }
+    }
+
+    // Intercept back-press while in fullscreen to exit fullscreen mode first
+    BackHandler(enabled = isManualFullscreen || isDeviceLandscape) {
+        isManualFullscreen = false
+        if (activity != null) {
+            activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        }
+    }
 
     // Use movableContentOf to keep VideoPlayer stable across orientation/PiP changes
     val movableVideoPlayer = remember(videoOptions, currentVideoUrl) {
@@ -3794,6 +3873,17 @@ fun ClassDetailView(
                     onPlayingChanged = { savedVideoPlaying = it },
                     onQualityChanged = { link ->
                         currentVideoUrl = link.url
+                    },
+                    isFullscreen = isManualFullscreen,
+                    onFullscreenToggle = { fullscreen ->
+                        isManualFullscreen = fullscreen
+                        if (activity != null) {
+                            activity.requestedOrientation = if (fullscreen) {
+                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                            } else {
+                                android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            }
+                        }
                     }
                 )
             }
@@ -3807,9 +3897,15 @@ fun ClassDetailView(
         return
     }
 
-    if (isLandscape && clazz.recordedLink.isNotBlank() && videoOptions != null) {
-        Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-            movableVideoPlayer(Modifier.fillMaxSize())
+    if ((isManualFullscreen || isDeviceLandscape) && clazz.recordedLink.isNotBlank()) {
+        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = androidx.compose.ui.Alignment.Center) {
+            if (isLoadingVideo) {
+                VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
+            } else if (videoOptions != null) {
+                movableVideoPlayer(Modifier.fillMaxSize())
+            } else {
+                androidx.compose.material3.Text("Failed to load video", color = Color.White)
+            }
         }
         return
     }
@@ -5260,7 +5356,7 @@ fun UnenrolledCourseOverview(
             Text("কোয়ার্টার বা প্যাকেজ সমূহ", fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             val currentDate = java.time.LocalDate.now()
-            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd/MM/yyyy")
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("d/M/yyyy")
             
             course.quarters.forEach { quarter ->
                 var statusText = "অজানা"
@@ -5268,8 +5364,8 @@ fun UnenrolledCourseOverview(
                 var statusIcon = Icons.Default.HelpOutline
                 
                 try {
-                    val start = java.time.LocalDate.parse(quarter.startDate, formatter)
-                    val end = java.time.LocalDate.parse(quarter.endDate, formatter)
+                    val start = java.time.LocalDate.parse(quarter.startDate.trim(), formatter)
+                    val end = java.time.LocalDate.parse(quarter.endDate.trim(), formatter)
                     
                     if (currentDate.isBefore(start)) {
                         statusText = "পড়ানো হবে"
