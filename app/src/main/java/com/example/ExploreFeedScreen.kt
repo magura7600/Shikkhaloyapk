@@ -136,7 +136,7 @@ fun ExploreFeedScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(bottom = 100.dp)
+            contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             if (filteredCourses.isNotEmpty()) {
                 items(filteredCourses) { course ->

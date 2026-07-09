@@ -445,58 +445,22 @@ class MainActivity : ComponentActivity() {
             MaterialTheme(
                 colorScheme = colorScheme
             ) {
-                Scaffold(
-                    modifier = Modifier.fillMaxSize(),
-                    containerColor = Color.Transparent
-                ) { innerPadding ->
-                    val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
-                        colors = if (isDark) {
-                            listOf(Color(0xFF0F172A), Color(0xFF020617))
-                        } else {
-                            listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
-                        }
-                    )
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(innerPadding)
-                            .background(bgGradient),
-                        color = Color.Transparent
-                    ) {
-                        MainAppContent()
+                val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
+                    colors = if (isDark) {
+                        listOf(Color(0xFF0F172A), Color(0xFF020617))
+                    } else {
+                        listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
                     }
+                )
+                Surface(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(bgGradient),
+                    color = Color.Transparent
+                ) {
+                    MainAppContent()
                 }
             }
-        }
-    }
-}
-
-@Composable
-fun SecurityFlagManager(appState: AppState) {
-    val context = LocalContext.current
-    val activity = remember(context) { context.findActivity() } ?: return
-
-    val isAdmin = remember(appState) {
-        if (appState is AppState.Dashboard) {
-            appState.profile.role == "admin"
-        } else {
-            false
-        }
-    }
-
-    DisposableEffect(isAdmin) {
-        if (isAdmin) {
-            // Admin accounts can take screenshots or record videos
-            activity.window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        } else {
-            // Non-admin users cannot take screenshots or record videos
-            activity.window.setFlags(
-                WindowManager.LayoutParams.FLAG_SECURE,
-                WindowManager.LayoutParams.FLAG_SECURE
-            )
-        }
-        onDispose {
-            // Keep secure state by default
         }
     }
 }
@@ -508,7 +472,6 @@ fun MainAppContent() {
     val coroutineScope = rememberCoroutineScope()
     
     var appState by remember { mutableStateOf<AppState>(AppState.Splash) }
-    SecurityFlagManager(appState = appState)
     var activeUpdateToPrompt by remember { mutableStateOf<AppUpdate?>(null) }
     var activeNoticeToPrompt by remember { mutableStateOf<AppNotice?>(null) }
 
@@ -1787,52 +1750,43 @@ fun DashboardScreen(
     LaunchedEffect(currentScreen, selectedTab, focusCourseId, selectedCourse?.id, isOffline, profile.user_id) {
         try {
             // 1. My Enrollments (needed globally for a student to know what they own)
-            if (!isTeacher && !isAdmin && enrollments.isEmpty()) {
-                 enrollments = withContext(Dispatchers.IO) {
+            if (!isTeacher && !isAdmin) {
+                 val newEnrollments = withContext(Dispatchers.IO) {
                      try {
                          supabase.from("enrollments").select { filter { eq("user_id", profile.user_id) } }.decodeList<Enrollment>()
-                     } catch(e: Exception) { emptyList() }
+                     } catch(e: Exception) { enrollments }
                  }
+                 enrollments = newEnrollments
             }
 
             // 2. All Enrollments & Requests (ONLY needed if Teacher/Admin goes to Management)
             if ((isTeacher || isAdmin) && selectedTab == 2) {
-                 if (enrollments.isEmpty()) {
-                     enrollments = withContext(Dispatchers.IO) {
-                         try { supabase.from("enrollments").select().decodeList<Enrollment>() } catch(e: Exception) { emptyList() }
-                     }
+                 enrollments = withContext(Dispatchers.IO) {
+                     try { supabase.from("enrollments").select().decodeList<Enrollment>() } catch(e: Exception) { enrollments }
                  }
-                 if (enrollmentRequests.isEmpty()) {
-                     enrollmentRequests = withContext(Dispatchers.IO) {
-                         try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { emptyList() }
-                     }
+                 enrollmentRequests = withContext(Dispatchers.IO) {
+                     try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
                  }
             }
 
             // 3. Courses
-            if (!hasLoadedAllCourses || courses.isEmpty()) {
-                 courses = withContext(Dispatchers.IO) {
-                     try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { emptyList() }
-                 }
-                 hasLoadedAllCourses = true
+            courses = withContext(Dispatchers.IO) {
+                try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { courses }
             }
+            hasLoadedAllCourses = true
 
             // 4. Channels
-            if (allChannels.isEmpty()) {
-                 allChannels = withContext(Dispatchers.IO) {
-                     try { supabase.from("profiles").select().decodeList<UserProfile>().filter { it.handle != null && it.handle.isNotBlank() } } catch(e: Exception) { emptyList() }
-                 }
+            allChannels = withContext(Dispatchers.IO) {
+                try { supabase.from("profiles").select().decodeList<UserProfile>().filter { it.handle != null && it.handle.isNotBlank() } } catch(e: Exception) { allChannels }
             }
 
             // 5. Course Interactions & Mentors (ONLY needed for Course Detail screen)
             if (currentScreen == "course_detail" && selectedCourse != null) {
                  courseInteractions = withContext(Dispatchers.IO) {
-                     try { supabase.from("course_interactions").select { filter { eq("course_id", selectedCourse!!.id) } }.decodeList<CourseInteraction>() } catch(e: Exception) { emptyList() }
+                     try { supabase.from("course_interactions").select { filter { eq("course_id", selectedCourse!!.id) } }.decodeList<CourseInteraction>() } catch(e: Exception) { courseInteractions }
                  }
-                 if (mentors.isEmpty()) {
-                     mentors = withContext(Dispatchers.IO) {
-                         try { supabase.from("mentors").select().decodeList<Mentor>() } catch(e: Exception) { emptyList() }
-                     }
+                 mentors = withContext(Dispatchers.IO) {
+                     try { supabase.from("mentors").select().decodeList<Mentor>() } catch(e: Exception) { mentors }
                  }
             }
         } catch (e: Exception) {
@@ -1883,7 +1837,7 @@ fun DashboardScreen(
         containerColor = Color.Transparent,
         topBar = {
             if (currentScreen == "dashboard") {
-                Column(modifier = Modifier.background(Color.White).statusBarsPadding()) {
+                Column(modifier = Modifier.background(Color.White)) {
                     TopAppBar(
                     title = { 
                         if (!isManagementUser) {
@@ -2014,8 +1968,7 @@ fun DashboardScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.White
-                    ),
-                    windowInsets = WindowInsets(0, 0, 0, 0)
+                    )
                 )
                 Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
                 if (isOffline) {
@@ -2852,7 +2805,7 @@ fun StudentDashboardContent(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(start = 8.dp, end = 8.dp, top = 80.dp, bottom = 100.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
     ) {
         // Class Routine Card
         item {
@@ -3426,7 +3379,7 @@ fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAd
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 80.dp, bottom = 100.dp)
+        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
     ) {
         item {
             Text(
@@ -3577,7 +3530,7 @@ fun SettingsScreen(
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
-            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 80.dp, bottom = 100.dp)
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 16.dp)
         ) {
         item {
             Text(

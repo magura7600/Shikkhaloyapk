@@ -60,6 +60,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.layout
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.shape.CircleShape
@@ -238,7 +239,7 @@ fun CourseDetailScreen(
                         .fillMaxWidth()
                         .background(Color(0xFFFBF8F1))
                         .padding(horizontal = 16.dp)
-                        .padding(top = 16.dp, bottom = 4.dp),
+                        .padding(top = 4.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -614,7 +615,7 @@ fun CourseContentSection(
             }
         )
     } else if (selectedSubjectForView == null) {
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp)) {
             // 1. "রুটিন দেখে নাও →" Banner Button - Premium Gradient Styling
             Card(
                 onClick = { showRoutineDialog = true },
@@ -1060,7 +1061,7 @@ fun CourseContentSection(
         }
     } else {
         val subj = currentSubject ?: selectedSubjectForView!!
-        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp)) {
 
             // 1. Quarters Selectable Tabs inside subject details - Premium Card style
             if (course.isQuarterOn && course.quarters.isNotEmpty()) {
@@ -1663,7 +1664,7 @@ fun CourseContentSection(
             onDismissRequest = { subjectToAddChapterTo = null },
             title = { Text("নতুন অধ্যায় (Chapter) যোগ করুন") },
             text = {
-                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp)) {
                     OutlinedTextField(
                         value = newTitle,
                         onValueChange = { newTitle = it },
@@ -1735,7 +1736,7 @@ fun CourseContentSection(
             onDismissRequest = { chapterToEdit = null },
             title = { Text("অধ্যায় (Chapter) এডিট করুন") },
             text = {
-                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
+                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 16.dp)) {
                     OutlinedTextField(
                         value = editTitle,
                         onValueChange = { editTitle = it },
@@ -2663,6 +2664,18 @@ fun VideoPlayer(
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
+    val isAdmin = context.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("user_role", "") == "admin"
+    androidx.compose.runtime.DisposableEffect(isAdmin) {
+        val window = activity?.window
+        if (window != null && !isAdmin) {
+            window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            if (window != null && !isAdmin) {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
+    }
     
     var showQualitySelector by remember { mutableStateOf(false) }
     var showSpeedDialog by remember { mutableStateOf(false) }
@@ -2971,7 +2984,7 @@ fun VideoPlayer(
 
     // Hide controls automatically, but NOT when user is interacting
     LaunchedEffect(controlsVisible, isLocked, isDraggingSlider, showSpeedDialog, showQualitySelector, interactionCount) {
-        if (controlsVisible && !isLocked && !isDraggingSlider && !showSpeedDialog && !showQualitySelector) {
+        if (controlsVisible && !isDraggingSlider && !showSpeedDialog && !showQualitySelector) {
             kotlinx.coroutines.delay(4500L)
             controlsVisible = false
         }
@@ -3860,13 +3873,13 @@ fun ClassDetailView(
             .fillMaxWidth()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 32.dp)
+            .padding(bottom = 32.dp, start = 16.dp, end = 16.dp, top = 12.dp)
     ) {
         // Top Bar with Back Button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+                .padding(vertical = 12.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
             androidx.compose.material3.Card(
@@ -3909,7 +3922,7 @@ fun ClassDetailView(
         // Video Player Placeholder or Actual Player or Live Countdown Timer
         if (isVideoPlayingActive) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Box(modifier = Modifier.fillMaxWidth().height(250.dp)) {
+                Box(modifier = Modifier.fillMaxWidth().height(250.dp).layout { measurable, constraints -> val pad = 16.dp.roundToPx(); val p = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth + pad * 2)); layout(p.width, p.height) { p.place(-pad, 0) } }) {
                     if (isLoadingVideo) {
                         VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
                     } else if (videoOptions != null) {
@@ -3991,42 +4004,6 @@ fun ClassDetailView(
                                 Spacer(Modifier.width(8.dp))
                                 Text("ডাউনলোড ভিডিও", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
-                        }
-                    }
-                } else {
-                    // This is live class play, show the Share on Facebook button!
-                    Button(
-                        onClick = {
-                            try {
-                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(android.content.Intent.EXTRA_TEXT, "আমাদের লাইভ ক্লাসে জয়েন করুন!\nক্লাসের লিঙ্ক: ${clazz.liveLink}")
-                                }
-                                context.startActivity(android.content.Intent.createChooser(shareIntent, "লাইভ ক্লাস লিংক শেয়ার করুন"))
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "শেয়ার করা যায়নি", Toast.LENGTH_SHORT).show()
-                            }
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(56.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF1877F2), // Facebook Blue
-                            contentColor = Color.White
-                        ),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Share",
-                                tint = Color.White
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Text("ফেসবুকে লাইভ ক্লাস লিংক শেয়ার করুন", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                 }
@@ -4219,14 +4196,8 @@ fun ClassDetailView(
         } else {
             // Placeholder when no video
             Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A))
-                        ),
-                        shape = RoundedCornerShape(16.dp)
+                modifier = Modifier.fillMaxWidth().height(250.dp).layout { measurable, constraints -> val pad = 16.dp.roundToPx(); val p = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth + pad * 2)); layout(p.width, p.height) { p.place(-pad, 0) } }.background(
+                        brush = Brush.verticalGradient(colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A)))
                     ),
                 contentAlignment = Alignment.Center
             ) {
@@ -4602,10 +4573,7 @@ fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(220.dp)
             .background(
-                brush = Brush.verticalGradient(
-                    colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A))
-                ),
-                shape = RoundedCornerShape(16.dp)
+                brush = Brush.verticalGradient(colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A)))
             )
             .border(1.dp, Color(0xFF334155).copy(alpha = 0.5f), RoundedCornerShape(16.dp)),
         contentAlignment = Alignment.Center
@@ -4899,7 +4867,7 @@ fun RoutineDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(Color(0xFF1E293B))
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -5411,7 +5379,7 @@ fun UnenrolledCourseOverview(
 ) {
     Column(modifier = modifier.fillMaxWidth().padding(16.dp).verticalScroll(rememberScrollState())) {
         Box(
-            modifier = Modifier.fillMaxWidth().height(200.dp).background(Color.LightGray, RoundedCornerShape(16.dp))
+            modifier = Modifier.fillMaxWidth().height(200.dp).layout { measurable, constraints -> val pad = 16.dp.roundToPx(); val p = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth + pad * 2)); layout(p.width, p.height) { p.place(-pad, 0) } }.background(Color.LightGray, RoundedCornerShape(16.dp))
         ) {
             if (course.bannerUrl.isNotBlank()) {
                 coil.compose.AsyncImage(
@@ -5901,10 +5869,15 @@ fun Modifier.playerGestureDetector(
     onTap: () -> Unit,
     onDoubleTap: () -> Unit
 ): Modifier = this.pointerInput(isLocked) {
-    if (isLocked) return@pointerInput
-    detectTapGestures(
-        onTap = { onTap() },
-        onDoubleTap = { onDoubleTap() }
-    )
+    if (isLocked) {
+        detectTapGestures(
+            onTap = { onTap() }
+        )
+    } else {
+        detectTapGestures(
+            onTap = { onTap() },
+            onDoubleTap = { onDoubleTap() }
+        )
+    }
 }
 

@@ -69,6 +69,18 @@ fun PdfViewerDialog(
     var error by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = remember(context) { context as? androidx.activity.ComponentActivity }
+    val isAdmin = context.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("user_role", "") == "admin"
+    androidx.compose.runtime.DisposableEffect(isAdmin) {
+        val window = activity?.window
+        if (window != null && !isAdmin) {
+            window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            if (window != null && !isAdmin) {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
+    }
     var isLandscape by remember { mutableStateOf(activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) }
     var showJumpToPageDialog by remember { mutableStateOf(false) }
     var jumpPageInput by remember { mutableStateOf("") }
@@ -157,7 +169,8 @@ fun PdfViewerDialog(
         properties = DialogProperties(
             usePlatformDefaultWidth = false,
             dismissOnBackPress = true,
-            dismissOnClickOutside = false
+            dismissOnClickOutside = false,
+            decorFitsSystemWindows = false
         )
     ) {
         // Force full screen window
@@ -170,6 +183,9 @@ fun PdfViewerDialog(
                 )
                 window.setBackgroundDrawableResource(android.R.color.transparent)
                 androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+                val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+                insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
             }
         }
 
@@ -221,8 +237,7 @@ fun PdfViewerDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .statusBarsPadding()
-                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {

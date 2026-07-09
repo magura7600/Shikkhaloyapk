@@ -74,7 +74,7 @@ fun CourseListScreen(
     LazyColumn(
         modifier = Modifier.fillMaxSize().background(Color(0xFFF8FAFC)),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 80.dp, bottom = 100.dp)
+        contentPadding = PaddingValues(start = 12.dp, end = 12.dp, top = 16.dp, bottom = 16.dp)
     ) {
         item {
             Text(
