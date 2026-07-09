@@ -1,15 +1,21 @@
 # Add project specific ProGuard rules here.
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
-#
-# For more details, see
-#   http://developer.android.com/guide/developing/tools/proguard.html
+
+# --- SAFE SHRINKING ONLY (CRITICAL TO PREVENT CRASHES) ---
+# Disable optimization and obfuscation. This lets R8 shrink the unused classes
+# (which reduces the APK size from 30MB to ~15-20MB) but completely avoids
+# runtime crashes caused by class renaming or bytecode rewriting.
+-dontoptimize
+-dontobfuscate
+
+# Keep line numbers for easier crash debugging
+-keepattributes SourceFile,LineNumberTable
 
 # --- Keep critical attributes ---
 -keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,Metadata
 
 # --- Our own App Code Keep Rules (CRITICAL) ---
-# Keeping everything in com.example completely avoids crashes related to serialization, reflection, and database models.
 -keep class com.example.** { *; }
 -keep interface com.example.** { *; }
 
