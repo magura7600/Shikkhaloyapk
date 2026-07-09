@@ -42,9 +42,12 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.asCoroutineDispatcher
 import java.io.File
 import java.util.concurrent.Executors
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 // Single-threaded dispatcher to ensure thread safety with Android's PdfRenderer
 private val pdfDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
+private val pdfMutex = Mutex()
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -75,32 +78,34 @@ fun PdfViewerDialog(
         val oldRenderer = pdfRenderer
         val oldFd = fileDescriptor
         withContext(pdfDispatcher) {
-            try {
-                if (oldRenderer != null || oldFd != null) {
-                    try {
-                        oldRenderer?.close()
-                        oldFd?.close()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+            pdfMutex.withLock {
+                try {
+                    if (oldRenderer != null || oldFd != null) {
+                        try {
+                            oldRenderer?.close()
+                            oldFd?.close()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
-                }
-                if (file.exists() && file.length() > 0) {
-                    val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
-                    val renderer = PdfRenderer(fd)
-                    withContext(Dispatchers.Main) {
-                        fileDescriptor = fd
-                        pdfRenderer = renderer
-                        pageCount = renderer.pageCount
+                    if (file.exists() && file.length() > 0) {
+                        val fd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+                        val renderer = PdfRenderer(fd)
+                        withContext(Dispatchers.Main) {
+                            fileDescriptor = fd
+                            pdfRenderer = renderer
+                            pageCount = renderer.pageCount
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            error = true
+                        }
                     }
-                } else {
+                } catch (e: Exception) {
+                    e.printStackTrace()
                     withContext(Dispatchers.Main) {
                         error = true
                     }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    error = true
                 }
             }
         }
@@ -112,11 +117,13 @@ fun PdfViewerDialog(
             val fd = fileDescriptor
             if (r != null || fd != null) {
                 kotlinx.coroutines.CoroutineScope(pdfDispatcher).launch {
-                    try {
-                        r?.close()
-                        fd?.close()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                    pdfMutex.withLock {
+                        try {
+                            r?.close()
+                            fd?.close()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
                 }
             }
@@ -273,48 +280,50 @@ fun ZoomablePdfPage(
         if (bitmap != null) return@LaunchedEffect
 
         withContext(pdfDispatcher) {
-            try {
-                var bmp: Bitmap? = null
-                val page = pdfRenderer.openPage(pageIndex)
+            pdfMutex.withLock {
                 try {
-                    val width = (page.width * 2f).toInt()
-                    val height = (page.height * 2f).toInt()
-
+                    var bmp: Bitmap? = null
+                    val page = pdfRenderer.openPage(pageIndex)
                     try {
-                        bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                    } catch (e: OutOfMemoryError) {
-                        System.gc()
+                        val width = (page.width * 2f).toInt()
+                        val height = (page.height * 2f).toInt()
+
                         try {
-                            val fallbackWidth = (page.width * 1.5f).toInt()
-                            val fallbackHeight = (page.height * 1.5f).toInt()
-                            bmp = Bitmap.createBitmap(fallbackWidth, fallbackHeight, Bitmap.Config.ARGB_8888)
-                        } catch (e2: OutOfMemoryError) {
+                            bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        } catch (e: OutOfMemoryError) {
+                            System.gc()
                             try {
-                                bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.RGB_565)
-                            } catch (e3: OutOfMemoryError) {
-                                e3.printStackTrace()
+                                val fallbackWidth = (page.width * 1.5f).toInt()
+                                val fallbackHeight = (page.height * 1.5f).toInt()
+                                bmp = Bitmap.createBitmap(fallbackWidth, fallbackHeight, Bitmap.Config.ARGB_8888)
+                            } catch (e2: OutOfMemoryError) {
+                                try {
+                                    bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.RGB_565)
+                                } catch (e3: OutOfMemoryError) {
+                                    e3.printStackTrace()
+                                }
                             }
                         }
+
+                        if (bmp != null) {
+                            bmp!!.eraseColor(android.graphics.Color.WHITE)
+                            page.render(bmp!!, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        }
+                    } finally {
+                        page.close()
                     }
 
                     if (bmp != null) {
-                        bmp!!.eraseColor(android.graphics.Color.WHITE)
-                        page.render(bmp!!, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                        bitmapCache.put(pageIndex, bmp)
+                        withContext(Dispatchers.Main) {
+                            bitmap = bmp
+                        }
                     }
-                } finally {
-                    page.close()
-                }
-
-                if (bmp != null) {
-                    bitmapCache.put(pageIndex, bmp)
+                } catch (e: Exception) {
+                    e.printStackTrace()
                     withContext(Dispatchers.Main) {
-                        bitmap = bmp
+                        pageError = true
                     }
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    pageError = true
                 }
             }
         }

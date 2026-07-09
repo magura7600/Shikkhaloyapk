@@ -192,10 +192,19 @@ fun ExploreFeedScreen(
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically, modifier = Modifier.clickable { onChannelClick(courseChannel) }) {
                                         Box(
-                                            modifier = Modifier.size(20.dp).clip(androidx.compose.foundation.shape.CircleShape).background(accentColor.copy(alpha=0.15f)),
+                                            modifier = Modifier.size(28.dp).clip(androidx.compose.foundation.shape.CircleShape).background(accentColor.copy(alpha=0.15f)),
                                             contentAlignment = androidx.compose.ui.Alignment.Center
                                         ) {
-                                            Text(courseChannel.full_name.firstOrNull()?.toString() ?: "T", color = accentColor, fontSize = 10.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                                            if (!courseChannel.profile_image_url.isNullOrBlank()) {
+                                                AsyncImage(
+                                                    model = courseChannel.profile_image_url,
+                                                    contentDescription = "Channel Logo",
+                                                    modifier = Modifier.fillMaxSize(),
+                                                    contentScale = ContentScale.Crop
+                                                )
+                                            } else {
+                                                Text(courseChannel.full_name.firstOrNull()?.toString() ?: "T", color = accentColor, fontSize = 11.sp, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                                            }
                                         }
                                         Spacer(modifier = Modifier.width(6.dp))
                                         Text(courseChannel.full_name, fontSize = 13.sp, color = accentColor, fontWeight = androidx.compose.ui.text.font.FontWeight.Medium)

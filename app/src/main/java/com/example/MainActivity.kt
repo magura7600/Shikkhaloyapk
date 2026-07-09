@@ -1706,27 +1706,11 @@ fun DashboardScreen(
             }
 
             // 3. Courses
-            if (!hasLoadedAllCourses) {
-                 if (selectedTab == 0 && !isTeacher && !isAdmin) {
-                     // Home tab: only load enrolled courses
-                     val myCourseIds = enrollments.map { it.course_id }
-                     if (myCourseIds.isNotEmpty() && courses.isEmpty()) {
-                         courses = withContext(Dispatchers.IO) {
-                             try { supabase.from("courses").select { filter { isIn("id", myCourseIds) } }.decodeList<CourseItem>() } catch(e: Exception) { emptyList() }
-                         }
-                     }
-                 } else if (selectedTab == 1 || selectedTab == 3 || currentScreen == "select_course_for_students") {
-                     // Course list or Explore tab: load all courses
-                     courses = withContext(Dispatchers.IO) {
-                         try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { emptyList() }
-                     }
-                     if (courses.isNotEmpty()) hasLoadedAllCourses = true
-                 } else if (isTeacher && courses.isEmpty()) {
-                     // Teacher home: load their courses
-                     courses = withContext(Dispatchers.IO) {
-                         try { supabase.from("courses").select { filter { eq("channel_id", profile.user_id) } }.decodeList<CourseItem>() } catch(e: Exception) { emptyList() }
-                     }
+            if (!hasLoadedAllCourses || courses.isEmpty()) {
+                 courses = withContext(Dispatchers.IO) {
+                     try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { emptyList() }
                  }
+                 if (courses.isNotEmpty()) hasLoadedAllCourses = true
             }
 
             // 4. Channels
