@@ -5,22 +5,53 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
+# --- Our own App Code Keep Rules (CRITICAL) ---
+# Keeping everything in com.example completely avoids crashes related to serialization, reflection, and database models.
+-keep class com.example.** { *; }
+-keep interface com.example.** { *; }
+
 # Keep YoutubeDL library classes and native interfaces
 -keep class com.yausername.youtubedl_android.** { *; }
 -keep interface com.yausername.youtubedl_android.** { *; }
 -keep class * implements com.yausername.youtubedl_android.** { *; }
 
-# If your project uses WebView with JS, uncomment the following
-# and specify the fully qualified class name to the JavaScript interface
-# class:
-#-keepclassmembers class fqcn.of.javascript.interface.for.webview {
-#   public *;
-#}
+# --- Kotlinx Serialization ---
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
+-keep @kotlinx.serialization.Serializable class * {
+    *** Companion;
+    *** $serializer;
+}
+-keepclassmembers class * {
+    *** Companion;
+    *** $serializer;
+}
 
-# Uncomment this to preserve the line number information for
-# debugging stack traces.
-#-keepattributes SourceFile,LineNumberTable
+# --- Supabase & Ktor & Kotlin Coroutines ---
+-keep class io.github.jan.supabase.** { *; }
+-keep interface io.github.jan.supabase.** { *; }
+-keep class io.ktor.** { *; }
+-keep interface io.ktor.** { *; }
+-keep class kotlinx.coroutines.** { *; }
+-keep interface kotlinx.coroutines.** { *; }
+-dontwarn io.github.jan.supabase.**
+-dontwarn io.ktor.**
+-dontwarn kotlinx.coroutines.**
 
-# If you keep the line number information, uncomment this to
-# hide the original source file name.
-#-renamesourcefileattribute SourceFile
+# --- OkHttp & Okio ---
+-keep class okhttp3.** { *; }
+-keep interface okhttp3.** { *; }
+-keep class okio.** { *; }
+-keep interface okio.** { *; }
+-dontwarn okhttp3.**
+-dontwarn okio.**
+
+# --- OneSignal ---
+-keep class com.onesignal.** { *; }
+-keep interface com.onesignal.** { *; }
+-dontwarn com.onesignal.**
+
+# --- Android / Jetpack Compose / Reflection ---
+-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
+-keepattributes Signature,InnerClasses,EnclosingMethod,Annotation
+
