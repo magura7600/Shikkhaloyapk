@@ -5,6 +5,9 @@
 # For more details, see
 #   http://developer.android.com/guide/developing/tools/proguard.html
 
+# --- Keep critical attributes ---
+-keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod,Metadata
+
 # --- Our own App Code Keep Rules (CRITICAL) ---
 # Keeping everything in com.example completely avoids crashes related to serialization, reflection, and database models.
 -keep class com.example.** { *; }
@@ -16,7 +19,6 @@
 -keep class * implements com.yausername.youtubedl_android.** { *; }
 
 # --- Kotlinx Serialization ---
--keepattributes *Annotation*,Signature,InnerClasses,EnclosingMethod
 -keep @kotlinx.serialization.Serializable class * {
     *** Companion;
     *** $serializer;
@@ -25,6 +27,13 @@
     *** Companion;
     *** $serializer;
 }
+-keepclassmembers class * {
+    *** Companion;
+    *** serializer(...);
+}
+-keep class kotlinx.serialization.** { *; }
+-keep interface kotlinx.serialization.** { *; }
+-dontwarn kotlinx.serialization.**
 
 # --- Supabase & Ktor & Kotlin Coroutines ---
 -keep class io.github.jan.supabase.** { *; }
@@ -50,8 +59,24 @@
 -keep interface com.onesignal.** { *; }
 -dontwarn com.onesignal.**
 
+# --- ExoPlayer / Media3 (CRITICAL for Video Player) ---
+-keep class androidx.media3.** { *; }
+-keep interface androidx.media3.** { *; }
+-dontwarn androidx.media3.**
+
+# --- Firebase & Play Services ---
+-keep class com.google.firebase.** { *; }
+-keep interface com.google.firebase.** { *; }
+-keep class com.google.android.gms.** { *; }
+-keep interface com.google.android.gms.** { *; }
+-dontwarn com.google.firebase.**
+-dontwarn com.google.android.gms.**
+
+# --- Coil ---
+-keep class coil.** { *; }
+-keep interface coil.** { *; }
+-dontwarn coil.**
+
 # --- Android / Jetpack Compose / Reflection ---
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
--keepattributes Signature,InnerClasses,EnclosingMethod,Annotation
-
