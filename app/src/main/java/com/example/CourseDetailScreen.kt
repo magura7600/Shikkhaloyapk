@@ -23,6 +23,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Block
+import androidx.compose.material.icons.filled.Share
 
 import androidx.compose.material.icons.filled.HelpOutline
 import androidx.compose.material.icons.filled.Schedule
@@ -93,6 +94,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -141,6 +143,7 @@ fun CourseDetailScreen(
     initialSubjectId: String? = null,
     initialChapterId: String? = null,
     initialClassId: String? = null,
+    onClearInitialNavigation: () -> Unit = {},
     onBack: () -> Unit
 ) {
     var selectedQuarters by remember { mutableStateOf(setOf<CourseQuarter>()) }
@@ -377,6 +380,7 @@ fun CourseDetailScreen(
                         initialSubjectId = initialSubjectId,
                         initialChapterId = initialChapterId,
                         initialClassId = initialClassId,
+                        onClearInitialNavigation = onClearInitialNavigation,
                         initialSelectedQuarterName = initialSelectedQuarterName,
                         onCourseUpdate = onCourseUpdate,
                         selectedSubjectForView = selectedSubjectForView,
@@ -413,6 +417,7 @@ fun CourseDetailScreen(
                             initialSubjectId = initialSubjectId,
                             initialChapterId = initialChapterId,
                             initialClassId = initialClassId,
+                            onClearInitialNavigation = onClearInitialNavigation,
                             initialSelectedQuarterName = initialSelectedQuarterName,
                             onCourseUpdate = onCourseUpdate,
                             selectedSubjectForView = selectedSubjectForView,
@@ -447,6 +452,7 @@ fun CourseContentSection(
     initialSubjectId: String? = null,
     initialChapterId: String? = null,
     initialClassId: String? = null,
+    onClearInitialNavigation: () -> Unit = {},
     initialSelectedQuarterName: String? = null,
     onCourseUpdate: ((CourseItem) -> Unit)? = null,
     selectedSubjectForView: CourseSubject?,
@@ -500,6 +506,7 @@ fun CourseContentSection(
                 onSelectedChapterChange(ch)
                 onSelectedClassChange(c)
             }
+            onClearInitialNavigation()
         }
     }
 
@@ -1232,7 +1239,8 @@ fun CourseContentSection(
                 AddResourceDialog(
                     onDismiss = { isAddingResource = false },
                     onAdd = { title, url ->
-                        val updatedResources = subj.learningResources.toMutableList().apply { add(PdfLink(title, url)) }
+                        val currentResources = (subj.learningResources as? List<*>?)?.filterIsInstance<PdfLink>() ?: emptyList()
+                        val updatedResources = currentResources.toMutableList().apply { add(PdfLink(title, url)) }
                         val updatedSubject = subj.copy(learningResources = updatedResources)
                         val updatedSubjects = course.subjects.map { if (it.id == subj.id) updatedSubject else it }
                         onUpdate(updatedSubjects)
@@ -3801,15 +3809,42 @@ fun ClassDetailView(
         downloadsList = OfflineDownloadManager.getDownloadRecords(context)
     }
 
-    LaunchedEffect(clazz.recordedLink) {
-        if (clazz.recordedLink.isNotBlank()) {
+    val targetTime = remember(clazz.date, clazz.time) { getClassCalendar(clazz.date, clazz.time)?.timeInMillis ?: 0L }
+    var timeRemainingMillis by remember(targetTime) { mutableStateOf(0L) }
+    LaunchedEffect(targetTime) {
+        while (true) {
+            val now = System.currentTimeMillis()
+            timeRemainingMillis = (targetTime - now).coerceAtLeast(0L)
+            if (timeRemainingMillis <= 0L) {
+                break
+            }
+            kotlinx.coroutines.delay(1000)
+        }
+    }
+    val isLiveActive = timeRemainingMillis <= 0L
+
+    LaunchedEffect(clazz.recordedLink, clazz.liveLink, isLiveActive) {
+        val linkToExtract = if (clazz.recordedLink.isNotBlank()) {
+            clazz.recordedLink
+        } else if (clazz.liveLink.isNotBlank() && isLiveActive) {
+            clazz.liveLink
+        } else {
+            ""
+        }
+
+        if (linkToExtract.isNotBlank()) {
             isLoadingVideo = true
-            val options = FacebookVideoExtractor.extractVideoOptions(context, clazz.recordedLink)
+            val options = FacebookVideoExtractor.extractVideoOptions(context, linkToExtract)
             videoOptions = options
             if (options != null) {
                 currentVideoUrl = options.links.firstOrNull()?.url ?: options.adaptiveUrl
+            } else {
+                currentVideoUrl = null
             }
             isLoadingVideo = false
+        } else {
+            videoOptions = null
+            currentVideoUrl = null
         }
     }
 
@@ -3874,7 +3909,9 @@ fun ClassDetailView(
         return
     }
 
-    if ((isManualFullscreen || isDeviceLandscape) && clazz.recordedLink.isNotBlank()) {
+    val isVideoPlayingActive = clazz.recordedLink.isNotBlank() || (clazz.liveLink.isNotBlank() && isLiveActive && videoOptions != null)
+
+    if ((isManualFullscreen || isDeviceLandscape) && isVideoPlayingActive) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = androidx.compose.ui.Alignment.Center) {
             if (isLoadingVideo) {
                 VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
@@ -3938,27 +3975,137 @@ fun ClassDetailView(
         }
 
         // Video Player Placeholder or Actual Player or Live Countdown Timer
-        // Video Player Placeholder or Actual Player or Live Countdown Timer
-        // Video Player Placeholder or Actual Player or Live Countdown Timer
-        if (clazz.recordedLink.isBlank()) {
-            val targetTime = getClassCalendar(clazz.date, clazz.time)?.timeInMillis ?: 0L
-            var timeRemainingMillis by remember { mutableStateOf(0L) }
-            LaunchedEffect(targetTime) {
-                while (true) {
-                    val now = System.currentTimeMillis()
-                    timeRemainingMillis = (targetTime - now).coerceAtLeast(0L)
-                    if (timeRemainingMillis <= 0L) {
-                        break
+        if (isVideoPlayingActive) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Box(modifier = Modifier.fillMaxWidth().height(250.dp)) {
+                    if (isLoadingVideo) {
+                        VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
+                    } else if (videoOptions != null) {
+                        movableVideoPlayer(Modifier.fillMaxSize().background(Color.Black))
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
+                            Text("Failed to load video", color = Color.White)
+                        }
                     }
-                    kotlinx.coroutines.delay(1000)
+                }
+                
+                Spacer(modifier = Modifier.height(16.dp))
+                
+                if (clazz.recordedLink.isNotBlank()) {
+                    // Unified Premium Download Button directly under the Video Player!
+                    val dlUrl = currentVideoUrl ?: videoOptions?.links?.firstOrNull()?.url
+                    val isDownloaded = remember(downloadsList, dlUrl) {
+                        dlUrl != null && downloadsList.any { it.url == dlUrl }
+                    }
+                    val downloadState = downloadStates[dlUrl ?: ""]
+                    
+                    Button(
+                        onClick = {
+                            if (dlUrl != null && !isDownloaded && downloadState !is DownloadState.Downloading) {
+                                OfflineDownloadManager.downloadPermanently(
+                                    context = context,
+                                    url = dlUrl,
+                                    title = clazz.title,
+                                    fileType = "video",
+                                    courseName = courseName,
+                                    className = clazz.title
+                                )
+                            } else if (isDownloaded) {
+                                val record = downloadsList.find { it.url == dlUrl }
+                                if (record != null) {
+                                    recordToDelete = record
+                                } else {
+                                    Toast.makeText(context, "ভিডিওটি ইতিমধ্যে ডাউনলোড করা হয়েছে!", Toast.LENGTH_SHORT).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isDownloaded) Color(0xFF10B981) else Color(0xFF3B82F6),
+                            disabledContainerColor = Color(0xFF94A3B8)
+                        ),
+                        shape = RoundedCornerShape(16.dp),
+                        enabled = !isLoadingVideo && dlUrl != null
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            if (isLoadingVideo) {
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text("ভিডিও প্রস্তুত হচ্ছে...", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            } else if (isDownloaded) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = "Downloaded", tint = Color.White)
+                                Spacer(Modifier.width(8.dp))
+                                Text("ডাউনলোড সম্পন্ন (ডিলিট করতে ট্যাপ করুন)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            } else if (downloadState is DownloadState.Downloading) {
+                                val pct = (downloadState.progress * 100).toInt()
+                                CircularProgressIndicator(
+                                    color = Color.White,
+                                    modifier = Modifier.size(20.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(Modifier.width(12.dp))
+                                Text("ডাউনলোড হচ্ছে ($pct%)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            } else {
+                                Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
+                                Spacer(Modifier.width(8.dp))
+                                Text("ডাউনলোড ভিডিও", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            }
+                        }
+                    }
+                } else {
+                    // This is live class play, show the Share on Facebook button!
+                    Button(
+                        onClick = {
+                            try {
+                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                    type = "text/plain"
+                                    putExtra(android.content.Intent.EXTRA_TEXT, "আমাদের লাইভ ক্লাসে জয়েন করুন!\nক্লাসের লিঙ্ক: ${clazz.liveLink}")
+                                }
+                                context.startActivity(android.content.Intent.createChooser(shareIntent, "লাইভ ক্লাস লিংক শেয়ার করুন"))
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "শেয়ার করা যায়নি", Toast.LENGTH_SHORT).show()
+                            }
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(56.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF1877F2), // Facebook Blue
+                            contentColor = Color.White
+                        ),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Share,
+                                contentDescription = "Share",
+                                tint = Color.White
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text("ফেসবুকে লাইভ ক্লাস লিংক শেয়ার করুন", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        }
+                    }
                 }
             }
+        } else if (clazz.liveLink.isNotBlank() || clazz.recordedLink.isBlank()) {
+            // Live/Countdown/Waiting UI
             val days = timeRemainingMillis / (1000 * 60 * 60 * 24)
             val hours = (timeRemainingMillis / (1000 * 60 * 60)) % 24
             val minutes = (timeRemainingMillis / (1000 * 60)) % 60
             val seconds = (timeRemainingMillis / 1000) % 60
             
-            val isLiveActive = timeRemainingMillis <= 0L
             val isWaitingForLive = isLiveActive && clazz.liveLink.isBlank()
             
             DisposableEffect(isWaitingForLive) {
@@ -4064,16 +4211,17 @@ fun ClassDetailView(
                     if (!isLiveActive) {
                         Spacer(modifier = Modifier.height(24.dp))
                         Row(
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            CountdownUnit(value = days, label = "দিন")
+                            CountdownUnit(value = days, label = "দিন", modifier = Modifier.weight(1f))
                             CountdownDivider()
-                            CountdownUnit(value = hours, label = "ঘণ্টা")
+                            CountdownUnit(value = hours, label = "ঘণ্টা", modifier = Modifier.weight(1f))
                             CountdownDivider()
-                            CountdownUnit(value = minutes, label = "মিনিট")
+                            CountdownUnit(value = minutes, label = "মিনিট", modifier = Modifier.weight(1f))
                             CountdownDivider()
-                            CountdownUnit(value = seconds, label = "সেকেন্ড")
+                            CountdownUnit(value = seconds, label = "সেকেন্ড", modifier = Modifier.weight(1f))
                         }
                     }
                     
@@ -4110,15 +4258,10 @@ fun ClassDetailView(
                         Spacer(modifier = Modifier.height(20.dp))
                         Button(
                             onClick = {
-                                if (clazz.liveLink.startsWith("http://") || clazz.liveLink.startsWith("https://")) {
-                                    try {
-                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(clazz.liveLink))
-                                        context.startActivity(intent)
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "লিঙ্ক ওপেন করা যায়নি", Toast.LENGTH_SHORT).show()
-                                    }
+                                if (isLiveActive) {
+                                    Toast.makeText(context, "ভিডিও লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন...", Toast.LENGTH_SHORT).show()
                                 } else {
-                                    Toast.makeText(context, "সঠিক লিঙ্ক পাওয়া যায়নি", Toast.LENGTH_SHORT).show()
+                                    Toast.makeText(context, "নির্দিষ্ট সময়ে লাইভ ক্লাস সচল হবে", Toast.LENGTH_SHORT).show()
                                 }
                             },
                             modifier = Modifier
@@ -4133,101 +4276,10 @@ fun ClassDetailView(
                             Icon(Icons.Default.PlayCircle, contentDescription = null, modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                if (isLiveActive) "লাইভ ক্লাসে যোগ দিন" else "নির্দিষ্ট সময়ে জয়েন বাটন সচল হবে",
+                                if (isLiveActive) "লাইভ ক্লাস লোড হচ্ছে..." else "নির্দিষ্ট সময়ে জয়েন বাটন সচল হবে",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 15.sp
                             )
-                        }
-                    }
-                }
-            }
-        } else if (clazz.recordedLink.isNotBlank()) {
-            Column(modifier = Modifier.fillMaxWidth()) {
-                Box(modifier = Modifier.fillMaxWidth().height(250.dp)) {
-                    if (isLoadingVideo) {
-                        VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
-                    } else if (videoOptions != null) {
-                        movableVideoPlayer(Modifier.fillMaxSize().background(Color.Black))
-                    } else {
-                        Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {
-                            Text("Failed to load video", color = Color.White)
-                        }
-                    }
-                }
-                
-                Spacer(modifier = Modifier.height(16.dp))
-                
-                
-        Column(modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 0.dp)) {
-        }
-
-        // Unified Premium Download Button directly under the Video Player!
-                // Always visible, so layout doesn't jump
-                val dlUrl = currentVideoUrl ?: videoOptions?.links?.firstOrNull()?.url
-                val isDownloaded = remember(downloadsList, dlUrl) {
-                    dlUrl != null && downloadsList.any { it.url == dlUrl }
-                }
-                val downloadState = downloadStates[dlUrl ?: ""]
-                
-                Button(
-                    onClick = {
-                        if (dlUrl != null && !isDownloaded && downloadState !is DownloadState.Downloading) {
-                            OfflineDownloadManager.downloadPermanently(
-                                context = context,
-                                url = dlUrl,
-                                title = clazz.title,
-                                fileType = "video",
-                                courseName = courseName,
-                                className = clazz.title
-                            )
-                        } else if (isDownloaded) {
-                            val record = downloadsList.find { it.url == dlUrl }
-                            if (record != null) {
-                                recordToDelete = record
-                            } else {
-                                Toast.makeText(context, "ভিডিওটি ইতিমধ্যে ডাউনলোড করা হয়েছে!", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(56.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = if (isDownloaded) Color(0xFF10B981) else Color(0xFF3B82F6),
-                        disabledContainerColor = Color(0xFF94A3B8)
-                    ),
-                    shape = RoundedCornerShape(16.dp),
-                    enabled = !isLoadingVideo && dlUrl != null
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        if (isLoadingVideo) {
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text("ভিডিও প্রস্তুত হচ্ছে...", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        } else if (isDownloaded) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "Downloaded", tint = Color.White)
-                            Spacer(Modifier.width(8.dp))
-                            Text("ডাউনলোড সম্পন্ন (ডিলিট করতে ট্যাপ করুন)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        } else if (downloadState is DownloadState.Downloading) {
-                            val pct = (downloadState.progress * 100).toInt()
-                            CircularProgressIndicator(
-                                color = Color.White,
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                            Spacer(Modifier.width(12.dp))
-                            Text("ডাউনলোড হচ্ছে ($pct%)", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        } else {
-                            Icon(Icons.Default.Download, contentDescription = "Download", tint = Color.White)
-                            Spacer(Modifier.width(8.dp))
-                            Text("ডাউনলোড ভিডিও", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                 }
@@ -4432,21 +4484,7 @@ fun ClassDetailView(
                             Spacer(modifier = Modifier.width(8.dp))
                             
                             // Helper lambdas for cloud storage links
-                            val isCloudOrWebUrl = remember {
-                                { url: String ->
-                                    val lower = url.trim().lowercase()
-                                    lower.contains("mega.nz") ||
-                                    lower.contains("drive.google.com") ||
-                                    lower.contains("docs.google.com") ||
-                                    lower.contains("dropbox.com") ||
-                                    lower.contains("mediafire.com") ||
-                                    lower.contains("facebook.com") ||
-                                    lower.contains("l.facebook.com") ||
-                                    lower.contains("l.php") ||
-                                    lower.contains("onedrive.live.com") ||
-                                    !lower.contains(".pdf")
-                                }
-                            }
+                            val isCloudOrWebUrl = remember { { url: String -> false } }
                             val openBrowserIntent = remember {
                                 { targetUrl: String ->
                                     try {
@@ -4483,8 +4521,7 @@ fun ClassDetailView(
                                                 },
                                                 onError = { errMsg ->
                                                     downloadingPdfUrl = null
-                                                    Toast.makeText(context, "সরাসরি ভিউ করা যায়নি, ব্রাউজারে ওপেন করা হচ্ছে...", Toast.LENGTH_SHORT).show()
-                                                    openBrowserIntent(pdf.url)
+                                                    Toast.makeText(context, "পিডিএফ লোড করতে সমস্যা হচ্ছে।", Toast.LENGTH_SHORT).show()
                                                 }
                                             )
                                         }
@@ -4765,28 +4802,29 @@ fun convertToBengaliDigits(input: String): String {
 }
 
 @Composable
-fun CountdownUnit(value: Long, label: String) {
+fun CountdownUnit(value: Long, label: String, modifier: Modifier = Modifier) {
     val valueStr = convertToBengaliDigits(String.format("%02d", value))
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .width(64.dp)
+        modifier = modifier
             .background(Color.White.copy(alpha = 0.08f), RoundedCornerShape(12.dp))
-            .padding(vertical = 12.dp)
+            .padding(vertical = 10.dp, horizontal = 2.dp)
     ) {
         Text(
             text = valueStr,
             color = Color.White,
-            fontSize = 24.sp,
+            fontSize = 20.sp,
             fontWeight = FontWeight.ExtraBold,
-            lineHeight = 28.sp
+            lineHeight = 24.sp,
+            maxLines = 1
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
             text = label,
             color = Color.Gray,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Medium,
+            maxLines = 1
         )
     }
 }
@@ -4796,10 +4834,79 @@ fun CountdownDivider() {
     Text(
         text = ":",
         color = Color.White.copy(alpha = 0.5f),
-        fontSize = 28.sp,
+        fontSize = 20.sp,
         fontWeight = FontWeight.Bold,
-        modifier = Modifier.offset(y = (-4).dp)
+        modifier = Modifier.offset(y = (-2).dp)
     )
+}
+
+fun saveImageToGallery(context: android.content.Context, imageUrl: String, filename: String, onResult: (Boolean, String?) -> Unit) {
+    val client = okhttp3.OkHttpClient()
+    val request = okhttp3.Request.Builder().url(imageUrl).build()
+    
+    Thread {
+        try {
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                handler.post { onResult(false, "ডাউনলোড ব্যর্থ হয়েছে। সার্ভার কোড: ${response.code}") }
+                return@Thread
+            }
+            val bytes = response.body?.bytes()
+            if (bytes == null) {
+                val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                handler.post { onResult(false, "কোনো ডেটা পাওয়া যায়নি।") }
+                return@Thread
+            }
+            
+            val contentResolver = context.contentResolver
+            val imageCollection = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                android.provider.MediaStore.Images.Media.getContentUri(android.provider.MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            } else {
+                android.provider.MediaStore.Images.Media.EXTERNAL_CONTENT_URI
+            }
+            
+            val contentValues = android.content.ContentValues().apply {
+                put(android.provider.MediaStore.Images.Media.DISPLAY_NAME, filename)
+                put(android.provider.MediaStore.Images.Media.MIME_TYPE, "image/jpeg")
+                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    put(android.provider.MediaStore.Images.Media.RELATIVE_PATH, android.os.Environment.DIRECTORY_PICTURES + "/Shikkhaloy")
+                    put(android.provider.MediaStore.Images.Media.IS_PENDING, 1)
+                }
+            }
+            
+            val uri = contentResolver.insert(imageCollection, contentValues)
+            if (uri == null) {
+                val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                handler.post { onResult(false, "গ্যালারিতে ফাইল তৈরি করা যায়নি।") }
+                return@Thread
+            }
+            
+            val outputStream = contentResolver.openOutputStream(uri)
+            if (outputStream == null) {
+                val handler = android.os.Handler(android.os.Looper.getMainLooper())
+                handler.post { onResult(false, "ফাইল রাইট করা যায়নি।") }
+                return@Thread
+            }
+            
+            outputStream.use { out ->
+                out.write(bytes)
+            }
+            
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                contentValues.clear()
+                contentValues.put(android.provider.MediaStore.Images.Media.IS_PENDING, 0)
+                contentResolver.update(uri, contentValues, null, null)
+            }
+            
+            val handler = android.os.Handler(android.os.Looper.getMainLooper())
+            handler.post { onResult(true, "গ্যালারিতে সফলভাবে সংরক্ষণ করা হয়েছে!") }
+        } catch (e: Exception) {
+            e.printStackTrace()
+            val handler = android.os.Handler(android.os.Looper.getMainLooper())
+            handler.post { onResult(false, "ত্রুটি: ${e.localizedMessage ?: "অজানা ত্রুটি"}") }
+        }
+    }.start()
 }
 
 @Composable
@@ -4813,6 +4920,7 @@ fun RoutineDialog(
     val coroutineScope = rememberCoroutineScope()
     var isUploading by remember { mutableStateOf(false) }
     var currentRoutineUrl by remember { mutableStateOf(routineUrl) }
+    var isDownloading by remember { mutableStateOf(false) }
 
     val routinePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -4843,77 +4951,157 @@ fun RoutineDialog(
         }
     }
 
-    Dialog(onDismissRequest = onDismiss) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(
+            usePlatformDefaultWidth = false
+        )
+    ) {
         Surface(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            shape = RoundedCornerShape(16.dp),
-            color = Color.White
+            modifier = Modifier.fillMaxSize(),
+            color = Color(0xFF0F172A)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(20.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Top Custom App Bar
                 Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF1E293B))
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(
-                        text = "ক্লাস রুটিন",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF1E293B)
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close")
-                    }
-                }
-                Spacer(modifier = Modifier.height(16.dp))
-
-                if (currentRoutineUrl.isNotBlank()) {
-                    coil.compose.AsyncImage(
-                        model = currentRoutineUrl,
-                        contentDescription = "Routine",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 400.dp)
-                            .clip(RoundedCornerShape(8.dp)),
-                        contentScale = androidx.compose.ui.layout.ContentScale.Fit
-                    )
-                } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(180.dp)
-                            .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp)),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Close",
+                                tint = Color.White
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = "কোনো রুটিন ছবি আপলোড করা হয়নি।",
-                            color = Color.Gray,
-                            fontSize = 14.sp
+                            text = "ক্লাস রুটিন",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White
                         )
                     }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (currentRoutineUrl.isNotBlank()) {
+                            IconButton(
+                                onClick = {
+                                    if (!isDownloading) {
+                                        isDownloading = true
+                                        Toast.makeText(context, "ডাউনলোড শুরু হচ্ছে...", Toast.LENGTH_SHORT).show()
+                                        saveImageToGallery(context, currentRoutineUrl, "Routine_${System.currentTimeMillis()}.jpg") { success, msg ->
+                                            isDownloading = false
+                                            Toast.makeText(context, msg ?: (if (success) "ডাউনলোড সম্পন্ন হয়েছে!" else "ডাউনলোড ব্যর্থ হয়েছে"), Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                },
+                                enabled = !isDownloading
+                            ) {
+                                if (isDownloading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Download,
+                                        contentDescription = "Download",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        if (isTeacher) {
+                            IconButton(
+                                onClick = { routinePickerLauncher.launch("image/*") },
+                                enabled = !isUploading
+                            ) {
+                                if (isUploading) {
+                                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                                } else {
+                                    Icon(
+                                        imageVector = Icons.Default.Edit,
+                                        contentDescription = "Edit Routine",
+                                        tint = Color.White
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
 
-                if (isTeacher) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = { routinePickerLauncher.launch("image/*") },
-                        enabled = !isUploading,
-                        modifier = Modifier.fillMaxWidth(),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
-                    ) {
-                        if (isUploading) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
-                        } else {
-                            Icon(Icons.Default.Upload, contentDescription = "Upload")
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("নতুন রুটিন ছবি আপলোড করুন")
+                // Main Area
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .background(Color(0xFF0F172A)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (currentRoutineUrl.isNotBlank()) {
+                        var scale by remember { mutableStateOf(1f) }
+                        var offset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+                        val state = rememberTransformableState { zoomChange, offsetChange, _ ->
+                            scale = (scale * zoomChange).coerceIn(1f, 5f)
+                            offset += offsetChange
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clipToBounds()
+                                .background(Color.Black)
+                                .transformable(state = state),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            coil.compose.AsyncImage(
+                                model = currentRoutineUrl,
+                                contentDescription = "Routine",
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer(
+                                        scaleX = scale,
+                                        scaleY = scale,
+                                        translationX = offset.x,
+                                        translationY = offset.y
+                                    ),
+                                contentScale = androidx.compose.ui.layout.ContentScale.Fit
+                            )
+                        }
+                    } else {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.padding(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MenuBook,
+                                contentDescription = "No Routine",
+                                tint = Color.Gray.copy(alpha = 0.5f),
+                                modifier = Modifier.size(72.dp)
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Text(
+                                text = "কোনো রুটিন ছবি আপলোড করা হয়নি।",
+                                color = Color.Gray,
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            if (isTeacher) {
+                                Spacer(modifier = Modifier.height(24.dp))
+                                Button(
+                                    onClick = { routinePickerLauncher.launch("image/*") },
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                                ) {
+                                    Icon(Icons.Default.Upload, contentDescription = "Upload")
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("রুটিন ছবি আপলোড করুন")
+                                }
+                            }
                         }
                     }
                 }
@@ -5519,7 +5707,8 @@ fun LearningResourcesScreen(
         AddResourceDialog(
             onDismiss = { isAddingResource = false },
             onAdd = { title, url ->
-                val updatedResources = subject.learningResources.toMutableList().apply { add(PdfLink(title, url)) }
+                val currentResources = (subject.learningResources as? List<*>?)?.filterIsInstance<PdfLink>() ?: emptyList()
+                val updatedResources = currentResources.toMutableList().apply { add(PdfLink(title, url)) }
                 val updatedSubject = subject.copy(learningResources = updatedResources)
                 onUpdateSubject(updatedSubject)
                 isAddingResource = false
@@ -5571,7 +5760,8 @@ fun LearningResourcesScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            if (subject.learningResources.isEmpty()) {
+            val resourcesList = (subject.learningResources as? List<*>?)?.filterIsInstance<PdfLink>() ?: emptyList()
+            if (resourcesList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().padding(40.dp), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.MenuBook, contentDescription = "Empty", modifier = Modifier.size(64.dp), tint = Color.Gray.copy(alpha = 0.5f))
@@ -5580,32 +5770,19 @@ fun LearningResourcesScreen(
                     }
                 }
             } else {
-                subject.learningResources.forEachIndexed { index, pdf ->
+                resourcesList.forEachIndexed { index, pdf ->
                     val downloadedRecord = remember(downloadsList, pdf.url) {
                         downloadsList.find { it.url == pdf.url }
                     }
                     val isDownloaded = downloadedRecord != null
                     val downloadState = downloadStates[pdf.url]
                     
-                    val isCloudOrWebUrl = remember {
-                        { url: String ->
-                            val lower = url.trim().lowercase()
-                            lower.contains("mega.nz") ||
-                            lower.contains("drive.google.com") ||
-                            lower.contains("docs.google.com") ||
-                            lower.contains("dropbox.com") ||
-                            lower.contains("mediafire.com") ||
-                            lower.contains("facebook.com") ||
-                            lower.contains("l.facebook.com") ||
-                            lower.contains("l.php") ||
-                            lower.contains("onedrive.live.com") ||
-                            !lower.contains(".pdf")
-                        }
-                    }
+                    val isCloudOrWebUrl = remember { { url: String -> false } }
                     val openBrowserIntent = remember {
                         { targetUrl: String ->
                             try {
-                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(targetUrl))
+                                val fixedUrl = if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) "https://$targetUrl" else targetUrl
+                                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(fixedUrl))
                                 context.startActivity(intent)
                             } catch (e: Exception) {
                                 Toast.makeText(context, "লিংক ওপেন করা সম্ভব হয়নি", Toast.LENGTH_SHORT).show()
@@ -5660,7 +5837,8 @@ fun LearningResourcesScreen(
                             if (isTeacher) {
                                 IconButton(
                                     onClick = {
-                                        val updatedResources = subject.learningResources.toMutableList().apply { removeAt(index) }
+                                        val currentResources = (subject.learningResources as? List<*>?)?.filterIsInstance<PdfLink>() ?: emptyList()
+                                        val updatedResources = currentResources.toMutableList().apply { removeAt(index) }
                                         val updatedSubject = subject.copy(learningResources = updatedResources)
                                         onUpdateSubject(updatedSubject)
                                     },
@@ -5695,8 +5873,7 @@ fun LearningResourcesScreen(
                                                 },
                                                 onError = { errMsg ->
                                                     downloadingPdfUrl = null
-                                                    Toast.makeText(context, "সরাসরি ভিউ করা যায়নি, ব্রাউজারে ওপেন করা হচ্ছে...", Toast.LENGTH_SHORT).show()
-                                                    openBrowserIntent(pdf.url)
+                                                    Toast.makeText(context, "পিডিএফ লোড করতে সমস্যা হচ্ছে।", Toast.LENGTH_SHORT).show()
                                                 }
                                             )
                                         }

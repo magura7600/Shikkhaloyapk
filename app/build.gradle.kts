@@ -65,9 +65,9 @@ android {
 
   buildTypes {
     release {
-      isCrunchPngs = false
-      isMinifyEnabled = false
-      isShrinkResources = false
+      isCrunchPngs = true
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }
@@ -115,10 +115,10 @@ dependencies {
   // YouTube/Video related - check if they are actually used
   // implementation("io.github.junkfood02.youtubedl-android:library:0.18.1")
   
-  // Google Sign-In with Credential Manager
-  implementation("androidx.credentials:credentials:1.3.0-rc01")
-  implementation("androidx.credentials:credentials-play-services-auth:1.3.0-rc01")
-  implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
+  // Google Sign-In with Credential Manager (Unused, commented out to save size)
+  // implementation("androidx.credentials:credentials:1.3.0-rc01")
+  // implementation("androidx.credentials:credentials-play-services-auth:1.3.0-rc01")
+  // implementation("com.google.android.libraries.identity.googleid:googleid:1.1.1")
   implementation("androidx.browser:browser:1.8.0")
   
   implementation(libs.androidx.compose.ui.graphics)
@@ -134,8 +134,8 @@ dependencies {
   implementation(libs.logging.interceptor)
   implementation(libs.okhttp)
   
-  // PDFBox for Android to search text and get precise coordinates
-  implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+  // PDFBox for Android to search text and get precise coordinates (Unused, commented out to save space)
+  // implementation("com.tom-roush:pdfbox-android:2.0.27.0")
   
   // Supabase
   implementation(libs.supabase.postgrest)
@@ -158,9 +158,9 @@ dependencies {
   implementation(libs.media3.exoplayer.hls)
   implementation(libs.media3.ui)
 
-  // App Signature & Play Integrity Management
-  implementation("com.google.android.play:integrity:1.3.0")
-  implementation("com.google.android.gms:play-services-auth-api-phone:18.0.2")
+  // App Signature & Play Integrity Management (Unused, commented out to save space)
+  // implementation("com.google.android.play:integrity:1.3.0")
+  // implementation("com.google.android.gms:play-services-auth-api-phone:18.0.2")
 
   testImplementation(libs.androidx.compose.ui.test.junit4)
   testImplementation(libs.androidx.core)

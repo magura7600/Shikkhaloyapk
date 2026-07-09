@@ -331,25 +331,29 @@ fun MainAppContent() {
     LaunchedEffect(Unit) {
         val startTime = System.currentTimeMillis()
         
-        // Check for updates
-        try {
-            val update = AppUpdateManager.checkForUpdate(context)
-            if (update != null) {
-                activeUpdateToPrompt = update
+        // Check for updates asynchronously in background
+        coroutineScope.launch {
+            try {
+                val update = AppUpdateManager.checkForUpdate(context)
+                if (update != null) {
+                    activeUpdateToPrompt = update
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
         
-        // Check for notices
-        try {
-            val notice = AppNoticeManager.getActiveNotice()
-            if (notice != null) {
-                activeNoticeToPrompt = notice
-                showNoticeNotification(context, notice)
+        // Check for notices asynchronously in background
+        coroutineScope.launch {
+            try {
+                val notice = AppNoticeManager.getActiveNotice()
+                if (notice != null) {
+                    activeNoticeToPrompt = notice
+                    showNoticeNotification(context, notice)
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
-        } catch (e: Exception) {
-            e.printStackTrace()
         }
 
         // Read cached credentials & sync with Supabase profiles
@@ -364,27 +368,9 @@ fun MainAppContent() {
             val cachedContact = sharedPrefs.getString("contact", "") ?: ""
             val cachedUidCode = sharedPrefs.getString("uid_code", null)
 
-            var dbProfile: UserProfile? = null
-            var dbFetchFailed = false
-            
-            // Always try to fetch latest from DB first to get updated roles (like admin)
-            try {
-                withContext(Dispatchers.IO) {
-                    dbProfile = supabase.from("profiles")
-                        .select {
-                            filter {
-                                eq("user_id", cachedUserId)
-                            }
-                        }.decodeSingleOrNull<UserProfile>()
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                dbFetchFailed = true
-            }
-            
-            // Fallback to cache ONLY if DB fetch fails (e.g. offline)
-            if (dbProfile == null && dbFetchFailed && cachedRole != null && cachedFullName != null && cachedUidCode != null) {
-                dbProfile = UserProfile(
+            if (cachedRole != null && cachedFullName != null && cachedUidCode != null) {
+                // Instantly construct profile from cache to let user in immediately!
+                val cachedProfile = UserProfile(
                     user_id = cachedUserId,
                     email = cachedEmail,
                     role = cachedRole,
@@ -393,43 +379,94 @@ fun MainAppContent() {
                     contact = cachedContact,
                     uid_code = cachedUidCode
                 )
-            }
-
-            nextState = if (dbProfile != null) {
-                // Keep sharedPrefs sync'd
-                sharedPrefs.edit()
-                    .putString("role", dbProfile!!.role)
-                    .putString("full_name", dbProfile!!.full_name)
-                    .putString("institution", dbProfile!!.institution)
-                    .putString("contact", dbProfile!!.contact)
-                    .putString("uid_code", dbProfile!!.uid_code)
-                    .apply()
-
-                AppState.Dashboard(
+                nextState = AppState.Dashboard(
                     email = cachedEmail,
                     userId = cachedUserId,
-                    profile = dbProfile!!
+                    profile = cachedProfile
                 )
-            } else {
-                if (dbFetchFailed) {
-                    AppState.Login
-                } else {
-                    // Fetch succeeded but profile is null in the database (deleted from DB)
-                    // Clear the session completely so they can't auto-login anymore!
+
+                // Sync with latest DB profile in the background
+                coroutineScope.launch {
                     try {
-                        withContext(Dispatchers.IO) {
-                            supabase.auth.signOut()
+                        val dbProfile = withContext(Dispatchers.IO) {
+                            supabase.from("profiles")
+                                .select {
+                                    filter {
+                                        eq("user_id", cachedUserId)
+                                    }
+                                }.decodeSingleOrNull<UserProfile>()
                         }
-                    } catch (e: Exception) {}
-                    sharedPrefs.edit().clear().apply()
-                    AppState.Login
+                        if (dbProfile != null) {
+                            // Sync cache
+                            sharedPrefs.edit()
+                                .putString("role", dbProfile.role)
+                                .putString("full_name", dbProfile.full_name)
+                                .putString("institution", dbProfile.institution)
+                                .putString("contact", dbProfile.contact)
+                                .putString("uid_code", dbProfile.uid_code)
+                                .apply()
+                            
+                            // If profile details changed, update dashboard state seamlessly
+                            if (appState is AppState.Dashboard) {
+                                appState = AppState.Dashboard(
+                                    email = cachedEmail,
+                                    userId = cachedUserId,
+                                    profile = dbProfile
+                                )
+                            }
+                        } else {
+                            // User deleted from DB, sign out
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    supabase.auth.signOut()
+                                }
+                            } catch (e: Exception) {}
+                            sharedPrefs.edit().clear().apply()
+                            appState = AppState.Login
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
+            } else {
+                // Incomplete cache, try to fetch from DB
+                var dbProfile: UserProfile? = null
+                try {
+                    dbProfile = withContext(Dispatchers.IO) {
+                        supabase.from("profiles")
+                            .select {
+                                filter {
+                                    eq("user_id", cachedUserId)
+                                }
+                            }.decodeSingleOrNull<UserProfile>()
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
+                if (dbProfile != null) {
+                    sharedPrefs.edit()
+                        .putString("role", dbProfile.role)
+                        .putString("full_name", dbProfile.full_name)
+                        .putString("institution", dbProfile.institution)
+                        .putString("contact", dbProfile.contact)
+                        .putString("uid_code", dbProfile.uid_code)
+                        .apply()
+
+                    nextState = AppState.Dashboard(
+                        email = cachedEmail,
+                        userId = cachedUserId,
+                        profile = dbProfile
+                    )
+                } else {
+                    nextState = AppState.Login
                 }
             }
         }
 
-        // Enforce beautiful minimum splash duration of 2500ms
+        // Sleek minimum splash duration of 800ms
         val elapsed = System.currentTimeMillis() - startTime
-        val remaining = 2500 - elapsed
+        val remaining = 800 - elapsed
         if (remaining > 0) {
             kotlinx.coroutines.delay(remaining)
         }
@@ -1610,15 +1647,15 @@ fun DashboardScreen(
                  }
             }
 
-            // 4. Channels (ONLY needed for Explore tab)
-            if (selectedTab == 3 && allChannels.isEmpty()) {
+            // 4. Channels
+            if (allChannels.isEmpty()) {
                  allChannels = withContext(Dispatchers.IO) {
                      try { supabase.from("profiles").select().decodeList<UserProfile>().filter { it.handle != null && it.handle.isNotBlank() } } catch(e: Exception) { emptyList() }
                  }
             }
 
             // 5. Course Interactions & Mentors (ONLY needed for Course Detail screen)
-            if (currentScreen == "courseDetail" && selectedCourse != null) {
+            if (currentScreen == "course_detail" && selectedCourse != null) {
                  courseInteractions = withContext(Dispatchers.IO) {
                      try { supabase.from("course_interactions").select { filter { eq("course_id", selectedCourse!!.id) } }.decodeList<CourseInteraction>() } catch(e: Exception) { emptyList() }
                  }
@@ -2082,6 +2119,11 @@ fun DashboardScreen(
                     initialSubjectId = initialSubjectId,
                     initialChapterId = initialChapterId,
                     initialClassId = initialClassId,
+                    onClearInitialNavigation = {
+                        initialSubjectId = null
+                        initialChapterId = null
+                        initialClassId = null
+                    },
                     pendingRequest = enrollmentRequests.find { it.course_id == selectedCourse!!.id && it.user_id == profile.user_id },
                     onPurchaseClick = { currentScreen = "purchase_course" },
                     onEnroll = { purchasedQuarters ->

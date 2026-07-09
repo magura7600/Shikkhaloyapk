@@ -104,7 +104,7 @@ object OfflineDownloadManager {
                 val destinationFile = File(secureDir, uniqueName)
 
                 val sanitizedUrl = sanitizeUrl(cleanUrl)
-                val request = Request.Builder().url(sanitizedUrl).build()
+                val request = Request.Builder().url(sanitizedUrl).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36").build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         throw Exception("Failed to download file: HTTP code ${response.code}")
@@ -187,7 +187,7 @@ object OfflineDownloadManager {
 
                 val tempFile = File(tempDir, "temp_${System.currentTimeMillis()}_view.pdf")
                 val sanitizedUrl = sanitizeUrl(cleanUrl)
-                val request = Request.Builder().url(sanitizedUrl).build()
+                val request = Request.Builder().url(sanitizedUrl).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36").build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
                         throw Exception("Failed to fetch file: HTTP ${response.code}")
@@ -254,65 +254,5 @@ object OfflineDownloadManager {
  * so that OkHttp doesn't fail with IllegalArgumentException on unencoded URLs.
  */
 fun sanitizeUrl(url: String): String {
-    val trimmed = url.trim()
-    if (trimmed.isBlank()) return trimmed
-    
-    // 1. Try OkHttp HttpUrl parse directly (safest/fastest path if already perfectly formatted)
-    try {
-        trimmed.toHttpUrl()
-        return trimmed
-    } catch (e: Exception) {
-        // Fall through to manual encoding
-    }
-
-    // 2. Parse using Android's Uri which is extremely forgiving of raw spaces and unicode characters
-    return try {
-        val uri = android.net.Uri.parse(trimmed)
-        val scheme = uri.scheme ?: "https"
-        val host = uri.host ?: ""
-        val port = if (uri.port != -1) ":${uri.port}" else ""
-        val authority = if (host.isNotEmpty()) "$host$port" else uri.authority ?: ""
-        
-        // Encode each path segment correctly (getPathSegments() returns decoded segments)
-        val pathSegments = uri.pathSegments
-        val encodedPath = if (pathSegments.isNotEmpty()) {
-            "/" + pathSegments.joinToString("/") { segment ->
-                android.net.Uri.encode(segment)
-            }
-        } else {
-            ""
-        }
-        
-        // Encode each query parameter correctly
-        val query = uri.query
-        val encodedQuery = if (!query.isNullOrBlank()) {
-            "?" + uri.queryParameterNames.joinToString("&") { name ->
-                val value = uri.getQueryParameter(name)
-                if (value != null) {
-                    "${android.net.Uri.encode(name)}=${android.net.Uri.encode(value)}"
-                } else {
-                    android.net.Uri.encode(name)
-                }
-            }
-        } else {
-            ""
-        }
-        
-        // Encode fragment
-        val fragment = uri.fragment
-        val encodedFragment = if (!fragment.isNullOrBlank()) {
-            "#" + android.net.Uri.encode(fragment)
-        } else {
-            ""
-        }
-        
-        val rebuilt = "$scheme://$authority$encodedPath$encodedQuery$encodedFragment"
-        // Validate rebuilt URL with OkHttp
-        rebuilt.toHttpUrl()
-        rebuilt
-    } catch (e: Exception) {
-        e.printStackTrace()
-        // If everything fails, replace raw spaces with %20 as a fallback
-        trimmed.replace(" ", "%20")
-    }
+    return url.trim().replace(" ", "%20")
 }
