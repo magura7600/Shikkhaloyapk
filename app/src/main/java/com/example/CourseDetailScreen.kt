@@ -3855,10 +3855,10 @@ fun ClassDetailView(
         }
         return
     }
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(bottom = 32.dp)
     ) {

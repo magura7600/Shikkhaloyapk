@@ -786,7 +786,7 @@ fun UserManagementRow(
                         Image(
                             painter = rememberAsyncImagePainter(user.profile_image_url),
                             contentDescription = "Profile Pic",
-                            modifier = Modifier.fillMaxSize(),
+                            modifier = Modifier.fillMaxSize().statusBarsPadding(),
                             contentScale = ContentScale.Crop
                         )
                     } else {

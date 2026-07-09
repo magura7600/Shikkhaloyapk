@@ -1883,7 +1883,7 @@ fun DashboardScreen(
         containerColor = Color.Transparent,
         topBar = {
             if (currentScreen == "dashboard") {
-                Column(modifier = Modifier.background(Color.White)) {
+                Column(modifier = Modifier.background(Color.White).statusBarsPadding()) {
                     TopAppBar(
                     title = { 
                         if (!isManagementUser) {

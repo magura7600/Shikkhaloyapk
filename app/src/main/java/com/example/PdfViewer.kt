@@ -72,6 +72,7 @@ fun PdfViewerDialog(
     var isLandscape by remember { mutableStateOf(activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) }
     var showJumpToPageDialog by remember { mutableStateOf(false) }
     var jumpPageInput by remember { mutableStateOf("") }
+    var controlsVisible by remember { mutableStateOf(true) }
 
 
     // Initialize an elegant memory-safe Bitmap cache
@@ -168,6 +169,7 @@ fun PdfViewerDialog(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT
                 )
                 window.setBackgroundDrawableResource(android.R.color.transparent)
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
             }
         }
 
@@ -204,11 +206,18 @@ fun PdfViewerDialog(
                         bitmapCache = bitmapCache,
                         onZoomChanged = { isZoomed ->
                             isPagerScrollEnabled = !isZoomed
-                        }
+                        },
+                        onTap = { controlsVisible = !controlsVisible }
                     )
                 }
 
-                // Beautiful translucent floating overlay header at the very top (starts exactly from y = 0)
+                androidx.compose.animation.AnimatedVisibility(
+                    visible = controlsVisible,
+                    enter = androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.fadeOut(),
+                    modifier = Modifier.align(Alignment.TopCenter)
+                ) {
+// Beautiful translucent floating overlay header at the very top (starts exactly from y = 0)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -294,7 +303,15 @@ fun PdfViewerDialog(
                     }
                 }
 
-                // Translucent floating bottom navigation control bar for reliable page switching (Next/Prev)
+                }
+
+androidx.compose.animation.AnimatedVisibility(
+                    visible = controlsVisible,
+                    enter = androidx.compose.animation.fadeIn(),
+                    exit = androidx.compose.animation.fadeOut(),
+                    modifier = Modifier.align(Alignment.BottomCenter)
+                ) {
+// Translucent floating bottom navigation control bar for reliable page switching (Next/Prev)
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -371,6 +388,7 @@ fun PdfViewerDialog(
                         }
                     }
                 }
+                }
                 if (showJumpToPageDialog) {
                     AlertDialog(
                         onDismissRequest = { showJumpToPageDialog = false },
@@ -422,7 +440,8 @@ fun ZoomablePdfPage(
     pdfRenderer: PdfRenderer, 
     pageIndex: Int, 
     bitmapCache: LruCache<Int, Bitmap>,
-    onZoomChanged: (Boolean) -> Unit
+    onZoomChanged: (Boolean) -> Unit,
+    onTap: () -> Unit = {}
 ) {
     var scale by remember(pageIndex) { mutableStateOf(1f) }
     var offsetX by remember(pageIndex) { mutableStateOf(0f) }
@@ -521,6 +540,7 @@ fun ZoomablePdfPage(
                 }
                 .pointerInput(Unit) {
                     detectTapGestures(
+                        onTap = { onTap() },
                         onDoubleTap = {
                             if (scale > 1f) {
                                 scale = 1f
