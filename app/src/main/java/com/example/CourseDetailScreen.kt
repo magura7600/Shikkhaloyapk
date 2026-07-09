@@ -101,6 +101,9 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.material.icons.filled.Brightness5
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material.icons.filled.AspectRatio
@@ -2740,6 +2743,8 @@ fun VideoPlayer(
             VideoPipState.onEnterPip = null
         }
     }
+
+
     
     LaunchedEffect(statusMessage) {
         if (statusMessage != null) {
@@ -2811,6 +2816,49 @@ fun VideoPlayer(
             .setAudioAttributes(audioAttributes, true)
             .setLoadControl(loadControl)
             .build()
+    }
+
+    // Wire up PiP remote action callbacks
+    DisposableEffect(exoPlayer) {
+        VideoPipState.isPlaying = exoPlayer.isPlaying
+        val listener = object : androidx.media3.common.Player.Listener {
+            override fun onIsPlayingChanged(isPlaying: Boolean) {
+                VideoPipState.isPlaying = isPlaying
+            }
+        }
+        exoPlayer.addListener(listener)
+        
+        VideoPipState.onPlayPauseToggle = { play ->
+            if (play) {
+                exoPlayer.play()
+            } else {
+                exoPlayer.pause()
+            }
+        }
+        VideoPipState.onRewind = {
+            val newPos = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
+            exoPlayer.seekTo(newPos)
+        }
+        VideoPipState.onForward = {
+            val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(exoPlayer.duration)
+            exoPlayer.seekTo(newPos)
+        }
+        
+        onDispose {
+            try {
+                exoPlayer.removeListener(listener)
+            } catch (e: Exception) {}
+            VideoPipState.onPlayPauseToggle = null
+            VideoPipState.onRewind = null
+            VideoPipState.onForward = null
+        }
+    }
+
+    val mainActivity = activity as? MainActivity
+    LaunchedEffect(VideoPipState.isPlaying, VideoPipState.isInPip) {
+        if (VideoPipState.isInPip && mainActivity != null) {
+            mainActivity.updatePipParams(VideoPipState.isPlaying)
+        }
     }
 
     // Set playback speed
@@ -2909,7 +2957,9 @@ fun VideoPlayer(
     DisposableEffect(lifecycleOwner, exoPlayer) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE) {
-                exoPlayer.pause()
+                if (!VideoPipState.isInPip) {
+                    exoPlayer.pause()
+                }
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -2965,75 +3015,6 @@ fun VideoPlayer(
     Box(
         modifier = modifier
             .background(Color.Black)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onDoubleTap = { offset ->
-                        if (!isLocked) {
-                            interactionCount++
-                            val halfWidth = size.width / 2
-                            if (offset.x < halfWidth) {
-                                val newPos = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
-                                exoPlayer.seekTo(newPos)
-                                currentPosition = newPos
-                                showRewindFeedback = true
-                            } else {
-                                val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(exoPlayer.duration)
-                                exoPlayer.seekTo(newPos)
-                                currentPosition = newPos
-                                showForwardFeedback = true
-                            }
-                        }
-                    },
-                    onTap = {
-                        controlsVisible = !controlsVisible
-                        if (controlsVisible) {
-                            interactionCount++
-                        }
-                    }
-                )
-            }
-            .then(
-                if (!isLocked) {
-                    Modifier.pointerInput(Unit) {
-                        detectVerticalDragGestures(
-                            onDragStart = { _ -> 
-                                dragDismissJob?.cancel()
-                            },
-                            onDragEnd = {
-                                dragDismissJob?.cancel()
-                                dragDismissJob = scope.launch {
-                                    kotlinx.coroutines.delay(1200L)
-                                    showVolumeIndicator = false
-                                    showBrightnessIndicator = false
-                                }
-                            },
-                            onVerticalDrag = { change, dragAmount ->
-                                val changePercent = -dragAmount / size.height
-                                val isLeftHalf = change.position.x < (size.width / 2)
-                                if (isLeftHalf) {
-                                    if (activity != null) {
-                                        showBrightnessIndicator = true
-                                        showVolumeIndicator = false
-                                        val newBrightness = (currentBrightness + changePercent).coerceIn(0f, 1f)
-                                        currentBrightness = newBrightness
-                                        val lp = activity.window.attributes
-                                        lp.screenBrightness = newBrightness
-                                        activity.window.attributes = lp
-                                    }
-                                } else {
-                                    showVolumeIndicator = true
-                                    showBrightnessIndicator = false
-                                    val currentVolFloat = currentVolume.toFloat()
-                                    val deltaVol = changePercent * maxVolume
-                                    val newVol = (currentVolFloat + deltaVol).coerceIn(0f, maxVolume.toFloat())
-                                    currentVolume = newVol.toInt()
-                                    audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, currentVolume, 0)
-                                }
-                            }
-                        )
-                    }
-                } else Modifier
-            )
     ) {
         // Actual Video Player
         AndroidView(
@@ -3058,6 +3039,97 @@ fun VideoPlayer(
                 )
                 .transformable(state = transformState)
         )
+
+        // Gestures Overlay Row
+        if (!VideoPipState.isInPip) {
+            Row(modifier = Modifier.fillMaxSize()) {
+                // Left Half Box (Brightness & Rewind)
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f)
+                        .playerGestureDetector(
+                            isLocked = isLocked,
+                            onTap = {
+                                controlsVisible = !controlsVisible
+                                if (controlsVisible) {
+                                    interactionCount++
+                                }
+                            },
+                            onDoubleTap = {
+                                val newPos = (exoPlayer.currentPosition - 10000L).coerceAtLeast(0L)
+                                exoPlayer.seekTo(newPos)
+                                currentPosition = newPos
+                                showRewindFeedback = true
+                            },
+                            onVerticalDrag = { changePercent ->
+                                if (activity != null) {
+                                    showBrightnessIndicator = true
+                                    showVolumeIndicator = false
+                                    val newBrightness = (currentBrightness + changePercent).coerceIn(0f, 1f)
+                                    currentBrightness = newBrightness
+                                    val lp = activity.window.attributes
+                                    lp.screenBrightness = newBrightness
+                                    activity.window.attributes = lp
+                                }
+                            },
+                            onDragStart = {
+                                dragDismissJob?.cancel()
+                            },
+                            onDragEnd = {
+                                dragDismissJob?.cancel()
+                                dragDismissJob = scope.launch {
+                                    kotlinx.coroutines.delay(1200L)
+                                    showVolumeIndicator = false
+                                    showBrightnessIndicator = false
+                                }
+                            }
+                        )
+                )
+
+                // Right Half Box (Volume & Fast Forward)
+                Box(
+                    modifier = Modifier
+                        .fillMaxHeight()
+                        .weight(1f)
+                        .playerGestureDetector(
+                            isLocked = isLocked,
+                            onTap = {
+                                controlsVisible = !controlsVisible
+                                if (controlsVisible) {
+                                    interactionCount++
+                                }
+                            },
+                            onDoubleTap = {
+                                val newPos = (exoPlayer.currentPosition + 10000L).coerceAtMost(exoPlayer.duration)
+                                exoPlayer.seekTo(newPos)
+                                currentPosition = newPos
+                                showForwardFeedback = true
+                            },
+                            onVerticalDrag = { changePercent ->
+                                showVolumeIndicator = true
+                                showBrightnessIndicator = false
+                                val currentVolFloat = currentVolume.toFloat()
+                                val deltaVol = changePercent * maxVolume
+                                val newVol = (currentVolFloat + deltaVol).coerceIn(0f, maxVolume.toFloat())
+                                currentVolume = newVol.toInt()
+                                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, currentVolume, 0)
+                            },
+                            onDragStart = {
+                                dragDismissJob?.cancel()
+                            },
+                            onDragEnd = {
+                                dragDismissJob?.cancel()
+                                dragDismissJob = scope.launch {
+                                    kotlinx.coroutines.delay(1200L)
+                                    showVolumeIndicator = false
+                                    showBrightnessIndicator = false
+                                }
+                            }
+                        )
+                )
+            }
+        }
 
         // Buffering Indicator
         if (isBuffering) {
@@ -5961,5 +6033,67 @@ fun LearningResourcesScreen(
             url = activePdfUrl,
             onClose = { activePdfToView = null }
         )
+    }
+}
+
+fun Modifier.playerGestureDetector(
+    isLocked: Boolean,
+    onTap: () -> Unit,
+    onDoubleTap: () -> Unit,
+    onVerticalDrag: (changePercent: Float) -> Unit,
+    onDragStart: () -> Unit,
+    onDragEnd: () -> Unit
+): Modifier = this.pointerInput(isLocked) {
+    if (isLocked) return@pointerInput
+    
+    val touchSlop = 15f // pixels
+    var lastTapTime = 0L
+    
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false)
+        onDragStart()
+        
+        var isDrag = false
+        var lastY = down.position.y
+        var totalDragY = 0f
+        
+        while (true) {
+            val event = awaitPointerEvent()
+            val change: PointerInputChange? = event.changes.firstOrNull { c: PointerInputChange -> c.id == down.id }
+            
+            if (change == null || !change.pressed) {
+                // Pointer up / released
+                if (!isDrag) {
+                    val now = System.currentTimeMillis()
+                    if (now - lastTapTime < 300L) {
+                        onDoubleTap()
+                        lastTapTime = 0L
+                    } else {
+                        onTap()
+                        lastTapTime = now
+                    }
+                } else {
+                    onDragEnd()
+                }
+                break
+            } else {
+                // Pointer moved
+                val currentY = change.position.y
+                val deltaY = currentY - lastY
+                totalDragY += deltaY
+                
+                if (!isDrag && Math.abs(totalDragY) > touchSlop) {
+                    isDrag = true
+                }
+                
+                if (isDrag) {
+                    change.consume()
+                    // Calculate relative change
+                    val changePercent = -deltaY / size.height.toFloat()
+                    onVerticalDrag(changePercent)
+                }
+                lastY = currentY
+            }
+        }
     }
 }

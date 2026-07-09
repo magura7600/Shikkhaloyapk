@@ -111,7 +111,7 @@ fun PdfViewerDialog(
         }
     }
 
-    DisposableEffect(pdfRenderer, fileDescriptor) {
+    DisposableEffect(Unit) {
         onDispose {
             val r = pdfRenderer
             val fd = fileDescriptor

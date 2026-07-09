@@ -148,6 +148,97 @@ sealed interface AppState {
 }
 
 class MainActivity : ComponentActivity() {
+    private val pipReceiver = object : android.content.BroadcastReceiver() {
+        override fun onReceive(context: android.content.Context, intent: android.content.Intent) {
+            if (intent.action == "com.example.PIP_CONTROL") {
+                val type = intent.getIntExtra("control_type", 0)
+                when (type) {
+                    1 -> VideoPipState.onPlayPauseToggle?.invoke(true)  // Play
+                    2 -> VideoPipState.onPlayPauseToggle?.invoke(false) // Pause
+                    3 -> VideoPipState.onRewind?.invoke()               // Rewind 10s
+                    4 -> VideoPipState.onForward?.invoke()              // Forward 10s
+                }
+            }
+        }
+    }
+
+    fun updatePipParams(isPlaying: Boolean) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            val actions = java.util.ArrayList<android.app.RemoteAction>()
+
+            fun createRemoteAction(iconId: Int, title: String, controlType: Int, reqCode: Int): android.app.RemoteAction {
+                val intent = android.content.Intent("com.example.PIP_CONTROL").apply {
+                    putExtra("control_type", controlType)
+                    `package` = packageName
+                }
+                val pendingIntent = android.app.PendingIntent.getBroadcast(
+                    this@MainActivity,
+                    reqCode,
+                    intent,
+                    android.app.PendingIntent.FLAG_UPDATE_CURRENT or android.app.PendingIntent.FLAG_IMMUTABLE
+                )
+                val icon = android.graphics.drawable.Icon.createWithResource(this@MainActivity, iconId)
+                return android.app.RemoteAction(icon, title, title, pendingIntent)
+            }
+
+            actions.add(
+                createRemoteAction(
+                    android.R.drawable.ic_media_previous,
+                    "Rewind 10s",
+                    3,
+                    301
+                )
+            )
+
+            if (isPlaying) {
+                actions.add(
+                    createRemoteAction(
+                        android.R.drawable.ic_media_pause,
+                        "Pause",
+                        2,
+                        302
+                    )
+                )
+            } else {
+                actions.add(
+                    createRemoteAction(
+                        android.R.drawable.ic_media_play,
+                        "Play",
+                        1,
+                        302
+                    )
+                )
+            }
+
+            actions.add(
+                createRemoteAction(
+                    android.R.drawable.ic_media_next,
+                    "Forward 10s",
+                    4,
+                    304
+                )
+            )
+
+            try {
+                val params = android.app.PictureInPictureParams.Builder()
+                    .setActions(actions)
+                    .build()
+                setPictureInPictureParams(params)
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        try {
+            unregisterReceiver(pipReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         if (ThemeManager.isPipEnabled && VideoPipState.isVideoActive) {
@@ -270,6 +361,16 @@ class MainActivity : ComponentActivity() {
         try {
             // Clear temporary PDF cache
             OfflineDownloadManager.clearTemporaryCache(this)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                registerReceiver(pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"), android.content.Context.RECEIVER_NOT_EXPORTED)
+            } else {
+                registerReceiver(pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"))
+            }
         } catch (e: Exception) {
             e.printStackTrace()
         }

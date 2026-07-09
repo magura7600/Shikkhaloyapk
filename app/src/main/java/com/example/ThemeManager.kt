@@ -83,4 +83,9 @@ object VideoPipState {
     var isVideoActive by mutableStateOf(false)
     var isInPip by mutableStateOf(false)
     var onEnterPip: (() -> Unit)? = null
+
+    var isPlaying by mutableStateOf(true)
+    var onPlayPauseToggle: ((Boolean) -> Unit)? = null
+    var onRewind: (() -> Unit)? = null
+    var onForward: (() -> Unit)? = null
 }
