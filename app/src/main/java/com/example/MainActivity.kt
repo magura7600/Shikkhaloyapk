@@ -35,6 +35,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.example.ui.CustomBottomNavigation
 import com.example.ui.BottomNavItem
 import androidx.compose.runtime.*
@@ -1692,6 +1693,7 @@ fun DashboardScreen(
     var enrollmentRequests by remember { mutableStateOf(listOf<EnrollmentRequest>()) }
 
     var courseInteractions by remember { mutableStateOf(listOf<CourseInteraction>()) }
+    var isRefreshing by remember { mutableStateOf(false) }
     var isOffline by remember { mutableStateOf(false) }
     var hasPromptedOffline by remember { mutableStateOf(false) }
     var showOfflineDownloadsGlobal by remember { mutableStateOf(false) }
@@ -2116,11 +2118,31 @@ fun DashboardScreen(
             }
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                // Content will draw behind transparent TopAppBar and BottomAppBar
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = {
+                isRefreshing = true
+                coroutineScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            courses = try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { courses }
+                            enrollments = try { supabase.from("enrollments").select().decodeList<Enrollment>() } catch(e: Exception) { enrollments }
+                            enrollmentRequests = try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    } finally {
+                        isRefreshing = false
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxSize().padding(paddingValues)
         ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    // Content will draw behind transparent TopAppBar and BottomAppBar
+            ) {
             if (currentScreen == "add_course" || currentScreen == "edit_course") {
                 AddCourseScreen(
                     profile = profile,
@@ -2646,6 +2668,7 @@ fun DashboardScreen(
             }
         }
     }
+        }
     
     if (showOfflineDownloadsGlobal) {
         OfflineDownloadsDialog(

@@ -32,6 +32,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import android.content.pm.ActivityInfo
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -64,6 +68,11 @@ fun PdfViewerDialog(
     var pageCount by remember { mutableStateOf(0) }
     var error by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val activity = remember(context) { context as? androidx.activity.ComponentActivity }
+    var isLandscape by remember { mutableStateOf(activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) }
+    var showJumpToPageDialog by remember { mutableStateOf(false) }
+    var jumpPageInput by remember { mutableStateOf("") }
+
 
     // Initialize an elegant memory-safe Bitmap cache
     val bitmapCache = remember {
@@ -131,13 +140,17 @@ fun PdfViewerDialog(
             }
         }
     }
-
+    DisposableEffect(Unit) {
+        val originalOrientation = activity?.requestedOrientation ?: ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        onDispose {
+            activity?.requestedOrientation = originalOrientation
+        }
+    }
     DisposableEffect(Unit) {
         onDispose {
             bitmapCache.evictAll()
         }
     }
-
     Dialog(
         onDismissRequest = onClose,
         properties = DialogProperties(
@@ -219,37 +232,64 @@ fun PdfViewerDialog(
                         )
                     }
 
-                    // Title & Page indicator in a beautiful translucent pill
-                    Box(
-                        modifier = Modifier
-                            .background(Color(0x99000000), shape = RoundedCornerShape(20.dp))
-                            .padding(horizontal = 16.dp, vertical = 8.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        // Title & Page indicator in a beautiful translucent pill
+                        Box(
+                            modifier = Modifier
+                                .background(Color(0x99000000), shape = RoundedCornerShape(20.dp))
+                                .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
-                            Text(
-                                text = title,
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.widthIn(max = 180.dp)
-                            )
-                            Box(
-                                modifier = Modifier
-                                    .background(Color(0xFF4F46E5), shape = RoundedCornerShape(10.dp))
-                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Text(
-                                    text = "${pagerState.currentPage + 1} / $pageCount পৃষ্ঠা",
+                                    text = title,
                                     color = Color.White,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.widthIn(max = 140.dp)
                                 )
+                                Box(
+                                    modifier = Modifier
+                                        .background(Color(0xFF4F46E5), shape = RoundedCornerShape(10.dp))
+                                        .padding(horizontal = 8.dp, vertical = 2.dp)
+                                        .clickable { showJumpToPageDialog = true }
+                                ) {
+                                    Text(
+                                        text = "${pagerState.currentPage + 1} / $pageCount পৃষ্ঠা",
+                                        color = Color.White,
+                                        fontSize = 12.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
+                        }
+                        
+                        // Screen Rotation Button
+                        IconButton(
+                            onClick = {
+                                if (activity != null) {
+                                    isLandscape = !isLandscape
+                                    activity.requestedOrientation = if (isLandscape) {
+                                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                    } else {
+                                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                    }
+                                }
+                            },
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(Color(0x99000000), shape = RoundedCornerShape(20.dp))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ScreenRotation,
+                                contentDescription = "Rotate Screen",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
@@ -331,6 +371,40 @@ fun PdfViewerDialog(
                         }
                     }
                 }
+                if (showJumpToPageDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showJumpToPageDialog = false },
+                        title = { Text("পৃষ্ঠা নম্বর লিখুন") },
+                        text = {
+                            OutlinedTextField(
+                                value = jumpPageInput,
+                                onValueChange = { jumpPageInput = it },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                label = { Text("১ থেকে $pageCount এর মধ্যে") },
+                                singleLine = true
+                            )
+                        },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                val page = jumpPageInput.toIntOrNull()
+                                if (page != null && page in 1..pageCount) {
+                                    coroutineScope.launch {
+                                        pagerState.scrollToPage(page - 1)
+                                    }
+                                }
+                                showJumpToPageDialog = false
+                            }) {
+                                Text("যান")
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showJumpToPageDialog = false }) {
+                                Text("বাতিল")
+                            }
+                        }
+                    )
+                }
+
             } else {
                 Box(
                     modifier = Modifier.fillMaxSize(),

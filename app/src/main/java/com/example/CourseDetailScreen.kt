@@ -32,6 +32,7 @@ import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Visibility
@@ -400,15 +401,12 @@ fun CourseDetailScreen(
                     )
             }
         } else {
-            LazyColumn(
+            Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                item {
-                        CourseContentSection(
+                CourseContentSection(
                             course = course,
                             mentors = mentors,
                             isTeacher = isTeacher,
@@ -435,7 +433,6 @@ fun CourseDetailScreen(
                             onExternalAddHandled = { isAddingSubjectTopBar = false },
                             onPurchaseClick = onPurchaseClick
                         )
-                }
             } // Close else for isUserBanned
         }
     }
@@ -616,7 +613,7 @@ fun CourseContentSection(
             }
         )
     } else if (selectedSubjectForView == null) {
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
             // 1. "রুটিন দেখে নাও →" Banner Button - Premium Gradient Styling
             Card(
                 onClick = { showRoutineDialog = true },
@@ -1062,7 +1059,7 @@ fun CourseContentSection(
         }
     } else {
         val subj = currentSubject ?: selectedSubjectForView!!
-        Column(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
 
             // 1. Quarters Selectable Tabs inside subject details - Premium Card style
             if (course.isQuarterOn && course.quarters.isNotEmpty()) {
@@ -1665,7 +1662,7 @@ fun CourseContentSection(
             onDismissRequest = { subjectToAddChapterTo = null },
             title = { Text("নতুন অধ্যায় (Chapter) যোগ করুন") },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                     OutlinedTextField(
                         value = newTitle,
                         onValueChange = { newTitle = it },
@@ -1737,7 +1734,7 @@ fun CourseContentSection(
             onDismissRequest = { chapterToEdit = null },
             title = { Text("অধ্যায় (Chapter) এডিট করুন") },
             text = {
-                Column(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                     OutlinedTextField(
                         value = editTitle,
                         onValueChange = { editTitle = it },
@@ -2765,18 +2762,6 @@ fun VideoPlayer(
     var resizeMode by remember { mutableStateOf(androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT) }
     
     // Gestures states
-    val audioManager = remember { context.getSystemService(android.content.Context.AUDIO_SERVICE) as android.media.AudioManager }
-    val maxVolume = remember { audioManager.getStreamMaxVolume(android.media.AudioManager.STREAM_MUSIC) }
-    var currentVolume by remember { mutableStateOf(audioManager.getStreamVolume(android.media.AudioManager.STREAM_MUSIC)) }
-    
-    var currentBrightness by remember {
-        mutableStateOf(
-            activity?.window?.attributes?.screenBrightness?.takeIf { it >= 0 } ?: 0.5f
-        )
-    }
-    
-    var showVolumeIndicator by remember { mutableStateOf(false) }
-    var showBrightnessIndicator by remember { mutableStateOf(false) }
     
     var showRewindFeedback by remember { mutableStateOf(false) }
     var showForwardFeedback by remember { mutableStateOf(false) }
@@ -3062,28 +3047,6 @@ fun VideoPlayer(
                                 currentPosition = newPos
                                 showRewindFeedback = true
                             },
-                            onVerticalDrag = { changePercent ->
-                                if (activity != null) {
-                                    showBrightnessIndicator = true
-                                    showVolumeIndicator = false
-                                    val newBrightness = (currentBrightness + changePercent).coerceIn(0f, 1f)
-                                    currentBrightness = newBrightness
-                                    val lp = activity.window.attributes
-                                    lp.screenBrightness = newBrightness
-                                    activity.window.attributes = lp
-                                }
-                            },
-                            onDragStart = {
-                                dragDismissJob?.cancel()
-                            },
-                            onDragEnd = {
-                                dragDismissJob?.cancel()
-                                dragDismissJob = scope.launch {
-                                    kotlinx.coroutines.delay(1200L)
-                                    showVolumeIndicator = false
-                                    showBrightnessIndicator = false
-                                }
-                            }
                         )
                 )
 
@@ -3105,28 +3068,9 @@ fun VideoPlayer(
                                 exoPlayer.seekTo(newPos)
                                 currentPosition = newPos
                                 showForwardFeedback = true
-                            },
-                            onVerticalDrag = { changePercent ->
-                                showVolumeIndicator = true
-                                showBrightnessIndicator = false
-                                val currentVolFloat = currentVolume.toFloat()
-                                val deltaVol = changePercent * maxVolume
-                                val newVol = (currentVolFloat + deltaVol).coerceIn(0f, maxVolume.toFloat())
-                                currentVolume = newVol.toInt()
-                                audioManager.setStreamVolume(android.media.AudioManager.STREAM_MUSIC, currentVolume, 0)
-                            },
-                            onDragStart = {
-                                dragDismissJob?.cancel()
-                            },
-                            onDragEnd = {
-                                dragDismissJob?.cancel()
-                                dragDismissJob = scope.launch {
-                                    kotlinx.coroutines.delay(1200L)
-                                    showVolumeIndicator = false
-                                    showBrightnessIndicator = false
-                                }
                             }
                         )
+
                 )
             }
         }
@@ -3177,94 +3121,6 @@ fun VideoPlayer(
         }
 
         // Custom Overlay Indicators
-        if (showVolumeIndicator) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterEnd)
-                    .padding(end = 24.dp)
-                    .width(64.dp)
-                    .height(180.dp)
-                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
-                    Icon(
-                        imageVector = Icons.Default.VolumeUp,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .width(6.dp)
-                            .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(3.dp)),
-                        contentAlignment = Alignment.BottomCenter
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight(currentVolume.toFloat() / maxVolume.toFloat().coerceAtLeast(1f))
-                                .background(Color(0xFF3B82F6), RoundedCornerShape(3.dp))
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "${(currentVolume * 100 / maxVolume.coerceAtLeast(1))}%",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
-        if (showBrightnessIndicator) {
-            Box(
-                modifier = Modifier
-                    .align(Alignment.CenterStart)
-                    .padding(start = 24.dp)
-                    .width(64.dp)
-                    .height(180.dp)
-                    .background(Color.Black.copy(alpha = 0.7f), RoundedCornerShape(12.dp))
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.SpaceBetween) {
-                    Icon(
-                        imageVector = Icons.Default.Brightness5,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(24.dp)
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .width(6.dp)
-                            .background(Color.White.copy(alpha = 0.3f), RoundedCornerShape(3.dp)),
-                        contentAlignment = Alignment.BottomCenter
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .fillMaxHeight(currentBrightness)
-                                .background(Color(0xFFFBBF24), RoundedCornerShape(3.dp))
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "${(currentBrightness * 100).toInt()}%",
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-        }
-
         if (showRewindFeedback) {
             Box(
                 modifier = Modifier
@@ -6039,61 +5895,12 @@ fun LearningResourcesScreen(
 fun Modifier.playerGestureDetector(
     isLocked: Boolean,
     onTap: () -> Unit,
-    onDoubleTap: () -> Unit,
-    onVerticalDrag: (changePercent: Float) -> Unit,
-    onDragStart: () -> Unit,
-    onDragEnd: () -> Unit
+    onDoubleTap: () -> Unit
 ): Modifier = this.pointerInput(isLocked) {
     if (isLocked) return@pointerInput
-    
-    val touchSlop = 15f // pixels
-    var lastTapTime = 0L
-    
-    awaitEachGesture {
-        val down = awaitFirstDown(requireUnconsumed = false)
-        onDragStart()
-        
-        var isDrag = false
-        var lastY = down.position.y
-        var totalDragY = 0f
-        
-        while (true) {
-            val event = awaitPointerEvent()
-            val change: PointerInputChange? = event.changes.firstOrNull { c: PointerInputChange -> c.id == down.id }
-            
-            if (change == null || !change.pressed) {
-                // Pointer up / released
-                if (!isDrag) {
-                    val now = System.currentTimeMillis()
-                    if (now - lastTapTime < 300L) {
-                        onDoubleTap()
-                        lastTapTime = 0L
-                    } else {
-                        onTap()
-                        lastTapTime = now
-                    }
-                } else {
-                    onDragEnd()
-                }
-                break
-            } else {
-                // Pointer moved
-                val currentY = change.position.y
-                val deltaY = currentY - lastY
-                totalDragY += deltaY
-                
-                if (!isDrag && Math.abs(totalDragY) > touchSlop) {
-                    isDrag = true
-                }
-                
-                if (isDrag) {
-                    change.consume()
-                    // Calculate relative change
-                    val changePercent = -deltaY / size.height.toFloat()
-                    onVerticalDrag(changePercent)
-                }
-                lastY = currentY
-            }
-        }
-    }
+    detectTapGestures(
+        onTap = { onTap() },
+        onDoubleTap = { onDoubleTap() }
+    )
 }
+
