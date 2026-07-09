@@ -53,7 +53,7 @@ fun ExploreFeedScreen(
         allChannels.filter { it.full_name.contains(searchQuery, ignoreCase = true) }
     }
 
-    Column(modifier = Modifier.fillMaxSize().padding(top = 80.dp, start = 16.dp, end = 16.dp)) {
+    Column(modifier = Modifier.fillMaxSize().padding(top = 16.dp, start = 16.dp, end = 16.dp)) {
         // Channels Story-like row
         if (searchQuery.isBlank() && allChannels.isNotEmpty()) {
             androidx.compose.foundation.lazy.LazyRow(

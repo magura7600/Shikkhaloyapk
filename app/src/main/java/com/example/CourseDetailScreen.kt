@@ -157,6 +157,21 @@ fun CourseDetailScreen(
     var isAddingSubjectTopBar by remember { mutableStateOf(false) }
     val mContext = LocalContext.current
     val isTeacher = course.channel_id == profile.user_id
+
+    val activity = LocalContext.current as? androidx.activity.ComponentActivity
+    val isAdmin = LocalContext.current.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("user_role", "") == "admin"
+    androidx.compose.runtime.DisposableEffect(isAdmin) {
+        val window = activity?.window
+        if (window != null && !isAdmin) {
+            window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        onDispose {
+            if (window != null && !isAdmin) {
+                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+            }
+        }
+    }
+
     androidx.compose.runtime.LaunchedEffect(course) {
         NotificationScheduler.scheduleClassNotifications(mContext, course)
     }
@@ -3259,41 +3274,7 @@ fun VideoPlayer(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        // Aspect Ratio Toggle
-                        Button(
-                            onClick = {
-                                interactionCount++
-                                scale = 1f
-                                offset = androidx.compose.ui.geometry.Offset.Zero
-                                resizeMode = when (resizeMode) {
-                                    androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> {
-                                        statusMessage = "ভিডিও মোড: জুম"
-                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-                                    }
-                                    androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> {
-                                        statusMessage = "ভিডিও মোড: ফুল স্ক্রিন"
-                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FILL
-                                    }
-                                    else -> {
-                                        statusMessage = "ভিডিও মোড: ফিট"
-                                        androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = Color.Black.copy(alpha = 0.6f)),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                            modifier = Modifier.height(36.dp),
-                            shape = RoundedCornerShape(18.dp)
-                        ) {
-                            Icon(Icons.Default.AspectRatio, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            val modeText = when (resizeMode) {
-                                androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT -> "ফিট"
-                                androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_ZOOM -> "জুম"
-                                else -> "ফুল স্ক্রিন"
-                            }
-                            Text(modeText, color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
+                        
 
                         // 1. Speed selector pill button
                         Button(
@@ -3856,6 +3837,22 @@ fun ClassDetailView(
 
     val isVideoPlayingActive = clazz.recordedLink.isNotBlank() || (clazz.liveLink.isNotBlank() && isLiveActive && videoOptions != null)
 
+    // Apply immersive mode for full screen video
+    androidx.compose.runtime.LaunchedEffect(isManualFullscreen, isDeviceLandscape) {
+        val window = activity?.window
+        if (window != null) {
+            val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
+            if (isManualFullscreen || isDeviceLandscape) {
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
+                insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+                insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            } else {
+                androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, true)
+                insetsController.show(androidx.core.view.WindowInsetsCompat.Type.systemBars())
+            }
+        }
+    }
+
     if ((isManualFullscreen || isDeviceLandscape) && isVideoPlayingActive && activePdfToView == null) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = androidx.compose.ui.Alignment.Center) {
             if (isLoadingVideo) {
@@ -3873,12 +3870,13 @@ fun ClassDetailView(
             .fillMaxWidth()
             .statusBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(bottom = 32.dp, start = 16.dp, end = 16.dp, top = 12.dp)
+            .padding(bottom = 32.dp, top = 12.dp)
     ) {
         // Top Bar with Back Button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .padding(horizontal = 16.dp)
                 .padding(vertical = 12.dp),
             verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
         ) {
@@ -3922,7 +3920,7 @@ fun ClassDetailView(
         // Video Player Placeholder or Actual Player or Live Countdown Timer
         if (isVideoPlayingActive) {
             Column(modifier = Modifier.fillMaxWidth()) {
-                Box(modifier = Modifier.fillMaxWidth().height(250.dp).layout { measurable, constraints -> val pad = 16.dp.roundToPx(); val p = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth + pad * 2)); layout(p.width, p.height) { p.place(-pad, 0) } }) {
+                Box(modifier = Modifier.fillMaxWidth().height(250.dp)) {
                     if (isLoadingVideo) {
                         VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
                     } else if (videoOptions != null) {
@@ -3934,6 +3932,7 @@ fun ClassDetailView(
                     }
                 }
                 
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 if (clazz.recordedLink.isNotBlank()) {
@@ -4008,7 +4007,9 @@ fun ClassDetailView(
                     }
                 }
             }
+            } // Close the padded column
         } else if (clazz.liveLink.isNotBlank() || clazz.recordedLink.isBlank()) {
+            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
             // Live/Countdown/Waiting UI
             val days = timeRemainingMillis / (1000 * 60 * 60 * 24)
             val hours = (timeRemainingMillis / (1000 * 60 * 60)) % 24
@@ -4193,10 +4194,11 @@ fun ClassDetailView(
                     }
                 }
             }
+            } // Close the padded column of the Live block
         } else {
             // Placeholder when no video
             Box(
-                modifier = Modifier.fillMaxWidth().height(250.dp).layout { measurable, constraints -> val pad = 16.dp.roundToPx(); val p = measurable.measure(constraints.copy(maxWidth = constraints.maxWidth + pad * 2)); layout(p.width, p.height) { p.place(-pad, 0) } }.background(
+                modifier = Modifier.fillMaxWidth().height(250.dp).background(
                         brush = Brush.verticalGradient(colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A)))
                     ),
                 contentAlignment = Alignment.Center
@@ -4521,6 +4523,7 @@ fun ClassDetailView(
         
 
 
+        
         if (activePdfToView != null) {
             PdfViewerDialog(
                 file = activePdfToView!!,

@@ -82,6 +82,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import io.github.jan.supabase.serializer.KotlinXSerializer
 import kotlinx.serialization.json.Json
 import androidx.compose.foundation.Image
@@ -1649,9 +1651,42 @@ fun DashboardScreen(
     val isManagementUser = isTeacher
     var teacherChannel by remember { mutableStateOf<UserProfile?>(null) }
     var isLoadingChannel by remember { mutableStateOf(isTeacher) }
-    var courses by remember { mutableStateOf(listOf<CourseItem>()) }
+
+    val context = LocalContext.current
+    val sharedPrefs = remember { context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE) }
+
+    // Read cached values immediately on start to prevent blank state!
+    val cachedCoursesJson = remember { sharedPrefs.getString("cached_courses_${profile.user_id}", null) }
+    val cachedEnrollmentsJson = remember { sharedPrefs.getString("cached_enrollments_${profile.user_id}", null) }
+    val cachedFocusCourseId = remember { sharedPrefs.getString("cached_focus_course_id_${profile.user_id}", null) }
+
+    val initialCourses = remember(cachedCoursesJson) {
+        if (!cachedCoursesJson.isNullOrBlank()) {
+            try {
+                Json.decodeFromString<List<CourseItem>>(cachedCoursesJson)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    val initialEnrollments = remember(cachedEnrollmentsJson) {
+        if (!cachedEnrollmentsJson.isNullOrBlank()) {
+            try {
+                Json.decodeFromString<List<Enrollment>>(cachedEnrollmentsJson)
+            } catch (e: Exception) {
+                emptyList()
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    var courses by remember { mutableStateOf(initialCourses) }
     var allChannels by remember { mutableStateOf(listOf<UserProfile>()) }
-    var enrollments by remember { mutableStateOf(listOf<Enrollment>()) }
+    var enrollments by remember { mutableStateOf(initialEnrollments) }
 
     var enrollmentRequests by remember { mutableStateOf(listOf<EnrollmentRequest>()) }
 
@@ -1660,9 +1695,8 @@ fun DashboardScreen(
     var isOffline by remember { mutableStateOf(false) }
     var hasPromptedOffline by remember { mutableStateOf(false) }
     var showOfflineDownloadsGlobal by remember { mutableStateOf(false) }
-    var isInitialLoadComplete by remember { mutableStateOf(false) }
+    var isInitialLoadComplete by remember { mutableStateOf(initialCourses.isNotEmpty()) }
     val coroutineScope = rememberCoroutineScope()
-    val context = LocalContext.current
     var lastBackPressTime by remember { mutableStateOf(0L) }
     val activity = context as? ComponentActivity
 
@@ -1680,7 +1714,7 @@ fun DashboardScreen(
         }
     }
 
-    var focusCourseId by remember { mutableStateOf<String?>(null) }
+    var focusCourseId by remember { mutableStateOf(cachedFocusCourseId) }
     var hasLoadedAllCourses by remember { mutableStateOf(false) }
 
     // Sync OneSignal User identity and purchased course tags so they only receive notifications of courses they bought
@@ -1688,6 +1722,9 @@ fun DashboardScreen(
         val myEnrolledCourseIds = enrollments.filter { it.user_id == profile.user_id }.map { it.course_id }
         if (focusCourseId == null && myEnrolledCourseIds.isNotEmpty()) {
             focusCourseId = myEnrolledCourseIds.firstOrNull()
+            try {
+                sharedPrefs.edit().putString("cached_focus_course_id_${profile.user_id}", focusCourseId).apply()
+            } catch (e: Exception) {}
         }
         
         try {
@@ -1756,7 +1793,12 @@ fun DashboardScreen(
                          supabase.from("enrollments").select { filter { eq("user_id", profile.user_id) } }.decodeList<Enrollment>()
                      } catch(e: Exception) { enrollments }
                  }
-                 enrollments = newEnrollments
+                 if (newEnrollments != enrollments) {
+                     enrollments = newEnrollments
+                     try {
+                         sharedPrefs.edit().putString("cached_enrollments_${profile.user_id}", Json.encodeToString(newEnrollments)).apply()
+                     } catch (e: Exception) { e.printStackTrace() }
+                 }
             }
 
             // 2. All Enrollments & Requests (ONLY needed if Teacher/Admin goes to Management)
@@ -1770,8 +1812,14 @@ fun DashboardScreen(
             }
 
             // 3. Courses
-            courses = withContext(Dispatchers.IO) {
+            val newCourses = withContext(Dispatchers.IO) {
                 try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { courses }
+            }
+            if (newCourses != courses) {
+                courses = newCourses
+                try {
+                    sharedPrefs.edit().putString("cached_courses_${profile.user_id}", Json.encodeToString(newCourses)).apply()
+                } catch (e: Exception) { e.printStackTrace() }
             }
             hasLoadedAllCourses = true
 
@@ -1835,6 +1883,7 @@ fun DashboardScreen(
 
     Scaffold(
         containerColor = Color.Transparent,
+        contentWindowInsets = WindowInsets(0, 0, 0, 0),
         topBar = {
             if (currentScreen == "dashboard") {
                 Column(modifier = Modifier.background(Color.White)) {
@@ -1887,6 +1936,9 @@ fun DashboardScreen(
                                                     text = { Text(course.title, fontSize = 14.sp, color = if (course.id == focusCourseId) accentColor else Color.Black) },
                                                     onClick = {
                                                         focusCourseId = course.id
+                                                        try {
+                                                            sharedPrefs.edit().putString("cached_focus_course_id_${profile.user_id}", course.id).apply()
+                                                        } catch (e: Exception) {}
                                                         expanded = false
                                                     }
                                                 )
@@ -2085,9 +2137,31 @@ fun DashboardScreen(
                 coroutineScope.launch {
                     try {
                         withContext(Dispatchers.IO) {
-                            courses = try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { courses }
-                            enrollments = try { supabase.from("enrollments").select().decodeList<Enrollment>() } catch(e: Exception) { enrollments }
-                            enrollmentRequests = try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
+                            val newCourses = try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { courses }
+                            val newEnrollments = try {
+                                if (isTeacher || isAdmin) {
+                                    supabase.from("enrollments").select().decodeList<Enrollment>()
+                                } else {
+                                    supabase.from("enrollments").select { filter { eq("user_id", profile.user_id) } }.decodeList<Enrollment>()
+                                }
+                            } catch(e: Exception) { enrollments }
+                            val newRequests = try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
+                            
+                            withContext(Dispatchers.Main) {
+                                if (newCourses != courses) {
+                                    courses = newCourses
+                                    try {
+                                        sharedPrefs.edit().putString("cached_courses_${profile.user_id}", Json.encodeToString(newCourses)).apply()
+                                    } catch (e: Exception) {}
+                                }
+                                if (newEnrollments != enrollments) {
+                                    enrollments = newEnrollments
+                                    try {
+                                        sharedPrefs.edit().putString("cached_enrollments_${profile.user_id}", Json.encodeToString(newEnrollments)).apply()
+                                    } catch (e: Exception) {}
+                                }
+                                enrollmentRequests = newRequests
+                            }
                         }
                     } catch (e: Exception) {
                         e.printStackTrace()

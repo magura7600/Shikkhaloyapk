@@ -175,7 +175,7 @@ fun PdfViewerDialog(
     ) {
         // Force full screen window
         val dialogWindow = (androidx.compose.ui.platform.LocalView.current.parent as? androidx.compose.ui.window.DialogWindowProvider)?.window
-        LaunchedEffect(dialogWindow) {
+        LaunchedEffect(dialogWindow, isAdmin) {
             dialogWindow?.let { window ->
                 window.setLayout(
                     android.view.ViewGroup.LayoutParams.MATCH_PARENT,
@@ -186,6 +186,10 @@ fun PdfViewerDialog(
                 val insetsController = androidx.core.view.WindowCompat.getInsetsController(window, window.decorView)
                 insetsController.hide(androidx.core.view.WindowInsetsCompat.Type.systemBars())
                 insetsController.systemBarsBehavior = androidx.core.view.WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                
+                if (!isAdmin) {
+                    window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
+                }
             }
         }
 

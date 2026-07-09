@@ -1,98 +1,46 @@
-import sys
+import re
+with open('app/src/main/java/com/example/CourseDetailScreen.kt', 'r') as f:
+    content = f.read()
 
-def fix_course_detail():
-    file_path = "app/src/main/java/com/example/CourseDetailScreen.kt"
-    with open(file_path, "r") as f:
-        content = f.read()
+# 1. Add `}` before `} else {` to close the `Column(padding)` in the `else if (live)` block.
+target_else = r"""                        \}
+                    \}
+                \}
+            \}
+        \} else \{
+            // Placeholder when no video"""
 
-    # Replace onError blocks
-    target_error = """                                                onError = { errMsg ->
-                                                    downloadingPdfUrl = null
-                                                    Toast.makeText(context, "সরাসরি ভিউ করা যায়নি, ব্রাউজারে ওপেন করা হচ্ছে...", Toast.LENGTH_SHORT).show()
-                                                    openBrowserIntent(pdf.url)
-                                                }"""
-    replacement_error = """                                                onError = { errMsg ->
-                                                    downloadingPdfUrl = null
-                                                    Toast.makeText(context, "পিডিএফ লোড করতে সমস্যা হচ্ছে।", Toast.LENGTH_SHORT).show()
-                                                }"""
-    if target_error in content:
-        content = content.replace(target_error, replacement_error)
-        print("CourseDetailScreen: onError fixed")
-
-    # Replace isCloudOrWebUrl blocks
-    target_cloud_1 = """                            val isCloudOrWebUrl = remember {
-                                { url: String ->
-                                    val lower = url.trim().lowercase()
-                                    lower.contains("onedrive.live.com")
-                                }
-                            }"""
-    replacement_cloud_1 = """                            val isCloudOrWebUrl = remember { { url: String -> false } }"""
-    if target_cloud_1 in content:
-        content = content.replace(target_cloud_1, replacement_cloud_1)
-        print("CourseDetailScreen: isCloudOrWebUrl 1 fixed")
-
-    target_cloud_2 = """                    val isCloudOrWebUrl = remember {
-                        { url: String ->
-                            val lower = url.trim().lowercase()
-                            lower.contains("onedrive.live.com")
-                        }
-                    }"""
-    replacement_cloud_2 = """                    val isCloudOrWebUrl = remember { { url: String -> false } }"""
-    if target_cloud_2 in content:
-        content = content.replace(target_cloud_2, replacement_cloud_2)
-        print("CourseDetailScreen: isCloudOrWebUrl 2 fixed")
-
-    with open(file_path, "w") as f:
-        f.write(content)
-
-def fix_pdf_viewer():
-    file_path = "app/src/main/java/com/example/PdfViewer.kt"
-    with open(file_path, "r") as f:
-        content = f.read()
-
-    target = """                        Text("পিডিএফ ফাইলটি লোড করা যায়নি।", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                        Spacer(modifier = Modifier.height(16.dp))
-                        if (url.isNotBlank()) {
-                            Button(onClick = {
-                                try {
-                                    val fixedUrl = if (!url.startsWith("http://") && !url.startsWith("https://")) "https://$url" else url
-                                    val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(fixedUrl))
-                                    context.startActivity(intent)
-                                } catch (e: Exception) {}
-                            }, colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4F46E5))) {
-                                Text("ব্রাউজারে ওপেন করুন")
-                            }
-                        }
+replacement_else = """                        }
                     }
                 }
-            } else if (pageCount > 0 && pdfRenderer != null) {"""
-    replacement = """                        Text("পিডিএফ ফাইলটি লোড করা যায়নি।", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                    }
+            }
+            } // Close the padded column of the Live block
+        } else {
+            // Placeholder when no video"""
+
+content = re.sub(target_else, replacement_else, content)
+
+# 2. Add `Column` right after the `else` block
+target_spacer = r"""                    Text\(clazz\.title, color = Color\.White, fontSize = 16\.sp, fontWeight = FontWeight\.Bold\)
+                \}
+            \}
+        \}
+        
+        Spacer\(modifier = Modifier\.height\(16\.dp\)\)
+        
+        // Class Details Card"""
+
+replacement_spacer = """                    Text(clazz.title, color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
-            } else if (pageCount > 0 && pdfRenderer != null) {"""
+            }
+        }
         
-    if target in content:
-        content = content.replace(target, replacement)
-        with open(file_path, "w") as f:
-            f.write(content)
-        print("PdfViewer: fixed")
-
-def fix_offline_manager():
-    file_path = "app/src/main/java/com/example/OfflineDownloadManager.kt"
-    with open(file_path, "r") as f:
-        content = f.read()
+        Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) { // Open bottom padded column
+        Spacer(modifier = Modifier.height(16.dp))
         
-    start_idx = content.find("fun sanitizeUrl(url: String): String {")
-    if start_idx != -1:
-        new_content = content[:start_idx] + """fun sanitizeUrl(url: String): String {
-    return url.trim().replace(" ", "%20")
-}
-"""
-        with open(file_path, "w") as f:
-            f.write(new_content)
-        print("OfflineDownloadManager: sanitizeUrl fixed")
+        // Class Details Card"""
 
-if __name__ == "__main__":
-    fix_course_detail()
-    fix_pdf_viewer()
-    fix_offline_manager()
+content = re.sub(target_spacer, replacement_spacer, content)
+
+with open('app/src/main/java/com/example/CourseDetailScreen.kt', 'w') as f:
+    f.write(content)
