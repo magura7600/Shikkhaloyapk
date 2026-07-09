@@ -535,6 +535,7 @@ fun ZoomablePdfPage(
                     )
                 }
                 .transformable(state = state)
+                .clipToBounds()
                 .graphicsLayer(
                     scaleX = scale,
                     scaleY = scale,

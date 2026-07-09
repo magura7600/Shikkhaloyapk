@@ -130,6 +130,7 @@ import androidx.media3.exoplayer.source.MediaSource
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 fun CourseDetailScreen(
     course: CourseItem,
     profile: UserProfile,
@@ -3016,18 +3017,18 @@ fun VideoPlayer(
             },
             modifier = Modifier
                 .fillMaxSize()
+                .clipToBounds()
                 .graphicsLayer(
                     scaleX = scale,
                     scaleY = scale,
                     translationX = offset.x,
                     translationY = offset.y
                 )
-                .transformable(state = transformState)
         )
 
         // Gestures Overlay Row
         if (!VideoPipState.isInPip) {
-            Row(modifier = Modifier.fillMaxSize()) {
+            Row(modifier = Modifier.fillMaxSize().transformable(state = transformState)) {
                 // Left Half Box (Brightness & Rewind)
                 Box(
                     modifier = Modifier
@@ -3782,12 +3783,15 @@ fun ClassDetailView(
     val isDeviceLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
 
     // Automatically sync fullscreen state with physical device orientation changes
+    // Automatically sync fullscreen state with physical device orientation changes
     LaunchedEffect(isDeviceLandscape) {
-        isManualFullscreen = isDeviceLandscape
-        if (activity != null) {
-            if (!isDeviceLandscape) {
-                // Reset manual override when physically in portrait to let sensor work freely
-                activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+        if (activePdfToView == null) {
+            isManualFullscreen = isDeviceLandscape
+            if (activity != null) {
+                if (!isDeviceLandscape) {
+                    // Reset manual override when physically in portrait to let sensor work freely
+                    activity.requestedOrientation = android.content.pm.ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
+                }
             }
         }
     }
@@ -3839,7 +3843,7 @@ fun ClassDetailView(
 
     val isVideoPlayingActive = clazz.recordedLink.isNotBlank() || (clazz.liveLink.isNotBlank() && isLiveActive && videoOptions != null)
 
-    if ((isManualFullscreen || isDeviceLandscape) && isVideoPlayingActive) {
+    if ((isManualFullscreen || isDeviceLandscape) && isVideoPlayingActive && activePdfToView == null) {
         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = androidx.compose.ui.Alignment.Center) {
             if (isLoadingVideo) {
                 VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())

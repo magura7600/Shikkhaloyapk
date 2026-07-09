@@ -370,7 +370,7 @@ class MainActivity : ComponentActivity() {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"), android.content.Context.RECEIVER_NOT_EXPORTED)
             } else {
-                registerReceiver(pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"))
+                androidx.core.content.ContextCompat.registerReceiver(this, pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
             }
         } catch (e: Exception) {
             e.printStackTrace()
@@ -1697,6 +1697,7 @@ fun DashboardScreen(
     var isOffline by remember { mutableStateOf(false) }
     var hasPromptedOffline by remember { mutableStateOf(false) }
     var showOfflineDownloadsGlobal by remember { mutableStateOf(false) }
+    var isInitialLoadComplete by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
     val context = LocalContext.current
     var lastBackPressTime by remember { mutableStateOf(0L) }
@@ -1813,7 +1814,7 @@ fun DashboardScreen(
                  courses = withContext(Dispatchers.IO) {
                      try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { emptyList() }
                  }
-                 if (courses.isNotEmpty()) hasLoadedAllCourses = true
+                 hasLoadedAllCourses = true
             }
 
             // 4. Channels
@@ -1836,6 +1837,8 @@ fun DashboardScreen(
             }
         } catch (e: Exception) {
             // silent
+        } finally {
+            isInitialLoadComplete = true
         }
     }
 
@@ -1863,6 +1866,10 @@ fun DashboardScreen(
                 isLoadingChannel = false
             }
         }
+    }
+    if (!isInitialLoadComplete && !isOffline) {
+        ShikkhaloySplashScreen()
+        return
     }
     
     val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
