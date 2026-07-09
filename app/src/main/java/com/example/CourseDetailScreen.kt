@@ -349,7 +349,7 @@ fun CourseDetailScreen(
                 }
             }
         } else {
-            val isInnerActive = isClassActive || isChapterActive
+            val isInnerActive = isClassActive || isChapterActive || showLearningResourcesForSubject != null
             if (userEnrollment == null && !isTeacher) {
                 UnenrolledCourseOverview(
                     course = course,

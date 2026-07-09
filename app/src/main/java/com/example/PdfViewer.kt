@@ -12,12 +12,14 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.rememberTransformableState
 import androidx.compose.foundation.gestures.transformable
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -174,6 +176,7 @@ fun PdfViewerDialog(
                 }
             } else if (pageCount > 0 && pdfRenderer != null) {
                 val pagerState = rememberPagerState(pageCount = { pageCount })
+                val coroutineScope = rememberCoroutineScope()
                 var isPagerScrollEnabled by remember { mutableStateOf(true) }
 
                 HorizontalPager(
@@ -247,6 +250,84 @@ fun PdfViewerDialog(
                                     fontWeight = FontWeight.Bold
                                 )
                             }
+                        }
+                    }
+                }
+
+                // Translucent floating bottom navigation control bar for reliable page switching (Next/Prev)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .align(Alignment.BottomCenter)
+                        .navigationBarsPadding()
+                        .padding(bottom = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .background(Color(0xCC000000), shape = RoundedCornerShape(24.dp))
+                            .border(1.dp, Color(0x33FFFFFF), shape = RoundedCornerShape(24.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        // Previous Page Button
+                        IconButton(
+                            onClick = {
+                                if (pagerState.currentPage > 0) {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(pagerState.currentPage - 1)
+                                    }
+                                }
+                            },
+                            enabled = pagerState.currentPage > 0,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    if (pagerState.currentPage > 0) Color(0x33FFFFFF) else Color.Transparent,
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowBack,
+                                contentDescription = "আগের পৃষ্ঠা",
+                                tint = if (pagerState.currentPage > 0) Color.White else Color.White.copy(alpha = 0.3f),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        // Page indicator text in bottom bar
+                        Text(
+                            text = "${pagerState.currentPage + 1} / $pageCount পৃষ্ঠা",
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp)
+                        )
+
+                        // Next Page Button
+                        IconButton(
+                            onClick = {
+                                if (pagerState.currentPage < pageCount - 1) {
+                                    coroutineScope.launch {
+                                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
+                                    }
+                                }
+                            },
+                            enabled = pagerState.currentPage < pageCount - 1,
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    if (pagerState.currentPage < pageCount - 1) Color(0x33FFFFFF) else Color.Transparent,
+                                    shape = RoundedCornerShape(20.dp)
+                                )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowForward,
+                                contentDescription = "পরের পৃষ্ঠা",
+                                tint = if (pagerState.currentPage < pageCount - 1) Color.White else Color.White.copy(alpha = 0.3f),
+                                modifier = Modifier.size(20.dp)
+                            )
                         }
                     }
                 }
