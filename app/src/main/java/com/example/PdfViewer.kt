@@ -269,14 +269,14 @@ fun ZoomablePdfPage(
     bitmapCache: LruCache<Int, Bitmap>,
     onZoomChanged: (Boolean) -> Unit
 ) {
-    var scale by remember { mutableStateOf(1f) }
-    var offsetX by remember { mutableStateOf(0f) }
-    var offsetY by remember { mutableStateOf(0f) }
+    var scale by remember(pageIndex) { mutableStateOf(1f) }
+    var offsetX by remember(pageIndex) { mutableStateOf(0f) }
+    var offsetY by remember(pageIndex) { mutableStateOf(0f) }
 
-    var bitmap by remember { mutableStateOf<Bitmap?>(bitmapCache.get(pageIndex)) }
-    var pageError by remember { mutableStateOf(false) }
+    var bitmap by remember(pageIndex) { mutableStateOf<Bitmap?>(bitmapCache.get(pageIndex)) }
+    var pageError by remember(pageIndex) { mutableStateOf(false) }
 
-    LaunchedEffect(pageIndex) {
+    LaunchedEffect(pageIndex, pdfRenderer) {
         if (bitmap != null) return@LaunchedEffect
 
         withContext(pdfDispatcher) {

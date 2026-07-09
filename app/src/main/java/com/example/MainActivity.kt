@@ -1680,7 +1680,7 @@ fun DashboardScreen(
     }
 
     // Data Loading Logic optimized to truly only load what's needed for the current screen
-    LaunchedEffect(currentScreen, selectedTab, focusCourseId, selectedCourse?.id) {
+    LaunchedEffect(currentScreen, selectedTab, focusCourseId, selectedCourse?.id, isOffline, profile.user_id) {
         try {
             // 1. My Enrollments (needed globally for a student to know what they own)
             if (!isTeacher && !isAdmin && enrollments.isEmpty()) {
