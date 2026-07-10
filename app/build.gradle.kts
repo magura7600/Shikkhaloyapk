@@ -10,24 +10,6 @@ plugins {
   alias(libs.plugins.kotlin.serialization)
 }
 
-// Automatically clean up legacy mipmap folders and duplicate resources to prevent compilation failures on remote build systems (like GitHub Actions)
-val resDir = file("src/main/res")
-if (resDir.exists()) {
-  // 1. Delete legacy mipmaps (mipmap-hdpi, mipmap-mdpi, etc.)
-  resDir.listFiles()?.forEach { dir ->
-    if (dir.isDirectory && dir.name.startsWith("mipmap-") && !dir.name.contains("anydpi")) {
-      println("Automatically deleting legacy mipmap folder at configuration time: ${dir.absolutePath}")
-      dir.deleteRecursively()
-    }
-  }
-  // 2. Delete custom_logo.webp from drawable to prevent duplicate resource conflicts with custom_logo.png
-  val duplicateLogoWebp = file("src/main/res/drawable/custom_logo.webp")
-  if (duplicateLogoWebp.exists()) {
-    println("Automatically deleting duplicate logo webp: ${duplicateLogoWebp.absolutePath}")
-    duplicateLogoWebp.delete()
-  }
-}
-
 android {
   androidResources {
     ignoreAssetsPattern = "!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~"
