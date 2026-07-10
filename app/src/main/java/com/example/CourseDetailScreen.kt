@@ -252,6 +252,7 @@ fun CourseDetailScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .statusBarsPadding()
                         .background(Color(0xFFFBF8F1))
                         .padding(horizontal = 16.dp)
                         .padding(top = 4.dp, bottom = 8.dp),
@@ -3835,6 +3836,16 @@ fun ClassDetailView(
         return
     }
 
+    if (activePdfToView != null) {
+        FullScreenPdfViewer(
+            file = activePdfToView!!,
+            title = activePdfTitle,
+            url = activePdfUrl,
+            onClose = { activePdfToView = null }
+        )
+        return
+    }
+
     val isVideoPlayingActive = clazz.recordedLink.isNotBlank() || (clazz.liveLink.isNotBlank() && isLiveActive && videoOptions != null)
 
     // Apply immersive mode for full screen video
@@ -4520,18 +4531,6 @@ fun ClassDetailView(
                 }
             }
         }
-        
-
-
-        
-        if (activePdfToView != null) {
-            PdfViewerDialog(
-                file = activePdfToView!!,
-                title = activePdfTitle,
-                url = activePdfUrl,
-                onClose = { activePdfToView = null }
-            )
-        }
     }
 }
 
@@ -5032,6 +5031,7 @@ fun ChapterDetailScreen(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .statusBarsPadding()
             .verticalScroll(rememberScrollState())
             .padding(start = 16.dp, end = 16.dp, bottom = 16.dp, top = 12.dp)
     ) {
@@ -5619,11 +5619,20 @@ fun LearningResourcesScreen(
         )
     }
 
-    Scaffold(
+    if (activePdfToView != null) {
+        FullScreenPdfViewer(
+            file = activePdfToView!!,
+            title = activePdfTitle,
+            url = activePdfUrl,
+            onClose = { activePdfToView = null }
+        )
+    } else {
+        Scaffold(
         topBar = {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .statusBarsPadding()
                     .background(Color.White)
                     .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalAlignment = Alignment.CenterVertically
@@ -5648,7 +5657,8 @@ fun LearningResourcesScreen(
                 FloatingActionButton(
                     onClick = { isAddingResource = true },
                     containerColor = accentColor,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    modifier = Modifier.navigationBarsPadding()
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Resource")
                 }
@@ -5857,13 +5867,6 @@ fun LearningResourcesScreen(
         }
     }
     
-    if (activePdfToView != null) {
-        PdfViewerDialog(
-            file = activePdfToView!!,
-            title = activePdfTitle,
-            url = activePdfUrl,
-            onClose = { activePdfToView = null }
-        )
     }
 }
 

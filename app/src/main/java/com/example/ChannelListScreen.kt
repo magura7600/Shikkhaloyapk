@@ -76,7 +76,8 @@ fun ChannelListScreen(
             FloatingActionButton(
                 onClick = onCreateChannel,
                 containerColor = accentColor,
-                contentColor = Color.White
+                contentColor = Color.White,
+                modifier = Modifier.navigationBarsPadding()
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Create Channel")
             }

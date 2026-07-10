@@ -1210,7 +1210,13 @@ fun LoginScreen(
                         email = emailAddress.trim()
                         this.password = password
                     }
-                    val user = supabase.auth.currentUserOrNull()
+                    var user = supabase.auth.currentUserOrNull() ?: supabase.auth.currentSessionOrNull()?.user
+                    var attempts = 0
+                    while (user == null && attempts < 10) {
+                        kotlinx.coroutines.delay(200)
+                        user = supabase.auth.currentUserOrNull() ?: supabase.auth.currentSessionOrNull()?.user
+                        attempts++
+                    }
                     if (user != null) {
                         handleAuthSuccess(user.email ?: emailAddress.trim(), user.id)
                     } else {
@@ -1221,7 +1227,13 @@ fun LoginScreen(
                         email = emailAddress.trim()
                         this.password = password
                     }
-                    val user = supabase.auth.currentUserOrNull()
+                    var user = supabase.auth.currentUserOrNull() ?: supabase.auth.currentSessionOrNull()?.user
+                    var attempts = 0
+                    while (user == null && attempts < 10) {
+                        kotlinx.coroutines.delay(200)
+                        user = supabase.auth.currentUserOrNull() ?: supabase.auth.currentSessionOrNull()?.user
+                        attempts++
+                    }
                     if (user != null) {
                         handleAuthSuccess(user.email ?: emailAddress.trim(), user.id)
                     } else {
@@ -1779,12 +1791,12 @@ fun DashboardScreen(
                     }
                 }
             }
-            kotlinx.coroutines.delay(8000) // check every 8 seconds
+            kotlinx.coroutines.delay(4000) // check every 4 seconds for faster discovery
         }
     }
 
     // Data Loading Logic optimized to truly only load what's needed for the current screen
-    LaunchedEffect(currentScreen, selectedTab, focusCourseId, selectedCourse?.id, isOffline, profile.user_id) {
+    LaunchedEffect(currentScreen, selectedTab, focusCourseId, selectedCourse?.id, isOffline, enteredWithNetwork, profile.user_id) {
         try {
             // 1. My Enrollments (needed globally for a student to know what they own)
             if (!isTeacher && !isAdmin) {
@@ -1834,7 +1846,14 @@ fun DashboardScreen(
                      try { supabase.from("course_interactions").select { filter { eq("course_id", selectedCourse!!.id) } }.decodeList<CourseInteraction>() } catch(e: Exception) { courseInteractions }
                  }
                  mentors = withContext(Dispatchers.IO) {
-                     try { supabase.from("mentors").select().decodeList<Mentor>() } catch(e: Exception) { mentors }
+                     try {
+                         val cid = selectedCourse?.channel_id
+                         if (!cid.isNullOrBlank()) {
+                             supabase.from("mentors").select { filter { eq("channel_id", cid) } }.decodeList<Mentor>()
+                         } else {
+                             supabase.from("mentors").select().decodeList<Mentor>()
+                         }
+                     } catch(e: Exception) { mentors }
                  }
             }
         } catch (e: Exception) {
@@ -1856,7 +1875,9 @@ fun DashboardScreen(
                 
                 try {
                     val fetchedMentors = withContext(Dispatchers.IO) {
-                        supabase.from("mentors").select().decodeList<Mentor>()
+                        supabase.from("mentors").select {
+                            filter { eq("channel_id", profile.user_id) }
+                        }.decodeList<Mentor>()
                     }
                     mentors = fetchedMentors
                 } catch(e: Exception) {
@@ -2123,7 +2144,8 @@ fun DashboardScreen(
                         }
                     },
                     containerColor = accentColor,
-                    contentColor = Color.White
+                    contentColor = Color.White,
+                    modifier = if (currentScreen != "dashboard") Modifier.navigationBarsPadding() else Modifier
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Course")
                 }
@@ -2720,7 +2742,9 @@ fun DashboardScreen(
                     try {
                         val fetchedMentors = withContext(Dispatchers.IO) {
                             supabase.from("mentors").insert(mentorWithChannel)
-                            supabase.from("mentors").select().decodeList<Mentor>()
+                            supabase.from("mentors").select {
+                                filter { eq("channel_id", profile.user_id) }
+                            }.decodeList<Mentor>()
                         }
                         mentors = fetchedMentors
                         Toast.makeText(context, "মেন্টর যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
@@ -2740,7 +2764,9 @@ fun DashboardScreen(
                                     eq("id", editedMentor.id)
                                 }
                             }
-                            supabase.from("mentors").select().decodeList<Mentor>()
+                            supabase.from("mentors").select {
+                                filter { eq("channel_id", profile.user_id) }
+                            }.decodeList<Mentor>()
                         }
                         mentors = fetchedMentors
                         Toast.makeText(context, "মেন্টর আপডেট করা হয়েছে", Toast.LENGTH_SHORT).show()
@@ -2760,7 +2786,9 @@ fun DashboardScreen(
                                     eq("id", mentorToDelete.id)
                                 }
                             }
-                            supabase.from("mentors").select().decodeList<Mentor>()
+                            supabase.from("mentors").select {
+                                filter { eq("channel_id", profile.user_id) }
+                            }.decodeList<Mentor>()
                         }
                         mentors = fetchedMentors
                         Toast.makeText(context, "মেন্টর ডিলিট করা হয়েছে", Toast.LENGTH_SHORT).show()
