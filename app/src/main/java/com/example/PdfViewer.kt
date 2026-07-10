@@ -51,6 +51,9 @@ import java.util.concurrent.Executors
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.window.DialogWindowProvider
+import android.view.WindowManager
 
 // Single-threaded dispatcher to ensure thread safety with Android's PdfRenderer
 private val pdfDispatcher = Executors.newSingleThreadExecutor().asCoroutineDispatcher()
@@ -70,7 +73,7 @@ fun FullScreenPdfViewer(
     var error by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = remember(context) { context as? androidx.activity.ComponentActivity }
-    val isAdmin = context.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("user_role", "") == "admin"
+    val isAdmin = context.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("role", "") == "admin"
     
     androidx.compose.runtime.DisposableEffect(isAdmin) {
         val window = activity?.window
@@ -435,16 +438,18 @@ fun PdfViewerDialog(
     var error by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = remember(context) { context as? androidx.activity.ComponentActivity }
-    val isAdmin = context.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("user_role", "") == "admin"
-    androidx.compose.runtime.DisposableEffect(isAdmin) {
-        val window = activity?.window
-        if (window != null && !isAdmin) {
-            window.setFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE, android.view.WindowManager.LayoutParams.FLAG_SECURE)
+    val isAdmin = context.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("role", "") == "admin"
+    val view = LocalView.current
+    androidx.compose.runtime.DisposableEffect(isAdmin, view) {
+        val dialogWindow = (view.parent as? DialogWindowProvider)?.window
+        if (dialogWindow != null && !isAdmin) {
+            dialogWindow.setFlags(
+                android.view.WindowManager.LayoutParams.FLAG_SECURE,
+                android.view.WindowManager.LayoutParams.FLAG_SECURE
+            )
         }
         onDispose {
-            if (window != null && !isAdmin) {
-                window.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
-            }
+            dialogWindow?.clearFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
         }
     }
     var isLandscape by remember { mutableStateOf(activity?.requestedOrientation == ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE) }

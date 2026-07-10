@@ -254,5 +254,39 @@ object OfflineDownloadManager {
  * so that OkHttp doesn't fail with IllegalArgumentException on unencoded URLs.
  */
 fun sanitizeUrl(url: String): String {
-    return url.trim().replace(" ", "%20")
+    val trimmed = url.trim()
+    try {
+        trimmed.toHttpUrl()
+        return trimmed
+    } catch (e: Exception) {
+        // Continue to custom encoder
+    }
+
+    try {
+        val schemeEnd = trimmed.indexOf("://")
+        if (schemeEnd == -1) return trimmed
+        val scheme = trimmed.substring(0, schemeEnd + 3)
+        val rest = trimmed.substring(schemeEnd + 3)
+        
+        val firstSlash = rest.indexOf('/')
+        if (firstSlash == -1) return trimmed
+        
+        val host = rest.substring(0, firstSlash)
+        val pathAndQuery = rest.substring(firstSlash)
+        
+        val queryStart = pathAndQuery.indexOf('?')
+        val path = if (queryStart == -1) pathAndQuery else pathAndQuery.substring(0, queryStart)
+        val query = if (queryStart == -1) "" else pathAndQuery.substring(queryStart)
+        
+        val encodedPath = path.split('/').joinToString("/") { segment ->
+            if (segment.isEmpty()) "" else {
+                java.net.URLEncoder.encode(segment, "UTF-8").replace("+", "%20")
+            }
+        }
+        
+        return "$scheme$host$encodedPath$query"
+    } catch (e: Exception) {
+        e.printStackTrace()
+        return trimmed
+    }
 }

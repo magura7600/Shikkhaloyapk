@@ -1,4 +1,0 @@
-299:                                    text = if (userEnrollment != null) "আপনি ইতিমধ্যে কোর্সটি কিনেছেন ✔️" else if (course.pricingOption == "Fully Free") "এনরোল করুন (Free)" else "পেমেন্ট করুন (Pay)", 
-318:                            Text("এটি আপনার তৈরি করা কোর্স", fontWeight = FontWeight.Bold, color = accentColor)
-339:                    Text("আপনি এই কোর্স থেকে সাময়িকভাবে বহিষ্কৃত", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-2362:                    Text("যেসব কোর্সে এই বিষয়টি যুক্ত থাকবে", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 14.sp)

@@ -16,3 +16,9 @@
 local.properties
 .env
 debug.keystore
+*.p12
+*.jks
+*.keystore
+*.class
+out.txt
+text_lines.txt

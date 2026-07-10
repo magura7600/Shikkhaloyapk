@@ -266,7 +266,8 @@ fun CourseListScreen(
         }
     }
 
-    if (showDeleteDialog && courseToDelete != null) {
+    val currentCourseToDelete = courseToDelete
+    if (showDeleteDialog && currentCourseToDelete != null) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
             title = { Text("কোর্সটি ডিলিট করুন") },
@@ -274,7 +275,7 @@ fun CourseListScreen(
                 Column {
                     Text("আপনি কি নিশ্চিত যে আপনি এই কোর্সটি ডিলিট করতে চান? এই কাজ মুছে ফেলা যাবে না।")
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("নিশ্চিত করতে কোর্সের নাম লিখুন: ${courseToDelete!!.title}", fontWeight = FontWeight.Bold, color = Color.Red)
+                    Text("নিশ্চিত করতে কোর্সের নাম লিখুন: ${currentCourseToDelete.title}", fontWeight = FontWeight.Bold, color = Color.Red)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = deleteConfirmationText,
@@ -287,15 +288,15 @@ fun CourseListScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        if (deleteConfirmationText == courseToDelete!!.title) {
-                            onDeleteCourse?.invoke(courseToDelete!!)
+                        if (deleteConfirmationText == currentCourseToDelete.title) {
+                            onDeleteCourse?.invoke(currentCourseToDelete)
                             showDeleteDialog = false
                             courseToDelete = null
                             deleteConfirmationText = ""
                         }
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    enabled = deleteConfirmationText == courseToDelete!!.title
+                    enabled = deleteConfirmationText == currentCourseToDelete.title
                 ) {
                     Text("ডিলিট করুন", color = Color.White)
                 }
