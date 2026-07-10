@@ -144,7 +144,7 @@ fun VideoPlayer(
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
-    val isAdmin = context.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("role", "") == "admin"
+    val isAdmin = PrefUtils.getSecurePrefs(context).getString("role", "") == "admin"
     androidx.compose.runtime.DisposableEffect(isAdmin) {
         val window = activity?.window
         if (window != null && !isAdmin) {

@@ -21,6 +21,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -48,11 +49,14 @@ fun LoginScreen(
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
-    val sharedPrefs = remember { context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE) }
+    val sharedPrefs = remember { PrefUtils.getSecurePrefs(context) }
 
     var isLoginTab by remember { mutableStateOf(true) }
     var emailAddress by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
+    
+    var isEmailFocused by remember { mutableStateOf(false) }
+    var isPasswordFocused by remember { mutableStateOf(false) }
     
     var showPassword by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
@@ -130,10 +134,20 @@ fun LoginScreen(
         Image(
             painter = painterResource(id = R.drawable.custom_logo),
             contentDescription = "App Logo",
-            modifier = Modifier.size(100.dp)
+            modifier = Modifier.size(80.dp)
         )
         
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(12.dp))
+        
+        InteractiveBear(
+            isPasswordFocused = isPasswordFocused,
+            showPassword = showPassword,
+            emailLength = emailAddress.length,
+            isEmailFocused = isEmailFocused,
+            modifier = Modifier.size(130.dp)
+        )
+        
+        Spacer(modifier = Modifier.height(16.dp))
         
         // Tabs
         Row(
@@ -176,7 +190,9 @@ fun LoginScreen(
             onValueChange = { emailAddress = it },
             label = { Text("ইমেইল অ্যাড্রেস") },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isEmailFocused = it.isFocused },
             shape = RoundedCornerShape(12.dp)
         )
         
@@ -188,7 +204,9 @@ fun LoginScreen(
             label = { Text("পাসওয়ার্ড") },
             visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .onFocusChanged { isPasswordFocused = it.isFocused },
             shape = RoundedCornerShape(12.dp),
             trailingIcon = {
                 IconButton(onClick = { showPassword = !showPassword }) {

@@ -62,7 +62,7 @@ fun ExploreFeedScreen(
                     .padding(bottom = 16.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                items(allChannels) { channel ->
+                items(allChannels, key = { it.user_id }) { channel ->
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.clickable { onChannelClick(channel) }
@@ -139,7 +139,7 @@ fun ExploreFeedScreen(
             contentPadding = PaddingValues(bottom = 16.dp)
         ) {
             if (filteredCourses.isNotEmpty()) {
-                items(filteredCourses) { course ->
+                items(filteredCourses, key = { it.id }) { course ->
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()

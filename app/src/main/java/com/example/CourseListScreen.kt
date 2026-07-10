@@ -92,7 +92,7 @@ fun CourseListScreen(
             Spacer(modifier = Modifier.height(8.dp))
         }
 
-        items(courses.size) { index ->
+        items(courses.size, key = { index -> courses[index].id }) { index ->
             val course = courses[index]
             val colorIndex = course.id.hashCode().absoluteValue % bannerColors.size
             

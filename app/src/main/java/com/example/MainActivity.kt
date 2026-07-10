@@ -470,12 +470,47 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun MainAppContent() {
     val context = LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE) }
+    val sharedPrefs = remember { PrefUtils.getSecurePrefs(context) }
     val coroutineScope = rememberCoroutineScope()
     
     var appState by remember { mutableStateOf<AppState>(AppState.Splash) }
     var activeUpdateToPrompt by remember { mutableStateOf<AppUpdate?>(null) }
     var activeNoticeToPrompt by remember { mutableStateOf<AppNotice?>(null) }
+
+    // Auto-migrate legacy unencrypted credentials to secure storage
+    LaunchedEffect(Unit) {
+        val legacyPrefs = context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
+        if (legacyPrefs.contains("user_id") && !sharedPrefs.contains("user_id")) {
+            val uId = legacyPrefs.getString("user_id", null)
+            val email = legacyPrefs.getString("email", null)
+            val role = legacyPrefs.getString("role", null)
+            val fullName = legacyPrefs.getString("full_name", null)
+            val institution = legacyPrefs.getString("institution", "")
+            val contact = legacyPrefs.getString("contact", "")
+            val uidCode = legacyPrefs.getString("uid_code", null)
+            
+            sharedPrefs.edit()
+                .putString("user_id", uId)
+                .putString("email", email)
+                .putString("role", role)
+                .putString("full_name", fullName)
+                .putString("institution", institution)
+                .putString("contact", contact)
+                .putString("uid_code", uidCode)
+                .apply()
+                
+            // Clear credentials from legacy preferences
+            legacyPrefs.edit()
+                .remove("user_id")
+                .remove("email")
+                .remove("role")
+                .remove("full_name")
+                .remove("institution")
+                .remove("contact")
+                .remove("uid_code")
+                .apply()
+        }
+    }
 
     LaunchedEffect(Unit) {
         val startTime = System.currentTimeMillis()

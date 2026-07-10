@@ -104,7 +104,7 @@ fun ChannelListScreen(
                     contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    items(channels) { channel ->
+                    items(channels, key = { it.user_id }) { channel ->
                         ChannelItemCard(channel = channel, onClick = { onChannelClick(channel) })
                     }
                 }

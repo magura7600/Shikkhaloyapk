@@ -120,7 +120,7 @@ fun DashboardScreen(
     var isLoadingChannel by remember { mutableStateOf(isTeacher) }
 
     val context = LocalContext.current
-    val sharedPrefs = remember { context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE) }
+    val sharedPrefs = remember { PrefUtils.getSecurePrefs(context) }
 
     // Read cached values immediately on start to prevent blank state!
     val cachedCoursesJson = remember { sharedPrefs.getString("cached_courses_${profile.user_id}", null) }
@@ -225,28 +225,27 @@ fun DashboardScreen(
     }
 
     var enteredWithNetwork by remember { mutableStateOf(false) }
+    LaunchedEffect(isOffline, enteredWithNetwork, hasPromptedOffline) {
+        if (isOffline && !enteredWithNetwork && !hasPromptedOffline) {
+            var elapsed = 0
+            while (elapsed < 120) {
+                kotlinx.coroutines.delay(1000)
+                elapsed += 1
+                if (!isOffline || enteredWithNetwork || hasPromptedOffline) return@LaunchedEffect
+            }
+            showOfflineDownloadsGlobal = true
+            hasPromptedOffline = true
+            Toast.makeText(context, "কোনো ইন্টারনেট সংযোগ নেই! অফলাইন মোড চালু করা হয়েছে।", Toast.LENGTH_LONG).show()
+        }
+    }
+
     LaunchedEffect(Unit) {
-        var elapsedSeconds = 0
-        while (true) {
-            val hasInternet = NetworkUtils.hasActualInternetAccess(context)
+        NetworkUtils.observeInternetAccess(context).collect { hasInternet ->
             isOffline = !hasInternet
             if (hasInternet) {
                 enteredWithNetwork = true
                 hasPromptedOffline = false
-            } else {
-                if (!enteredWithNetwork) {
-                    if (elapsedSeconds >= 120) {
-                        if (!hasPromptedOffline) {
-                            showOfflineDownloadsGlobal = true
-                            hasPromptedOffline = true
-                            Toast.makeText(context, "কোনো ইন্টারনেট সংযোগ নেই! অফলাইন মোড চালু করা হয়েছে।", Toast.LENGTH_LONG).show()
-                        }
-                    } else {
-                        elapsedSeconds += 8
-                    }
-                }
             }
-            kotlinx.coroutines.delay(4000) // check every 4 seconds for faster discovery
         }
     }
 
@@ -297,7 +296,15 @@ fun DashboardScreen(
 
             // 4. Channels
             allChannels = withContext(Dispatchers.IO) {
-                try { supabase.from("profiles").select().decodeList<UserProfile>().filter { it.handle != null && it.handle.isNotBlank() } } catch(e: Exception) { allChannels }
+                try {
+                    supabase.from("public_channels").select().decodeList<UserProfile>()
+                } catch (e: Exception) {
+                    try {
+                        supabase.from("profiles").select().decodeList<UserProfile>().filter { it.handle != null && it.handle.isNotBlank() }
+                    } catch (ex: Exception) {
+                        allChannels
+                    }
+                }
             }
 
             // 5. Course Interactions & Mentors (ONLY needed for Course Detail screen)

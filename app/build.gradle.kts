@@ -143,6 +143,9 @@ dependencies {
   implementation(libs.ktor.client.okhttp)
   implementation(libs.kotlinx.serialization.json)
   
+  // Encrypted SharedPreferences
+  implementation("androidx.security:security-crypto:1.1.0-alpha06")
+  
   // OneSignal - used?
   implementation(libs.onesignal)
   

@@ -49,6 +49,9 @@ object OfflineDownloadManager {
     private const val PREFS_NAME = "shikkhaloy_downloads_prefs"
     private const val KEY_DOWNLOADS = "downloaded_records"
 
+    // Unified download coroutine scope
+    private val downloadScope = CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+
     // Map to track active download states by URL or ID
     private val _downloadStates = MutableStateFlow<Map<String, DownloadState>>(emptyMap())
     val downloadStates: StateFlow<Map<String, DownloadState>> = _downloadStates
@@ -89,7 +92,7 @@ object OfflineDownloadManager {
 
         updateDownloadState(cleanUrl, DownloadState.Downloading(0f))
 
-        CoroutineScope(Dispatchers.IO).launch {
+        downloadScope.launch {
             try {
                 // Determine file extension
                 val ext = if (fileType == "pdf") "pdf" else "mp4"
@@ -100,8 +103,20 @@ object OfflineDownloadManager {
                     secureDir.mkdirs()
                 }
 
+                // Clean old/orphaned tmp files first
+                try {
+                    secureDir.listFiles()?.forEach { file ->
+                        if (file.name.endsWith(".tmp")) {
+                            file.delete()
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
                 val uniqueName = "dl_${System.currentTimeMillis()}_${title.hashCode()}.$ext"
                 val destinationFile = File(secureDir, uniqueName)
+                val tempFile = File(secureDir, "$uniqueName.tmp")
 
                 val sanitizedUrl = sanitizeUrl(cleanUrl)
                 val request = Request.Builder().url(sanitizedUrl).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36").build()
@@ -112,8 +127,13 @@ object OfflineDownloadManager {
                     val body = response.body ?: throw Exception("Response body is null")
                     val contentLength = body.contentLength()
                     
+                    // Usable space check: ensure free space is larger than file size plus 50MB safety margin
+                    if (contentLength > 0 && context.filesDir.usableSpace < contentLength + 50_000_000L) {
+                        throw java.io.IOException("ডিভাইসে পর্যাপ্ত স্টোরেজ খালি নেই! (${contentLength / 1_000_000}MB প্রয়োজন)")
+                    }
+
                     body.byteStream().use { inputStream ->
-                        FileOutputStream(destinationFile).use { outputStream ->
+                        FileOutputStream(tempFile).use { outputStream ->
                             val buffer = ByteArray(8192)
                             var bytesRead: Int
                             var totalBytesRead = 0L
@@ -128,6 +148,18 @@ object OfflineDownloadManager {
                             }
                             outputStream.flush()
                         }
+                    }
+
+                    // Check completeness
+                    if (contentLength > 0 && tempFile.length() != contentLength) {
+                        tempFile.delete()
+                        throw java.io.IOException("ডাউনলোড সম্পন্ন হয়নি (ফাইল সাইজ মেলেনি)")
+                    }
+
+                    // Atomic Rename
+                    if (!tempFile.renameTo(destinationFile)) {
+                        tempFile.delete()
+                        throw java.io.IOException("ফাইল সেভ করা ব্যর্থ হয়েছে")
                     }
 
                     // Create and save download record
@@ -177,7 +209,7 @@ object OfflineDownloadManager {
             return
         }
 
-        CoroutineScope(Dispatchers.IO).launch {
+        downloadScope.launch {
             try {
                 // Ensure cache dir exists
                 val tempDir = File(context.cacheDir, "temp_pdfs")
@@ -185,7 +217,20 @@ object OfflineDownloadManager {
                     tempDir.mkdirs()
                 }
 
+                // Clean old / orphaned tmp files in cache
+                try {
+                    tempDir.listFiles()?.forEach { file ->
+                        if (file.name.endsWith(".tmp")) {
+                            file.delete()
+                        }
+                    }
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                }
+
                 val tempFile = File(tempDir, "temp_${System.currentTimeMillis()}_view.pdf")
+                val tempFileTmp = File(tempDir, "temp_${System.currentTimeMillis()}_view.pdf.tmp")
+
                 val sanitizedUrl = sanitizeUrl(cleanUrl)
                 val request = Request.Builder().url(sanitizedUrl).header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36").build()
                 client.newCall(request).execute().use { response ->
@@ -193,9 +238,15 @@ object OfflineDownloadManager {
                         throw Exception("Failed to fetch file: HTTP ${response.code}")
                     }
                     val body = response.body ?: throw Exception("Body is null")
+                    val contentLength = body.contentLength()
+
+                    // Cache storage space check
+                    if (contentLength > 0 && context.cacheDir.usableSpace < contentLength + 10_000_000L) {
+                        throw java.io.IOException("ডিভাইসে পর্যাপ্ত মেমরি খালি নেই! (${contentLength / 1_000_000}MB প্রয়োজন)")
+                    }
                     
                     body.byteStream().use { inputStream ->
-                        FileOutputStream(tempFile).use { outputStream ->
+                        FileOutputStream(tempFileTmp).use { outputStream ->
                             val buffer = ByteArray(8192)
                             var bytesRead: Int
                             while (inputStream.read(buffer).also { bytesRead = it } != -1) {
@@ -203,6 +254,18 @@ object OfflineDownloadManager {
                             }
                             outputStream.flush()
                         }
+                    }
+
+                    // Check completeness
+                    if (contentLength > 0 && tempFileTmp.length() != contentLength) {
+                        tempFileTmp.delete()
+                        throw java.io.IOException("ডাউনলোড সম্পন্ন হয়নি (ফাইল সাইজ মেলেনি)")
+                    }
+
+                    // Rename atomically
+                    if (!tempFileTmp.renameTo(tempFile)) {
+                        tempFileTmp.delete()
+                        throw java.io.IOException("ফাইল সেভ করা ব্যর্থ হয়েছে")
                     }
 
                     withContext(Dispatchers.Main) {
@@ -236,7 +299,7 @@ object OfflineDownloadManager {
 
     // Clear all temporary files in cacheDir (for temporary PDF views)
     fun clearTemporaryCache(context: Context) {
-        CoroutineScope(Dispatchers.IO).launch {
+        downloadScope.launch {
             try {
                 val tempDir = File(context.cacheDir, "temp_pdfs")
                 if (tempDir.exists() && tempDir.isDirectory) {

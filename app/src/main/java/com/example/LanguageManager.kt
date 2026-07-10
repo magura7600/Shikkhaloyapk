@@ -11,7 +11,7 @@ object L {
 
     fun init(context: Context) {
         if (hasInitialized) return
-        sharedPrefs = context.applicationContext.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
+        sharedPrefs = PrefUtils.getSecurePrefs(context)
         currentLanguage = sharedPrefs.getString("selected_language_code", "bn") ?: "bn"
         hasInitialized = true
     }

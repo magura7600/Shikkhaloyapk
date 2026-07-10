@@ -144,9 +144,14 @@ fun StudentDashboardContent(
         classList.sortedBy { it.first.time }
     }
 
+    val isDark = ThemeManager.isDarkTheme()
     val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
-        colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+        colors = if (isDark) listOf(Color(0xFF0F172A), Color(0xFF1E293B)) else listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
     )
+    val textColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B)
+    val subTextColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
+    val cardBgColor = if (isDark) Color(0xFF1E293B) else Color.White
+    val borderColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
     
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -164,7 +169,7 @@ fun StudentDashboardContent(
                         spotColor = Color(0xFF94A3B8).copy(alpha = 0.15f),
                         ambientColor = Color(0xFF94A3B8).copy(alpha = 0.15f)
                     ),
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
                 border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF818CF8).copy(alpha = 0.6f), Color(0xFFC084FC).copy(alpha = 0.6f))))
             ) {
@@ -173,13 +178,13 @@ fun StudentDashboardContent(
                         "Class Routine",
                         fontSize = 18.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = Color(0xFF1E293B)
+                        color = textColor
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         "Check your daily class schedule",
                         fontSize = 13.sp,
-                        color = Color(0xFF64748B)
+                        color = subTextColor
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     Row(

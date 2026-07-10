@@ -610,7 +610,7 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
 fun showNoticeNotification(context: Context, notice: AppNotice) {
     if (notice.id == null) return
     
-    val sharedPrefs = context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
+    val sharedPrefs = PrefUtils.getSecurePrefs(context)
     val lastNotifiedId = sharedPrefs.getInt("last_notified_notice_id", -1)
     
     // Only notify if we haven't notified for this notice ID yet

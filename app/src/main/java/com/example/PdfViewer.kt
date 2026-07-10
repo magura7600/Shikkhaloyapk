@@ -73,7 +73,7 @@ fun FullScreenPdfViewer(
     var error by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = remember(context) { context as? androidx.activity.ComponentActivity }
-    val isAdmin = context.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("role", "") == "admin"
+    val isAdmin = PrefUtils.getSecurePrefs(context).getString("role", "") == "admin"
     
     androidx.compose.runtime.DisposableEffect(isAdmin) {
         val window = activity?.window
@@ -438,7 +438,7 @@ fun PdfViewerDialog(
     var error by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val activity = remember(context) { context as? androidx.activity.ComponentActivity }
-    val isAdmin = context.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("role", "") == "admin"
+    val isAdmin = PrefUtils.getSecurePrefs(context).getString("role", "") == "admin"
     val view = LocalView.current
     androidx.compose.runtime.DisposableEffect(isAdmin, view) {
         val dialogWindow = (view.parent as? DialogWindowProvider)?.window
@@ -849,17 +849,26 @@ fun ZoomablePdfPage(
                     var bmp: Bitmap? = null
                     val page = pdfRenderer.openPage(pageIndex)
                     try {
-                        val width = (page.width * 2f).toInt()
-                        val height = (page.height * 2f).toInt()
+                        val maxDim = 2048
+                        val rawWidth = (page.width * 2f).toInt()
+                        val rawHeight = (page.height * 2f).toInt()
+                        val scaleFactor = if (rawWidth > maxDim || rawHeight > maxDim) {
+                            val maxOfDims = if (rawWidth > rawHeight) rawWidth else rawHeight
+                            maxDim.toFloat() / maxOfDims
+                        } else {
+                            1f
+                        }
+                        val width = (rawWidth * scaleFactor).toInt()
+                        val height = (rawHeight * scaleFactor).toInt()
 
                         try {
-                            bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                            bmp = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
                         } catch (e: OutOfMemoryError) {
                             System.gc()
                             try {
-                                val fallbackWidth = (page.width * 1.5f).toInt()
-                                val fallbackHeight = (page.height * 1.5f).toInt()
-                                bmp = Bitmap.createBitmap(fallbackWidth, fallbackHeight, Bitmap.Config.ARGB_8888)
+                                val fallbackWidth = (width * 0.75f).toInt()
+                                val fallbackHeight = (height * 0.75f).toInt()
+                                bmp = Bitmap.createBitmap(fallbackWidth, fallbackHeight, Bitmap.Config.RGB_565)
                             } catch (e2: OutOfMemoryError) {
                                 try {
                                     bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.RGB_565)

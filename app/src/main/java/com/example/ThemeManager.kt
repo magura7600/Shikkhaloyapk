@@ -17,7 +17,7 @@ object ThemeManager {
 
     fun init(context: Context) {
         if (hasInitialized) return
-        sharedPrefs = context.applicationContext.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
+        sharedPrefs = PrefUtils.getSecurePrefs(context)
         themeMode = sharedPrefs.getString("selected_theme_mode", "system") ?: "system"
         isPipEnabled = sharedPrefs.getBoolean("pip_enabled", true)
         hasInitialized = true

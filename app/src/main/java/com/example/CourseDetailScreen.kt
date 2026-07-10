@@ -159,7 +159,7 @@ fun CourseDetailScreen(
     val isTeacher = course.channel_id == profile.user_id
 
     val activity = LocalContext.current as? androidx.activity.ComponentActivity
-    val isAdmin = LocalContext.current.getSharedPreferences("shikkhaloy_prefs", android.content.Context.MODE_PRIVATE).getString("role", "") == "admin"
+    val isAdmin = PrefUtils.getSecurePrefs(LocalContext.current).getString("role", "") == "admin"
     androidx.compose.runtime.DisposableEffect(isAdmin) {
         val window = activity?.window
         if (window != null && !isAdmin) {

@@ -2,9 +2,15 @@ package com.example
 
 import android.content.Context
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.net.InetSocketAddress
 import java.net.Socket
@@ -71,4 +77,80 @@ object NetworkUtils {
             }
         }
     }
+
+    /**
+     * Reactively observes the actual internet access state of the device using ConnectivityManager callbacks.
+     * Checks actual internet access asynchronously when the network interface changes state,
+     * avoiding wasteful continuous polling.
+     */
+    fun observeInternetAccess(context: Context): Flow<Boolean> = callbackFlow {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
+        if (cm == null) {
+            trySend(false)
+            close()
+            return@callbackFlow
+        }
+
+        suspend fun checkAndEmit() {
+            val hasAccess = hasActualInternetAccess(context)
+            trySend(hasAccess)
+        }
+
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                launch(Dispatchers.IO) {
+                    checkAndEmit()
+                }
+            }
+
+            override fun onLost(network: Network) {
+                trySend(false)
+            }
+
+            override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {
+                val hasInternet = networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                val isValidated = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                    networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+                } else {
+                    true
+                }
+                if (hasInternet && isValidated) {
+                    launch(Dispatchers.IO) {
+                        checkAndEmit()
+                    }
+                } else if (!hasInternet) {
+                    trySend(false)
+                }
+            }
+        }
+
+        // Run initial check
+        launch(Dispatchers.IO) {
+            checkAndEmit()
+        }
+
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                cm.registerDefaultNetworkCallback(callback)
+            } else {
+                cm.registerNetworkCallback(
+                    android.net.NetworkRequest.Builder()
+                        .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                        .build(),
+                    callback
+                )
+            }
+        } catch (e: Exception) {
+            // Safe fallback
+            trySend(isNetworkConnected(context))
+        }
+
+        awaitClose {
+            try {
+                cm.unregisterNetworkCallback(callback)
+            } catch (e: Exception) {
+                // Ignore
+            }
+        }
+    }.distinctUntilChanged()
 }
