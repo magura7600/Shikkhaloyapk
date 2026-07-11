@@ -312,7 +312,8 @@ fun CourseDetailScreen(
                 Surface(
                     color = Color.White,
                     shadowElevation = 8.dp,
-                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+                    shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
+                    modifier = Modifier.windowInsetsPadding(WindowInsets.navigationBars)
                 ) {
                     Column(
                         modifier = Modifier

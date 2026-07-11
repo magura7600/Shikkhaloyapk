@@ -322,7 +322,7 @@ fun CourseContentSection(
                     modifier = Modifier
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(Color(0xFF2563EB), Color(0xFF4F46E5))
+                                colors = listOf(Color(0xFF2563EB), Color(0xFF0F766E))
                             )
                         )
                         .padding(horizontal = 20.dp, vertical = 18.dp)
@@ -679,7 +679,7 @@ fun CourseContentSection(
                                                 Icon(
                                                     imageVector = Icons.Default.PlayCircle,
                                                     contentDescription = "Videos",
-                                                    tint = Color(0xFF3B82F6),
+                                                    tint = Color(0xFF0F766E),
                                                     modifier = Modifier.size(10.dp)
                                                 )
                                                 Spacer(modifier = Modifier.width(3.dp))
@@ -1111,7 +1111,7 @@ fun CourseContentSection(
                                         Icon(
                                             imageVector = Icons.Default.ListAlt,
                                             contentDescription = null,
-                                            tint = Color(0xFF3B82F6),
+                                            tint = Color(0xFF0F766E),
                                             modifier = Modifier.size(14.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
@@ -1525,7 +1525,7 @@ fun CourseContentSection(
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = MaterialTheme.colorScheme.background
+                color = Color(0xFF0F172A)
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(16.dp)
@@ -1638,38 +1638,40 @@ fun CourseContentSection(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
-                        var quarterDropdownExpanded by remember { mutableStateOf(false) }
-                        Box(modifier = Modifier.fillMaxWidth()) {
-                            Box(modifier = Modifier.fillMaxWidth().clickable { quarterDropdownExpanded = true }) {
-                                OutlinedTextField(
-                                    value = newQuarter,
-                                    onValueChange = {},
-                                    label = { Text("কোয়ার্টার নির্বাচন করুন") },
-                                    readOnly = true,
-                                    enabled = false,
-                                    modifier = Modifier.fillMaxWidth(),
-                                    trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown") },
-                                    colors = OutlinedTextFieldDefaults.colors(
-                                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
-                                        disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        if (course.isQuarterOn && course.quarters.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            var quarterDropdownExpanded by remember { mutableStateOf(false) }
+                            Box(modifier = Modifier.fillMaxWidth()) {
+                                Box(modifier = Modifier.fillMaxWidth().clickable { quarterDropdownExpanded = true }) {
+                                    OutlinedTextField(
+                                        value = newQuarter,
+                                        onValueChange = {},
+                                        label = { Text("কোয়ার্টার নির্বাচন করুন") },
+                                        readOnly = true,
+                                        enabled = false,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown") },
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                            disabledBorderColor = MaterialTheme.colorScheme.outline,
+                                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                     )
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = quarterDropdownExpanded,
-                                onDismissRequest = { quarterDropdownExpanded = false }
-                            ) {
-                                course.quarters.forEach { quarter ->
-                                    DropdownMenuItem(
-                                        text = { Text(quarter.name) },
-                                        onClick = {
-                                            newQuarter = quarter.name
-                                            quarterDropdownExpanded = false
-                                        }
-                                    )
+                                }
+                                DropdownMenu(
+                                    expanded = quarterDropdownExpanded,
+                                    onDismissRequest = { quarterDropdownExpanded = false }
+                                ) {
+                                    course.quarters.forEach { quarter ->
+                                        DropdownMenuItem(
+                                            text = { Text(quarter.name) },
+                                            onClick = {
+                                                newQuarter = quarter.name
+                                                quarterDropdownExpanded = false
+                                            }
+                                        )
+                                    }
                                 }
                             }
                         }

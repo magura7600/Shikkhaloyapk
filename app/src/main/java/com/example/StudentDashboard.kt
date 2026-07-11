@@ -282,7 +282,7 @@ fun StudentDashboardContent(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(12.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF60A5FA).copy(alpha = 0.5f), Color(0xFF3B82F6).copy(alpha = 0.5f))))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF60A5FA).copy(alpha = 0.5f), Color(0xFF0F766E).copy(alpha = 0.5f))))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -598,7 +598,7 @@ fun StudentDashboardContent(
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
                     shape = RoundedCornerShape(24.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFBBF24), Color(0xFFF59E0B))))
+                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFBBF24), Color(0xFFF4B400))))
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),

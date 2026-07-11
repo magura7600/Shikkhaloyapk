@@ -466,8 +466,8 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                     ) {
                                         OutlinedButton(
                                             onClick = { showEditUpdateDialog = true },
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF3B82F6)),
-                                            border = BorderStroke(1.dp, Color(0xFF3B82F6).copy(alpha = 0.5f)),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F766E)),
+                                            border = BorderStroke(1.dp, Color(0xFF0F766E).copy(alpha = 0.5f)),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                                             shape = RoundedCornerShape(6.dp),
                                             modifier = Modifier.padding(end = 8.dp)

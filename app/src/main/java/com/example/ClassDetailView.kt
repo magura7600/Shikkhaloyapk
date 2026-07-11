@@ -365,7 +365,7 @@ fun ClassDetailView(
                     androidx.compose.material3.Icon(
                         imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = androidx.compose.ui.graphics.Color(0xFF1E293B),
+                        tint = Color(0xFF1E293B),
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -378,7 +378,7 @@ fun ClassDetailView(
                 style = androidx.compose.ui.text.TextStyle(
                     fontSize = 17.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    color = androidx.compose.ui.graphics.Color(0xFF0F172A),
+                    color = Color(0xFF0F172A),
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 ),
                 maxLines = 1,
@@ -437,7 +437,7 @@ fun ClassDetailView(
                             .fillMaxWidth()
                             .height(56.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDownloaded) Color(0xFF10B981) else Color(0xFF3B82F6),
+                            containerColor = if (isDownloaded) Color(0xFF10B981) else Color(0xFF0F766E),
                             disabledContainerColor = Color(0xFF94A3B8)
                         ),
                         shape = RoundedCornerShape(16.dp),
@@ -676,7 +676,7 @@ fun ClassDetailView(
                 Box(
                     modifier = Modifier
                         .size(64.dp)
-                        .background(Color(0xFF3B82F6), CircleShape),
+                        .background(Color(0xFF0F766E), CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(modifier = Modifier.size(24.dp).background(Color.White, CircleShape))
@@ -777,11 +777,11 @@ fun ClassDetailView(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("ক্লাসের বিষয়বস্তু", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("ক্লাসের বিষয়বস্তু", color = Color(0xFF0F766E), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = "Expand",
-                        tint = Color(0xFF3B82F6),
+                        tint = Color(0xFF0F766E),
                         modifier = Modifier.rotate(rotationAngle)
                     )
                 }
@@ -1349,7 +1349,7 @@ fun RoutineDialog(
                                 Spacer(modifier = Modifier.height(24.dp))
                                 Button(
                                     onClick = { routinePickerLauncher.launch("image/*") },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF3B82F6))
+                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
                                 ) {
                                     Icon(Icons.Default.Upload, contentDescription = "Upload")
                                     Spacer(modifier = Modifier.width(8.dp))

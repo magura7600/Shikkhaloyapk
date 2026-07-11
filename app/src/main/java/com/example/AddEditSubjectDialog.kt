@@ -231,7 +231,7 @@ fun AddEditSubjectDialog(
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF0F172A)) {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (initialSubject == null) "নতুন বিষয় যোগ করুন" else "বিষয় এডিট করুন", fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -260,7 +260,7 @@ fun AddEditSubjectDialog(
                     Button(
                         onClick = { logoPickerLauncher.launch("image/*") },
                         enabled = !isUploadingLogo,
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
                     ) {
                         if (isUploadingLogo) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
@@ -366,14 +366,14 @@ fun AddEditSubjectDialog(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF334155).copy(alpha = 0.3f)),
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f))
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("কালার স্লাইডার ব্যবহার করে রং পছন্দ করুন:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                        Text("কালার স্লাইডার ব্যবহার করে রং পছন্দ করুন:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F766E))
                         
                         // Hue slider
                         Column {

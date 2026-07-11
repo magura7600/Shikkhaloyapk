@@ -69,7 +69,7 @@ fun EmergencyNoticeDialog(
                 icon = Icons.Default.Star
             )
             "exam" -> NoticeThemeColors(
-                primary = Color(0xFFF59E0B),
+                primary = Color(0xFFF4B400),
                 background = Color(0xFFFFFBEB),
                 border = Color(0xFFFDE68A),
                 onBg = Color(0xFF92400E),
@@ -335,10 +335,10 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val types = listOf(
-                        Triple("general", "সাধারণ", Color(0xFF3B82F6)),
+                        Triple("general", "সাধারণ", Color(0xFF0F766E)),
                         Triple("warning", "জরুরি", Color(0xFFEF4444)),
                         Triple("offer", "অফার/প্রোমো", Color(0xFF8B5CF6)),
-                        Triple("exam", "পরীক্ষা", Color(0xFFF59E0B))
+                        Triple("exam", "পরীক্ষা", Color(0xFFF4B400))
                     )
                     types.forEach { (typeKey, typeLabel, color) ->
                         Box(

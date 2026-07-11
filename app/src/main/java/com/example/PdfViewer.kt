@@ -259,7 +259,7 @@ fun FullScreenPdfViewer(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFF4F46E5), shape = RoundedCornerShape(10.dp))
+                                        .background(Color(0xFF0F766E), shape = RoundedCornerShape(10.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                         .clickable { showJumpToPageDialog = true }
                                 ) {
@@ -418,7 +418,7 @@ fun FullScreenPdfViewer(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color(0xFF4F46E5))
+                CircularProgressIndicator(color = Color(0xFF0F766E))
             }
         }
     }
@@ -653,7 +653,7 @@ fun PdfViewerDialog(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFF4F46E5), shape = RoundedCornerShape(10.dp))
+                                        .background(Color(0xFF0F766E), shape = RoundedCornerShape(10.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                         .clickable { showJumpToPageDialog = true }
                                 ) {
@@ -818,7 +818,7 @@ androidx.compose.animation.AnimatedVisibility(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF4F46E5))
+                    CircularProgressIndicator(color = Color(0xFF0F766E))
                 }
             }
         }
@@ -925,7 +925,6 @@ fun ZoomablePdfPage(
         Card(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp)
                 .pointerInput(scale > 1f) {
                     if (scale > 1f) {
                         detectDragGestures { change, dragAmount ->
@@ -961,7 +960,7 @@ fun ZoomablePdfPage(
                     translationX = offsetX,
                     translationY = offsetY
                 ),
-            shape = RoundedCornerShape(8.dp),
+            shape = androidx.compose.ui.graphics.RectangleShape,
             elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
             colors = CardDefaults.cardColors(containerColor = Color.Transparent)
         ) {
@@ -995,7 +994,7 @@ fun ZoomablePdfPage(
                     }
                 } else {
                     CircularProgressIndicator(
-                        color = Color(0xFF4F46E5),
+                        color = Color(0xFF0F766E),
                         strokeWidth = 3.dp,
                         modifier = Modifier.size(32.dp)
                     )

@@ -265,7 +265,7 @@ fun VideoPlayer(
     val httpDataSourceFactory = remember {
         androidx.media3.datasource.DefaultHttpDataSource.Factory()
             .setUserAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            .setDefaultRequestProperties(mapOf("Referer" to "https://www.facebook.com/"))
+            
             .setAllowCrossProtocolRedirects(true)
     }
 
@@ -579,7 +579,7 @@ fun VideoPlayer(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(
-                        color = Color(0xFF3B82F6),
+                        color = Color(0xFF0F766E),
                         modifier = Modifier.size(48.dp),
                         strokeWidth = 4.dp
                     )
@@ -829,7 +829,7 @@ fun VideoPlayer(
                         },
                         modifier = Modifier
                             .size(64.dp)
-                            .background(Color(0xFF3B82F6), CircleShape)
+                            .background(Color(0xFF0F766E), CircleShape)
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -942,8 +942,8 @@ fun VideoPlayer(
                         },
                         valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF3B82F6),
-                            activeTrackColor = Color(0xFF3B82F6),
+                            thumbColor = Color(0xFF0F766E),
+                            activeTrackColor = Color(0xFF0F766E),
                             inactiveTrackColor = Color.White.copy(alpha = 0.3f)
                         ),
                         modifier = Modifier.fillMaxWidth()
@@ -982,7 +982,7 @@ fun VideoPlayer(
                             text = String.format("%.2fx", playbackSpeed),
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color(0xFF3B82F6)
+                            color = Color(0xFF0F766E)
                         )
                     }
                     
@@ -997,8 +997,8 @@ fun VideoPlayer(
                         },
                         valueRange = 0.25f..3.0f,
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF3B82F6),
-                            activeTrackColor = Color(0xFF3B82F6),
+                            thumbColor = Color(0xFF0F766E),
+                            activeTrackColor = Color(0xFF0F766E),
                             inactiveTrackColor = Color(0xFFE2E8F0)
                         ),
                         modifier = Modifier.fillMaxWidth()
@@ -1015,7 +1015,7 @@ fun VideoPlayer(
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
-                            Text("- ০.০৫x", fontSize = 13.sp, color = Color(0xFF3B82F6))
+                            Text("- ০.০৫x", fontSize = 13.sp, color = Color(0xFF0F766E))
                         }
                         
                         OutlinedButton(
@@ -1023,7 +1023,7 @@ fun VideoPlayer(
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
-                            Text("+ ০.০৫x", fontSize = 13.sp, color = Color(0xFF3B82F6))
+                            Text("+ ০.০৫x", fontSize = 13.sp, color = Color(0xFF0F766E))
                         }
                     }
                     
@@ -1045,7 +1045,7 @@ fun VideoPlayer(
                             Box(
                                 modifier = Modifier
                                     .background(
-                                        color = if (isSelected) Color(0xFF3B82F6) else Color(0xFFF1F5F9),
+                                        color = if (isSelected) Color(0xFF0F766E) else Color(0xFFF1F5F9),
                                         shape = RoundedCornerShape(8.dp)
                                     )
                                     .clickable { 
@@ -1069,7 +1069,7 @@ fun VideoPlayer(
                         onClick = { showSpeedDialog = false }, 
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text("ঠিক আছে", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold)
+                        Text("ঠিক আছে", color = Color(0xFF0F766E), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1109,7 +1109,7 @@ fun VideoPlayer(
                                 RadioButton(
                                     selected = currentNonAdaptiveQuality == link.quality, 
                                     onClick = null,
-                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF3B82F6))
+                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0F766E))
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
@@ -1127,7 +1127,7 @@ fun VideoPlayer(
                         onClick = { showQualitySelector = false }, 
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text("বন্ধ করুন", color = Color(0xFF3B82F6), fontWeight = FontWeight.Bold)
+                        Text("বন্ধ করুন", color = Color(0xFF0F766E), fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1196,7 +1196,7 @@ fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
                 // Background outer soft glow ring
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawCircle(
-                        color = Color(0xFF3B82F6).copy(alpha = 0.15f),
+                        color = Color(0xFF0F766E).copy(alpha = 0.15f),
                         radius = size.minDimension / 1.8f
                     )
                 }
@@ -1205,7 +1205,7 @@ fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
                 Canvas(modifier = Modifier.size(48.dp).graphicsLayer(rotationZ = angle)) {
                     drawArc(
                         brush = Brush.sweepGradient(
-                            colors = listOf(Color(0xFF3B82F6), Color(0xFF8B5CF6), Color(0xFF3B82F6))
+                            colors = listOf(Color(0xFF0F766E), Color(0xFF8B5CF6), Color(0xFF0F766E))
                         ),
                         startAngle = 0f,
                         sweepAngle = 280f,

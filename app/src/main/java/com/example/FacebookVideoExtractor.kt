@@ -89,13 +89,15 @@ object FacebookVideoExtractor {
 
     private fun resolveVideoDirectUrlRedirect(urlStr: String): String {
         try {
-            var currentUrl = urlStr.trim()
+            var currentUrl = urlStr.trim().replace(" ", "%20")
             for (i in 0..4) {
                 val connection = java.net.URL(currentUrl).openConnection() as java.net.HttpURLConnection
                 connection.instanceFollowRedirects = false
-                connection.setRequestMethod("GET")
+                connection.setRequestMethod("HEAD") // Use HEAD to avoid downloading large video files
                 connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-                connection.setRequestProperty("Referer", "https://www.facebook.com/")
+                if (currentUrl.contains("facebook.com") || currentUrl.contains("fbcdn.net")) {
+                    connection.setRequestProperty("Referer", "https://www.facebook.com/")
+                }
                 connection.connectTimeout = 4000
                 connection.readTimeout = 4000
                 
@@ -404,7 +406,7 @@ object FacebookVideoExtractor {
     }
 
     suspend fun extractVideoOptions(context: Context, rawFbUrl: String): VideoOptions? = withContext(Dispatchers.IO) {
-        var cleanRawUrl = rawFbUrl.trim()
+        var cleanRawUrl = rawFbUrl.trim().replace(" ", "%20")
         if (cleanRawUrl.isNotBlank() && !cleanRawUrl.startsWith("http://") && !cleanRawUrl.startsWith("https://")) {
             cleanRawUrl = "https://$cleanRawUrl"
         }

@@ -266,7 +266,7 @@ fun UnenrolledCourseOverview(
                     
                     if (currentDate.isBefore(start)) {
                         statusText = "পড়ানো হবে"
-                        statusColor = Color(0xFF3B82F6) // Blue
+                        statusColor = Color(0xFF0F766E) // Blue
                         statusIcon = Icons.Default.Schedule
                     } else if (currentDate.isAfter(end)) {
                         statusText = "সম্পন্ন"

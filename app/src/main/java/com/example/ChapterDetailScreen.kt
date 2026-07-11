@@ -199,7 +199,7 @@ fun ChapterDetailScreen(
                 Card(
                     onClick = onAddClassClick,
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF3B82F6)),
+                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F766E)),
                     modifier = Modifier.size(42.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -223,7 +223,7 @@ fun ChapterDetailScreen(
             Box(
                 modifier = Modifier
                     .size(12.dp)
-                    .background(Color(0xFF3B82F6), CircleShape)
+                    .background(Color(0xFF0F766E), CircleShape)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(

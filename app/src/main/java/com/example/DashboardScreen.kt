@@ -115,7 +115,7 @@ fun DashboardScreen(
     var mentors by remember { mutableStateOf(listOf<Mentor>()) }
     val isTeacher = profile.role == "teacher"
     val isAdmin = profile.role == "admin"
-    val isManagementUser = isTeacher
+    val isManagementUser = isTeacher || isAdmin
     var teacherChannel by remember { mutableStateOf<UserProfile?>(null) }
     var isLoadingChannel by remember { mutableStateOf(isTeacher) }
 
@@ -265,15 +265,22 @@ fun DashboardScreen(
                          sharedPrefs.edit().putString("cached_enrollments_${profile.user_id}", Json.encodeToString(newEnrollments)).apply()
                      } catch (e: Exception) { e.printStackTrace() }
                  }
+                 
+                 val myRequests = withContext(Dispatchers.IO) {
+                     try { supabase.from("enrollment_requests").select { filter { eq("user_id", profile.user_id) } }.decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
+                 }
+                 if (myRequests != enrollmentRequests) enrollmentRequests = myRequests
             }
 
             // 2. All Enrollments & Requests (ONLY needed if Teacher/Admin goes to Management)
-            if ((isTeacher || isAdmin) && selectedTab == 2) {
+            if ((isTeacher || isAdmin)) {
                  enrollments = withContext(Dispatchers.IO) {
                      try { supabase.from("enrollments").select().decodeList<Enrollment>() } catch(e: Exception) { enrollments }
                  }
-                 enrollmentRequests = withContext(Dispatchers.IO) {
-                     try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
+                 if (selectedTab == 2 || currentScreen == "enrollment_requests") {
+                     enrollmentRequests = withContext(Dispatchers.IO) {
+                         try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
+                     }
                  }
             }
 
@@ -634,7 +641,13 @@ fun DashboardScreen(
                                     supabase.from("enrollments").select { filter { eq("user_id", profile.user_id) } }.decodeList<Enrollment>()
                                 }
                             } catch(e: Exception) { enrollments }
-                            val newRequests = try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
+                            val newRequests = try { 
+                                if (isTeacher || isAdmin) {
+                                    supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
+                                } else {
+                                    supabase.from("enrollment_requests").select { filter { eq("user_id", profile.user_id) } }.decodeList<EnrollmentRequest>()
+                                }
+                            } catch(e: Exception) { enrollmentRequests }
                             
                             withContext(Dispatchers.Main) {
                                 if (newEnrollments != enrollments) {

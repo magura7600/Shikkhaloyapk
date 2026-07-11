@@ -50,7 +50,7 @@ fun MentorsListDialog(
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = MaterialTheme.colorScheme.background
+            color = Color(0xFF0F172A)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 Row(
@@ -429,7 +429,7 @@ fun AllNotificationsDialog(
                         when (activeNotice.type.lowercase()) {
                             "warning" -> Triple(Color(0xFFEF4444), Color(0xFFFEF2F2), Color(0xFF991B1B))
                             "offer" -> Triple(Color(0xFF8B5CF6), Color(0xFFF5F3FF), Color(0xFF5B21B6))
-                            "exam" -> Triple(Color(0xFFF59E0B), Color(0xFFFFFBEB), Color(0xFF92400E))
+                            "exam" -> Triple(Color(0xFFF4B400), Color(0xFFFFFBEB), Color(0xFF92400E))
                             else -> Triple(accentColor, Color(0xFFF8FAFC), Color(0xFF1E293B))
                         }
                     }
