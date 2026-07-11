@@ -253,7 +253,7 @@ fun CourseDetailScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .statusBarsPadding()
-                        .background(Color(0xFFFBF8F1))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .padding(horizontal = 16.dp)
                         .padding(top = 4.dp, bottom = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
@@ -281,7 +281,7 @@ fun CourseDetailScreen(
                             Icon(
                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                 contentDescription = "Back",
-                                tint = Color(0xFF1E293B),
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(20.dp)
                             )
                         }
@@ -296,7 +296,7 @@ fun CourseDetailScreen(
                         style = TextStyle(
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF0F172A),
+                            color = MaterialTheme.colorScheme.primary,
                             textAlign = TextAlign.Center
                         ),
                         maxLines = 1,
@@ -345,7 +345,7 @@ fun CourseDetailScreen(
                 }
             }
         },
-        containerColor = Color(0xFFFBF8F1)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { paddingValues ->
         val activeEnrollment = userEnrollment
         val isUserBanned = activeEnrollment != null && activeEnrollment.banned_until != null && (activeEnrollment.banned_until == -1L || activeEnrollment.banned_until > System.currentTimeMillis())
@@ -355,7 +355,7 @@ fun CourseDetailScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues)
-                    .background(Color(0xFFF1F5F9)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(16.dp)) {
@@ -391,7 +391,7 @@ fun CourseDetailScreen(
                             bottom = paddingValues.calculateBottomPadding(),
                             top = 0.dp
                         )
-                        .background(Color(0xFFF1F5F9))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     CourseContentSection(
                         course = course,

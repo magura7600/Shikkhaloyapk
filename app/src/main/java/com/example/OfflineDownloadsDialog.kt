@@ -15,6 +15,7 @@ import androidx.compose.material.icons.outlined.DownloadDone
 import androidx.compose.material.icons.outlined.Folder
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -71,21 +72,21 @@ fun OfflineDownloadsDialog(
                             text = "অফলাইন ডাউনলোডসমূহ",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                     },
                     navigationIcon = {
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = Color(0xFF1E293B))
+                            Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MaterialTheme.colorScheme.onBackground)
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White,
-                        titleContentColor = Color(0xFF1E293B)
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
                     )
                 )
             },
-            containerColor = Color(0xFFF8FAFC)
+            containerColor = MaterialTheme.colorScheme.surface
         ) { paddingValues ->
             Column(
                 modifier = Modifier
@@ -95,7 +96,7 @@ fun OfflineDownloadsDialog(
                 // Tab Selection
                 TabRow(
                     selectedTabIndex = selectedTab,
-                    containerColor = Color.White,
+                    containerColor = MaterialTheme.colorScheme.surface,
                     contentColor = accentColor,
                     indicator = { tabPositions ->
                         TabRowDefaults.SecondaryIndicator(
@@ -115,7 +116,7 @@ fun OfflineDownloadsDialog(
                             }
                         },
                         selectedContentColor = accentColor,
-                        unselectedContentColor = Color(0xFF64748B)
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Tab(
                         selected = selectedTab == 1,
@@ -128,7 +129,7 @@ fun OfflineDownloadsDialog(
                             }
                         },
                         selectedContentColor = accentColor,
-                        unselectedContentColor = Color(0xFF64748B)
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
 
                 }
@@ -148,11 +149,11 @@ fun OfflineDownloadsDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Star, contentDescription = "No items", tint = Color(0xFF0F172A).copy(alpha = 0.5f), modifier = Modifier.size(64.dp))
+                                Icon(Icons.Default.Star, contentDescription = "No items", tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f), modifier = Modifier.size(64.dp))
                                 Spacer(modifier = Modifier.height(16.dp))
-                                Text("কোনো পছন্দের বা সাম্প্রতিক ফাইল নেই", fontWeight = FontWeight.Bold, color = Color(0xFF475569))
+                                Text("কোনো পছন্দের বা সাম্প্রতিক ফাইল নেই", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("পিডিএফ পড়ার সময় স্টার দিয়ে পছন্দ করতে পারেন।", fontSize = 12.sp, color = Color(0xFF64748B), textAlign = TextAlign.Center)
+                                Text("পিডিএফ পড়ার সময় স্টার দিয়ে পছন্দ করতে পারেন।", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                             }
                         }
                     } else {
@@ -163,9 +164,9 @@ fun OfflineDownloadsDialog(
                             if (favorites.isNotEmpty()) {
                                 item {
                                     Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(Icons.Default.Star, contentDescription = "Favorites", tint = Color(0xFFEAB308), modifier = Modifier.size(20.dp))
+                                        Icon(Icons.Default.Star, contentDescription = "Favorites", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("পছন্দের তালিকা (${favorites.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1E293B))
+                                        Text("পছন্দের তালিকা (${favorites.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onBackground)
                                     }
                                 }
                                 items(favorites) { fav ->
@@ -181,20 +182,20 @@ fun OfflineDownloadsDialog(
                                                 android.widget.Toast.makeText(context, "ডাউনলোডকৃত ফাইলটি স্থানীয় স্টোরেজে পাওয়া যায়নি!", android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         },
-                                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                     ) {
                                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                                             Box(
-                                                modifier = Modifier.size(40.dp).background(Color(0xFFFEF08A), CircleShape),
+                                                modifier = Modifier.size(40.dp).background(MaterialTheme.colorScheme.tertiary, CircleShape),
                                                 contentAlignment = Alignment.Center
                                             ) {
-                                                Icon(Icons.Default.Star, contentDescription = "Favorite", tint = Color(0xFFCA8A04))
+                                                Icon(Icons.Default.Star, contentDescription = "Favorite", tint = MaterialTheme.colorScheme.error)
                                             }
                                             Spacer(modifier = Modifier.width(16.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(fav.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E293B), maxLines = 1)
-                                                Text(if (isDownloaded) "অফলাইন ডাউনলোডকৃত" else "অনলাইন / লিংক ড্যামেজ", fontSize = 11.sp, color = if (isDownloaded) Color(0xFF16A34A) else Color(0xFFEF4444))
+                                                Text(fav.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground, maxLines = 1)
+                                                Text(if (isDownloaded) "অফলাইন ডাউনলোডকৃত" else "অনলাইন / লিংক ড্যামেজ", fontSize = 11.sp, color = if (isDownloaded) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error)
                                             }
                                             IconButton(onClick = {
                                                 PdfHistoryManager.toggleFavorite(context, fav.title, fav.filePath, fav.url)
@@ -212,7 +213,7 @@ fun OfflineDownloadsDialog(
                                     Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 8.dp)) {
                                         Icon(Icons.Default.History, contentDescription = "Recents", tint = accentColor, modifier = Modifier.size(20.dp))
                                         Spacer(modifier = Modifier.width(8.dp))
-                                        Text("সাম্প্রতিক পঠিত (${recents.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = Color(0xFF1E293B))
+                                        Text("সাম্প্রতিক পঠিত (${recents.size})", fontWeight = FontWeight.Bold, fontSize = 15.sp, color = MaterialTheme.colorScheme.onBackground)
                                     }
                                 }
                                 items(recents) { rec ->
@@ -228,7 +229,7 @@ fun OfflineDownloadsDialog(
                                                 android.widget.Toast.makeText(context, "ডাউনলোডকৃত ফাইলটি স্থানীয় স্টোরেজে পাওয়া যায়নি!", android.widget.Toast.LENGTH_SHORT).show()
                                             }
                                         },
-                                        colors = CardDefaults.cardColors(containerColor = Color.White),
+                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                     ) {
                                         Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -240,10 +241,10 @@ fun OfflineDownloadsDialog(
                                             }
                                             Spacer(modifier = Modifier.width(16.dp))
                                             Column(modifier = Modifier.weight(1f)) {
-                                                Text(rec.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E293B), maxLines = 1)
-                                                Text(if (isDownloaded) "অফলাইন ডাউনলোডকৃত" else "অনলাইন / লিংক ড্যামেজ", fontSize = 11.sp, color = if (isDownloaded) Color(0xFF16A34A) else Color(0xFFEF4444))
+                                                Text(rec.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = MaterialTheme.colorScheme.onBackground, maxLines = 1)
+                                                Text(if (isDownloaded) "অফলাইন ডাউনলোডকৃত" else "অনলাইন / লিংক ড্যামেজ", fontSize = 11.sp, color = if (isDownloaded) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.error)
                                             }
-                                            Icon(Icons.Default.ChevronRight, contentDescription = "Open", tint = Color(0xFF0F172A).copy(alpha = 0.5f))
+                                            Icon(Icons.Default.ChevronRight, contentDescription = "Open", tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                                         }
                                     }
                                 }
@@ -288,7 +289,7 @@ fun OfflineDownloadsDialog(
                                             text = courseName,
                                             fontSize = 15.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF475569)
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
                                 }
@@ -379,7 +380,7 @@ fun DownloadItemCard(
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
             .clickable { onAction() },
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
         Row(
@@ -409,14 +410,14 @@ fun DownloadItemCard(
                     text = record.title,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B),
+                    color = MaterialTheme.colorScheme.onBackground,
                     maxLines = 1
                 )
                 if (record.className.isNotBlank()) {
                     Text(
                         text = "ক্লাস: ${record.className}",
                         fontSize = 12.sp,
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                 }
@@ -428,19 +429,19 @@ fun DownloadItemCard(
                         text = fileSizeStr,
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color(0xFF475569)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "•",
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = formattedDate,
                         fontSize = 11.sp,
-                        color = Color(0xFF64748B)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -496,7 +497,7 @@ fun EmptyDownloadsView(tabIndex: Int) {
             Icon(
                 imageVector = Icons.Outlined.DownloadDone,
                 contentDescription = "No downloads",
-                tint = Color(0xFF0F172A).copy(alpha = 0.5f),
+                tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                 modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))
@@ -504,13 +505,13 @@ fun EmptyDownloadsView(tabIndex: Int) {
                 text = if (tabIndex == 0) "ডাউনলোডকৃত কোনো ক্লাস ভিডিও পাওয়া যায়নি" else "ডাউনলোডকৃত কোনো পিডিএফ স্লাইড পাওয়া যায়নি",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF475569)
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = "ক্লাস প্যানেল থেকে ফাইল ডাউনলোড করলে এখানে দেখতে পাবেন।",
                 fontSize = 13.sp,
-                color = Color(0xFF64748B),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally)
             )
         }
@@ -576,17 +577,17 @@ fun OfflineVideoPlayerDialog(
                                 text = title,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color.White
+                                color = MaterialTheme.colorScheme.surface
                             )
                         },
                         navigationIcon = {
                             IconButton(onClick = onClose) {
-                                Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
+                                Icon(Icons.Default.Close, contentDescription = "Close", tint = MaterialTheme.colorScheme.surface)
                             }
                         },
                         colors = TopAppBarDefaults.topAppBarColors(
                             containerColor = Color.Black,
-                            titleContentColor = Color.White
+                            titleContentColor = MaterialTheme.colorScheme.surface
                         )
                     )
                 }

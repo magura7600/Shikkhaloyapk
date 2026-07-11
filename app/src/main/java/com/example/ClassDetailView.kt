@@ -525,8 +525,8 @@ fun ClassDetailView(
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(if (isLiveActive) Color(0xFFEF4444) else accentColor.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
-                            .border(1.dp, if (isLiveActive) Color(0xFFEF4444) else accentColor, RoundedCornerShape(20.dp))
+                            .background(if (isLiveActive) MaterialTheme.colorScheme.error else accentColor.copy(alpha = 0.2f), RoundedCornerShape(20.dp))
+                            .border(1.dp, if (isLiveActive) MaterialTheme.colorScheme.error else accentColor, RoundedCornerShape(20.dp))
                             .padding(horizontal = 16.dp, vertical = 6.dp)
                     ) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -568,7 +568,7 @@ fun ClassDetailView(
                                 Icon(
                                     imageVector = Icons.Default.Edit,
                                     contentDescription = null,
-                                    tint = Color(0xFF34D399),
+                                    tint = MaterialTheme.colorScheme.secondary,
                                     modifier = Modifier.size(32.dp).graphicsLayer(scaleX = scale, scaleY = scale)
                                 )
                                 Spacer(modifier = Modifier.height(12.dp))
@@ -621,7 +621,7 @@ fun ClassDetailView(
                                 Icon(
                                     imageVector = Icons.Default.DateRange,
                                     contentDescription = null,
-                                    tint = if (isLiveActive) Color(0xFFEF4444) else accentColor,
+                                    tint = if (isLiveActive) MaterialTheme.colorScheme.error else accentColor,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
@@ -649,7 +649,7 @@ fun ClassDetailView(
                                 .fillMaxWidth()
                                 .height(52.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = if (isLiveActive) Color(0xFFEF4444) else Color.Gray.copy(alpha = 0.3f),
+                                containerColor = if (isLiveActive) MaterialTheme.colorScheme.error else Color.Gray.copy(alpha = 0.3f),
                                 contentColor = Color.White
                             ),
                             shape = RoundedCornerShape(26.dp)
@@ -688,7 +688,7 @@ fun ClassDetailView(
                 ) {
                     Box(
                         modifier = Modifier
-                            .background(Color(0xFFEF4444), RoundedCornerShape(4.dp))
+                            .background(MaterialTheme.colorScheme.error, RoundedCornerShape(4.dp))
                             .padding(horizontal = 8.dp, vertical = 4.dp)
                     ) {
                         Text("ভিডিও", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
@@ -711,7 +711,7 @@ fun ClassDetailView(
             Column(modifier = Modifier.padding(20.dp)) {
                 Box(
                     modifier = Modifier
-                        .background(Color(0xFFEF4444), RoundedCornerShape(20.dp))
+                        .background(MaterialTheme.colorScheme.error, RoundedCornerShape(20.dp))
                         .padding(horizontal = 16.dp, vertical = 6.dp)
                 ) {
                     Text(subject.title, color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
@@ -812,7 +812,7 @@ fun ClassDetailView(
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(20.dp)) {
-                    Text("ক্লাস রিসোর্সেস ও হোমওয়ার্ক", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF475569))
+                    Text("ক্লাস রিসোর্সেস ও হোমওয়ার্ক", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     clazz.pdfLinks.forEach { pdf ->
@@ -853,18 +853,32 @@ fun ClassDetailView(
                                 Text(
                                     text = if (isDownloaded) "অফলাইন (ডাউনলোডকৃত)" else "অনলাইন ডকুমেন্ট",
                                     fontSize = 11.sp,
-                                    color = if (isDownloaded) MaterialTheme.colorScheme.secondary else Color(0xFF64748B),
+                                    color = if (isDownloaded) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
                                     fontWeight = if (isDownloaded) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             
                             // Helper lambdas for cloud storage links
-                            val isCloudOrWebUrl = remember { { url: String -> false } }
+                            val isCloudOrWebUrl = remember {
+                                { url: String ->
+                                    val lower = url.lowercase().trim()
+                                    val clean = if (lower.contains("?")) lower.substringBefore("?") else lower
+                                    clean.contains("drive.google.com") ||
+                                    clean.contains("docs.google.com") ||
+                                    clean.contains("dropbox.com") ||
+                                    clean.contains("mega.nz") ||
+                                    clean.contains("mediafire.com") ||
+                                    clean.contains("onedrive") ||
+                                    clean.contains("google.com/open") ||
+                                    (!clean.endsWith(".pdf") && clean.isNotEmpty())
+                                }
+                            }
                             val openBrowserIntent = remember {
                                 { targetUrl: String ->
                                     try {
-                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(targetUrl))
+                                        val fixedUrl = if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) "https://$targetUrl" else targetUrl
+                                        val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(fixedUrl))
                                         context.startActivity(intent)
                                     } catch (e: Exception) {
                                         Toast.makeText(context, "লিংক ওপেন করা সম্ভব হয়নি", Toast.LENGTH_SHORT).show()
@@ -980,7 +994,7 @@ fun ClassDetailView(
                                         Icon(
                                             imageVector = Icons.Default.Download,
                                             contentDescription = "Download",
-                                            tint = Color(0xFF64748B)
+                                            tint = MaterialTheme.colorScheme.primary
                                         )
                                     }
                                 }

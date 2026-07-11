@@ -229,7 +229,7 @@ fun FullScreenPdfViewer(
                         onClick = onClose,
                         modifier = Modifier
                             .size(40.dp)
-                            .background(Color(0x99000000), shape = RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
@@ -242,7 +242,7 @@ fun FullScreenPdfViewer(
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(
                             modifier = Modifier
-                                .background(Color(0x99000000), shape = RoundedCornerShape(20.dp))
+                                .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Row(
@@ -260,7 +260,7 @@ fun FullScreenPdfViewer(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFF0F766E), shape = RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(10.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                         .clickable { showJumpToPageDialog = true }
                                 ) {
@@ -287,7 +287,7 @@ fun FullScreenPdfViewer(
                             },
                             modifier = Modifier
                                 .size(40.dp)
-                                .background(Color(0x99000000), shape = RoundedCornerShape(20.dp))
+                                .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ScreenRotation,
@@ -316,8 +316,8 @@ fun FullScreenPdfViewer(
                 ) {
                     Row(
                         modifier = Modifier
-                            .background(Color(0xCC000000), shape = RoundedCornerShape(24.dp))
-                            .border(1.dp, Color(0x33FFFFFF), shape = RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(24.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(24.dp))
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -334,7 +334,7 @@ fun FullScreenPdfViewer(
                             modifier = Modifier
                                 .size(40.dp)
                                 .background(
-                                    if (pagerState.currentPage > 0) Color(0x33FFFFFF) else Color.Transparent,
+                                    if (pagerState.currentPage > 0) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
                                     shape = RoundedCornerShape(20.dp)
                                 )
                         ) {
@@ -366,7 +366,7 @@ fun FullScreenPdfViewer(
                             modifier = Modifier
                                 .size(40.dp)
                                 .background(
-                                    if (pagerState.currentPage < pageCount - 1) Color(0x33FFFFFF) else Color.Transparent,
+                                    if (pagerState.currentPage < pageCount - 1) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
                                     shape = RoundedCornerShape(20.dp)
                                 )
                         ) {
@@ -419,7 +419,7 @@ fun FullScreenPdfViewer(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = Color(0xFF0F766E))
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
     }
@@ -622,7 +622,7 @@ fun PdfViewerDialog(
                         onClick = onClose,
                         modifier = Modifier
                             .size(40.dp)
-                            .background(Color(0x99000000), shape = RoundedCornerShape(20.dp))
+                            .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
                     ) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
@@ -636,7 +636,7 @@ fun PdfViewerDialog(
                         // Title & Page indicator in a beautiful translucent pill
                         Box(
                             modifier = Modifier
-                                .background(Color(0x99000000), shape = RoundedCornerShape(20.dp))
+                                .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                         ) {
                             Row(
@@ -654,7 +654,7 @@ fun PdfViewerDialog(
                                 )
                                 Box(
                                     modifier = Modifier
-                                        .background(Color(0xFF0F766E), shape = RoundedCornerShape(10.dp))
+                                        .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(10.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
                                         .clickable { showJumpToPageDialog = true }
                                 ) {
@@ -682,7 +682,7 @@ fun PdfViewerDialog(
                             },
                             modifier = Modifier
                                 .size(40.dp)
-                                .background(Color(0x99000000), shape = RoundedCornerShape(20.dp))
+                                .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
                         ) {
                             Icon(
                                 imageVector = Icons.Default.ScreenRotation,
@@ -713,8 +713,8 @@ androidx.compose.animation.AnimatedVisibility(
                 ) {
                     Row(
                         modifier = Modifier
-                            .background(Color(0xCC000000), shape = RoundedCornerShape(24.dp))
-                            .border(1.dp, Color(0x33FFFFFF), shape = RoundedCornerShape(24.dp))
+                            .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(24.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(24.dp))
                             .padding(horizontal = 12.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
@@ -732,7 +732,7 @@ androidx.compose.animation.AnimatedVisibility(
                             modifier = Modifier
                                 .size(40.dp)
                                 .background(
-                                    if (pagerState.currentPage > 0) Color(0x33FFFFFF) else Color.Transparent,
+                                    if (pagerState.currentPage > 0) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
                                     shape = RoundedCornerShape(20.dp)
                                 )
                         ) {
@@ -766,7 +766,7 @@ androidx.compose.animation.AnimatedVisibility(
                             modifier = Modifier
                                 .size(40.dp)
                                 .background(
-                                    if (pagerState.currentPage < pageCount - 1) Color(0x33FFFFFF) else Color.Transparent,
+                                    if (pagerState.currentPage < pageCount - 1) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
                                     shape = RoundedCornerShape(20.dp)
                                 )
                         ) {
@@ -819,7 +819,7 @@ androidx.compose.animation.AnimatedVisibility(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color(0xFF0F766E))
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -839,7 +839,7 @@ fun ZoomablePdfPage(
     var offsetY by remember(pageIndex) { mutableStateOf(0f) }
 
     var bitmap by remember(pageIndex) { mutableStateOf<Bitmap?>(bitmapCache.get(pageIndex)) }
-    var pageError by remember(pageIndex) { mutableStateOf(false) }
+    var pageErrorMsg by remember(pageIndex) { mutableStateOf<String?>(null) }
 
     LaunchedEffect(pageIndex, pdfRenderer) {
         if (bitmap != null) return@LaunchedEffect
@@ -863,16 +863,16 @@ fun ZoomablePdfPage(
                         val height = (rawHeight * scaleFactor).toInt()
 
                         try {
-                            bmp = Bitmap.createBitmap(width, height, Bitmap.Config.RGB_565)
+                            bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                         } catch (e: OutOfMemoryError) {
                             System.gc()
                             try {
                                 val fallbackWidth = (width * 0.75f).toInt()
                                 val fallbackHeight = (height * 0.75f).toInt()
-                                bmp = Bitmap.createBitmap(fallbackWidth, fallbackHeight, Bitmap.Config.RGB_565)
+                                bmp = Bitmap.createBitmap(fallbackWidth, fallbackHeight, Bitmap.Config.ARGB_8888)
                             } catch (e2: OutOfMemoryError) {
                                 try {
-                                    bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.RGB_565)
+                                    bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
                                 } catch (e3: OutOfMemoryError) {
                                     e3.printStackTrace()
                                 }
@@ -896,7 +896,7 @@ fun ZoomablePdfPage(
                 } catch (e: Exception) {
                     e.printStackTrace()
                     withContext(Dispatchers.Main) {
-                        pageError = true
+                        pageErrorMsg = e.localizedMessage ?: e.toString()
                     }
                 }
             }
@@ -976,7 +976,7 @@ fun ZoomablePdfPage(
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit
                     )
-                } else if (pageError) {
+                } else if (pageErrorMsg != null) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
@@ -992,10 +992,18 @@ fun ZoomablePdfPage(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text("পৃষ্ঠাটি লোড করা যায়নি", color = Color.White, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(
+                            text = pageErrorMsg ?: "",
+                            color = Color.LightGray,
+                            fontSize = 11.sp,
+                            maxLines = 3,
+                            modifier = Modifier.padding(horizontal = 16.dp)
+                        )
                     }
                 } else {
                     CircularProgressIndicator(
-                        color = Color(0xFF0F766E),
+                        color = MaterialTheme.colorScheme.primary,
                         strokeWidth = 3.dp,
                         modifier = Modifier.size(32.dp)
                     )

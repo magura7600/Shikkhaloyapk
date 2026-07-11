@@ -28,7 +28,7 @@ fun ShikkhaloyLogo(
     darkTheme: Boolean = false
 ) {
     val textColor = if (darkTheme) Color.White else Color(0xFF1E3A8A)
-    val sloganColor = if (darkTheme) Color(0xFFE5E7EB) else Color(0xFF4B5563)
+    val sloganColor = if (darkTheme) Color(0xFFF3F4F6) else Color(0xFF1E3A8A)
     
     Column(
         modifier = modifier,
@@ -67,7 +67,7 @@ fun ShikkhaloyLogo(
                     .clip(RoundedCornerShape(2.dp))
                     .background(
                         Brush.horizontalGradient(
-                            listOf(Color(0xFF0F766E), Color(0xFFF4B400), Color(0xFF1E3A8A))
+                            listOf(Color(0xFF1E3A8A), Color(0xFFEF4444), Color(0xFF1E3A8A))
                         )
                     )
             )
@@ -116,8 +116,8 @@ fun ShikkhaloySplashScreen() {
             .background(
                 Brush.verticalGradient(
                     colors = listOf(
-                        Color(0xFF0F766E), // Deep Teal
-                        Color(0xFF134E5E), // Teal-Blue
+                        Color(0xFF1E3A8A), // Deep Teal
+                        Color(0xFF1E3A8A), // Teal-Blue
                         Color(0xFF1E3A8A)  // Deep Navy Blue
                     )
                 )
@@ -131,7 +131,7 @@ fun ShikkhaloySplashScreen() {
                 .background(
                     Brush.radialGradient(
                         colors = listOf(
-                            Color(0x22F4B400), // Glowing Gold
+                            Color(0xFFEF4444), // Glowing Gold
                             Color.Transparent
                         )
                     )
@@ -213,8 +213,8 @@ fun ShikkhaloySplashScreen() {
                             .background(
                                 Brush.horizontalGradient(
                                     colors = listOf(
-                                        Color(0xFF2DD4BF), // Mint
-                                        Color(0xFFF4B400)  // Gold
+                                        Color(0xFF10B981), // Mint
+                                        Color(0xFFEF4444)  // Gold
                                     )
                                 )
                             )

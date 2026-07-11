@@ -370,11 +370,11 @@ fun DashboardScreen(
     }
     
     val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
-        colors = listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+        colors = listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
     )
     
     val bgColor = Color.Transparent
-    val accentColor = Color(0xFF4C51F7)
+    val accentColor = MaterialTheme.colorScheme.primary
 
     Scaffold(
         containerColor = Color.Transparent,
@@ -399,7 +399,7 @@ fun DashboardScreen(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(20.dp))
                                                 .clickable { expanded = true }
-                                                .background(Color(0xFFF3F4F6))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                                 .padding(horizontal = 16.dp, vertical = 8.dp)
                                         ) {
                                             Icon(
@@ -412,14 +412,14 @@ fun DashboardScreen(
                                             Text(
                                                 currentFocusCourse.title, 
                                                 fontWeight = FontWeight.Bold, 
-                                                color = Color(0xFF1E293B),
+                                                color = MaterialTheme.colorScheme.primary,
                                                 fontSize = 15.sp,
                                                 maxLines = 1,
                                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                                 modifier = Modifier.widthIn(max = 140.dp)
                                             ) 
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand", modifier = Modifier.size(18.dp), tint = Color(0xFF64748B))
+                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
                                         }
                                         DropdownMenu(
                                             expanded = expanded,
@@ -453,7 +453,7 @@ fun DashboardScreen(
                                     Text(
                                         "Shikkhaloy", 
                                         fontWeight = FontWeight.Bold, 
-                                        color = Color(0xFF4A5568),
+                                        color = MaterialTheme.colorScheme.primary,
                                         fontSize = 18.sp
                                     ) 
                                 }
@@ -470,7 +470,7 @@ fun DashboardScreen(
                                 Text(
                                     "Shikkhaloy", 
                                     fontWeight = FontWeight.Bold, 
-                                    color = Color(0xFF4A5568),
+                                    color = MaterialTheme.colorScheme.primary,
                                     fontSize = 18.sp
                                 ) 
                             }
@@ -517,12 +517,12 @@ fun DashboardScreen(
                         containerColor = Color.White
                     )
                 )
-                Divider(color = Color(0xFFE2E8F0), thickness = 1.dp)
+                Divider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
                 if (isOffline) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFFEF2F2))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable { showOfflineDownloadsGlobal = true }
                             .padding(horizontal = 16.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically
@@ -530,13 +530,13 @@ fun DashboardScreen(
                         Icon(
                             imageVector = Icons.Default.WifiOff,
                             contentDescription = "Offline Mode",
-                            tint = Color(0xFFEF4444),
+                            tint = MaterialTheme.colorScheme.error,
                             modifier = Modifier.size(18.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "কোনো ইন্টারনেট সংযোগ নেই! আপনি অফলাইন মোডে আছেন।",
-                            color = Color(0xFF991B1B),
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
                             modifier = Modifier.weight(1f)
@@ -544,13 +544,13 @@ fun DashboardScreen(
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "ডাউনলোডকৃত ক্লাস দেখুন >",
-                            color = Color(0xFFEF4444),
+                            color = MaterialTheme.colorScheme.error,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold,
                             textDecoration = TextDecoration.Underline
                         )
                     }
-                    Divider(color = Color(0xFFFCA5A5), thickness = 1.dp)
+                    Divider(color = MaterialTheme.colorScheme.error, thickness = 1.dp)
                 }
                 }
             }
@@ -559,11 +559,11 @@ fun DashboardScreen(
             if (currentScreen == "dashboard") {
                 if (!isManagementUser) {
                 val studentNavItems = listOf(
-                    BottomNavItem("হোম", Icons.Outlined.Home, Color(0xFF4CAF50)),
-                    BottomNavItem("কোর্স", Icons.Outlined.MenuBook, Color(0xFF2196F3)),
-                    BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, Color(0xFFFF9800)),
-                    BottomNavItem("এক্সপ্লোর", Icons.Outlined.Explore, Color(0xFF9C27B0)),
-                    BottomNavItem("সেটিংস", Icons.Outlined.Settings, Color(0xFF607D8B))
+                    BottomNavItem("হোম", Icons.Outlined.Home, MaterialTheme.colorScheme.secondary),
+                    BottomNavItem("কোর্স", Icons.Outlined.MenuBook, MaterialTheme.colorScheme.primary),
+                    BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, MaterialTheme.colorScheme.error),
+                    BottomNavItem("এক্সপ্লোর", Icons.Outlined.Explore, MaterialTheme.colorScheme.primary),
+                    BottomNavItem("সেটিংস", Icons.Outlined.Settings, MaterialTheme.colorScheme.primary)
                 )
                 CustomBottomNavigation(
                     items = studentNavItems,
@@ -575,10 +575,10 @@ fun DashboardScreen(
                 )
             } else {
                 val teacherNavItems = listOf(
-                    BottomNavItem("চ্যানেল", Icons.Outlined.Home, Color(0xFF4CAF50)),
-                    BottomNavItem("কোর্স", Icons.Outlined.MenuBook, Color(0xFF2196F3)),
-                    BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, Color(0xFFFF9800)),
-                    BottomNavItem("সেটিংস", Icons.Outlined.Settings, Color(0xFF607D8B))
+                    BottomNavItem("চ্যানেল", Icons.Outlined.Home, MaterialTheme.colorScheme.secondary),
+                    BottomNavItem("কোর্স", Icons.Outlined.MenuBook, MaterialTheme.colorScheme.primary),
+                    BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, MaterialTheme.colorScheme.error),
+                    BottomNavItem("সেটিংস", Icons.Outlined.Settings, MaterialTheme.colorScheme.primary)
                 )
                 
                 val visualIndex = when (selectedTab) {
@@ -987,7 +987,7 @@ fun DashboardScreen(
                     onBack = { currentScreen = "dashboard" }
                 )
             } else {
-                if (isTeacher) {
+                if (isManagementUser) {
                     if (selectedTab == 0) {
                         ExploreFeedScreen(
                             accentColor = accentColor, 
@@ -1032,33 +1032,41 @@ fun DashboardScreen(
                             }
                         )
                     } else if (selectedTab == 2) {
-                        TeacherDashboardContent(
-                            accentColor = accentColor, 
-                            onChannelClick = { 
-                                if (teacherChannel != null) {
-                                    selectedChannel = teacherChannel
-                                    currentScreen = "channel_detail"
-                                } else {
-                                    currentScreen = "create_channel"
-                                }
-                            },
-                            onAddCourseClick = {
-                                if (teacherChannel != null) {
-                                    currentScreen = "add_course"
-                                } else {
-                                    Toast.makeText(context, "অনুগ্রহ করে কোর্স যোগ করার আগে আপনার চ্যানেল সেটআপ করুন।", Toast.LENGTH_SHORT).show()
-                                    currentScreen = "create_channel"
-                                }
-                            },
-                            onAddClassLinkClick = { currentScreen = "add_class_link" },
-                            onMentorsClick = { showMentorsDialog = true },
-                            onManageStudentsClick = { currentScreen = "select_course_for_students" },
-                            onEnrollmentRequestsClick = { currentScreen = "enrollment_requests" }
-                        )
+                        if (isAdmin) {
+                            AdminDashboardContent(
+                                accentColor = accentColor,
+                                onPublishUpdateClick = { showPublishUpdateDialog = true },
+                                onPublishNoticeClick = { showPublishNoticeDialog = true }
+                            )
+                        } else {
+                            TeacherDashboardContent(
+                                accentColor = accentColor, 
+                                onChannelClick = { 
+                                    if (teacherChannel != null) {
+                                        selectedChannel = teacherChannel
+                                        currentScreen = "channel_detail"
+                                    } else {
+                                        currentScreen = "create_channel"
+                                    }
+                                },
+                                onAddCourseClick = {
+                                    if (teacherChannel != null) {
+                                        currentScreen = "add_course"
+                                    } else {
+                                        Toast.makeText(context, "অনুগ্রহ করে কোর্স যোগ করার আগে আপনার চ্যানেল সেটআপ করুন।", Toast.LENGTH_SHORT).show()
+                                        currentScreen = "create_channel"
+                                    }
+                                },
+                                onAddClassLinkClick = { currentScreen = "add_class_link" },
+                                onMentorsClick = { showMentorsDialog = true },
+                                onManageStudentsClick = { currentScreen = "select_course_for_students" },
+                                onEnrollmentRequestsClick = { currentScreen = "enrollment_requests" }
+                            )
+                        }
                     } else if (selectedTab == 3) {
                         CourseListScreen(
                             accentColor = accentColor, 
-                            courses = courses.filter { it.channel_id == profile.user_id },
+                            courses = if (isAdmin) courses else courses.filter { it.channel_id == profile.user_id },
                             onCourseClick = { course ->
                                 selectedCourse = course
                                 initialSubjectId = null

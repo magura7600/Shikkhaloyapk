@@ -28,7 +28,7 @@ private val DarkColorScheme = darkColorScheme(
     onTertiary = Color.Black,
     onBackground = Color.White,
     onSurface = Color.White,
-    onSurfaceVariant = Color(0xFF0F172A).copy(alpha = 0.5f)
+    onSurfaceVariant = Color(0xFFCBD5E1)
 )
 
 private val LightColorScheme = lightColorScheme(
@@ -42,8 +42,8 @@ private val LightColorScheme = lightColorScheme(
     onSecondary = Color.White,
     onTertiary = Color.Black,
     onBackground = Color(0xFF0F172A),
-    onSurface = Color(0xFF1E293B),
-    onSurfaceVariant = Color(0xFF475569)
+    onSurface = Color(0xFF0F172A),
+    onSurfaceVariant = Color(0xFF334155)
 )
 
 @Composable
@@ -60,6 +60,7 @@ fun MyApplicationTheme(
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
+    
     val view = LocalView.current
     if (!view.isInEditMode) {
         SideEffect {
@@ -71,7 +72,7 @@ fun MyApplicationTheme(
             WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !darkTheme
         }
     }
-
+    
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,

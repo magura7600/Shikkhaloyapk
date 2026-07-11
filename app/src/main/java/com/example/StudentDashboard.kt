@@ -166,12 +166,12 @@ fun StudentDashboardContent(
                     .shadow(
                         elevation = 6.dp,
                         shape = RoundedCornerShape(16.dp),
-                        spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f),
-                        ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f)
+                        spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.15f),
+                        ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.15f)
                     ),
                 colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF818CF8).copy(alpha = 0.6f), Color(0xFFC084FC).copy(alpha = 0.6f))))
+                border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.6f), MaterialTheme.colorScheme.primary.copy(alpha = 0.6f))))
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text(
@@ -219,14 +219,14 @@ fun StudentDashboardContent(
                                 },
                                 colors = ButtonDefaults.buttonColors(
                                     containerColor = Color.White,
-                                    contentColor = Color(0xFF1E293B)
+                                    contentColor = MaterialTheme.colorScheme.primary
                                 ),
                                 shape = RoundedCornerShape(12.dp),
-                                border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
                                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                             ) {
-                                Icon(Icons.Outlined.Today, contentDescription = "Today", modifier = Modifier.size(16.dp), tint = Color(0xFF1E293B))
+                                Icon(Icons.Outlined.Today, contentDescription = "Today", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.primary)
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("Today", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
@@ -248,7 +248,7 @@ fun StudentDashboardContent(
                     viewingMonth.format(monthFormatter),
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B)
+                    color = MaterialTheme.colorScheme.primary
                 )
                 if (isCalendarExpanded) {
                     Row {
@@ -282,7 +282,7 @@ fun StudentDashboardContent(
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(12.dp),
                     elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF60A5FA).copy(alpha = 0.5f), Color(0xFF0F766E).copy(alpha = 0.5f))))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), MaterialTheme.colorScheme.primary.copy(alpha = 0.5f))))
                 ) {
                     Column(modifier = Modifier.padding(12.dp)) {
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -374,7 +374,7 @@ fun StudentDashboardContent(
                     ) {
                         Icon(Icons.Default.ChevronLeft, contentDescription = "Prev", tint = Color.Gray, modifier = Modifier
                             .size(24.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
                             .padding(2.dp))
                     }
                     
@@ -436,7 +436,7 @@ fun StudentDashboardContent(
                     ) {
                         Icon(Icons.Default.ChevronRight, contentDescription = "Next", tint = Color.Gray, modifier = Modifier
                             .size(24.dp)
-                            .background(Color(0xFFF1F5F9), CircleShape)
+                            .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape)
                             .padding(2.dp))
                     }
                 }
@@ -450,7 +450,7 @@ fun StudentDashboardContent(
                 dateLabel,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B)
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
@@ -462,12 +462,12 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 4.dp,
                             shape = RoundedCornerShape(16.dp),
-                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f),
-                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f)
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.15f),
+                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.15f)
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text("কোনো কোর্স সিলেক্ট করা নেই।", color = Color.Gray, fontSize = 14.sp)
@@ -481,12 +481,12 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 4.dp,
                             shape = RoundedCornerShape(16.dp),
-                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f),
-                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f)
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.15f),
+                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.15f)
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFF34D399).copy(alpha = 0.5f), Color(0xFF10B981).copy(alpha = 0.5f))))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f), MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f))))
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -496,8 +496,8 @@ fun StudentDashboardContent(
                         Box(
                             modifier = Modifier
                                 .size(48.dp)
-                                .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
-                                .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(12.dp)),
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Text("🐧", fontSize = 24.sp)
@@ -507,7 +507,7 @@ fun StudentDashboardContent(
                             "You have no live classes or exams on this date.",
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Medium,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                 }
@@ -520,44 +520,44 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 4.dp,
                             shape = RoundedCornerShape(16.dp),
-                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f),
-                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f)
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.15f),
+                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.15f)
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(16.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF472B6).copy(alpha = 0.5f), Color(0xFFEC4899).copy(alpha = 0.5f))))
+                    border = androidx.compose.foundation.BorderStroke(1.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.error.copy(alpha = 0.5f), MaterialTheme.colorScheme.error.copy(alpha = 0.5f))))
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(subject.title, color = accentColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Box(modifier = Modifier.size(3.dp).background(Color(0xFFCBD5E1), CircleShape))
+                            Box(modifier = Modifier.size(3.dp).background(MaterialTheme.colorScheme.primary, CircleShape))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text(courseClass.type, color = Color(0xFF475569), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            Text(courseClass.type, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                             Spacer(modifier = Modifier.weight(1f))
                             Box(
                                 modifier = Modifier
-                                    .background(Color(0xFFFEF2F2), RoundedCornerShape(6.dp))
-                                    .border(1.dp, Color(0xFFFECACA), RoundedCornerShape(6.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(6.dp))
+                                    .border(1.dp, MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(6.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp)
                             ) {
-                                Text("মিসড", color = Color(0xFFEF4444), fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
+                                Text("মিসড", color = MaterialTheme.colorScheme.error, fontSize = 10.sp, fontWeight = FontWeight.ExtraBold)
                             }
                         }
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("${chapter.title} - ${courseClass.title}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                        Text("${chapter.title} - ${courseClass.title}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(4.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF64748B))
+                            Icon(Icons.Outlined.Schedule, contentDescription = null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text(courseClass.time, fontSize = 12.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
+                            Text(courseClass.time, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
                         }
                         Spacer(modifier = Modifier.height(14.dp))
                         Button(
                             onClick = { onClassClick(courseClass, chapter, subject, focusCourse) },
                             modifier = Modifier.fillMaxWidth(),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFFF1F5F9),
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
                                 contentColor = accentColor
                             ),
                             shape = RoundedCornerShape(12.dp),
@@ -580,7 +580,7 @@ fun StudentDashboardContent(
                 "Your Homework",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF1E293B)
+                color = MaterialTheme.colorScheme.primary
             )
         }
         
@@ -593,12 +593,12 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 16.dp,
                             shape = RoundedCornerShape(24.dp),
-                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.2f),
-                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.2f)
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.2f),
+                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.2f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     shape = RoundedCornerShape(24.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFFBBF24), Color(0xFFF4B400))))
+                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.error)))
                 ) {
                     Column(
                         modifier = Modifier.fillMaxSize(),
@@ -608,14 +608,14 @@ fun StudentDashboardContent(
                         Box(
                             modifier = Modifier
                                 .size(56.dp)
-                                .background(Color(0xFFFFF7ED), RoundedCornerShape(16.dp))
-                                .border(1.dp, Color(0xFFFFEDD5), RoundedCornerShape(16.dp)),
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp))
+                                .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Outlined.Edit, contentDescription = "Homework", modifier = Modifier.size(28.dp), tint = Color(0xFFF97316))
+                            Icon(Icons.Outlined.Edit, contentDescription = "Homework", modifier = Modifier.size(28.dp), tint = MaterialTheme.colorScheme.error)
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("No homework today!", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                        Text("No homework today!", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -627,12 +627,12 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 12.dp,
                             shape = RoundedCornerShape(20.dp),
-                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.2f),
-                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.2f)
+                            spotColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.2f),
+                            ambientColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f).copy(alpha = 0.2f)
                         ),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                     shape = RoundedCornerShape(20.dp),
-                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(Color(0xFFF97316), Color(0xFFEA580C))))
+                    border = androidx.compose.foundation.BorderStroke(2.dp, androidx.compose.ui.graphics.Brush.linearGradient(listOf(MaterialTheme.colorScheme.error, MaterialTheme.colorScheme.error)))
                 ) {
                     Row(
                         modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -641,16 +641,16 @@ fun StudentDashboardContent(
                         Box(
                             modifier = Modifier
                                 .size(56.dp)
-                                .background(Color(0xFFFFF7ED), RoundedCornerShape(16.dp)),
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(16.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Outlined.Edit, contentDescription = "Homework", tint = Color(0xFFEA580C))
+                            Icon(Icons.Outlined.Edit, contentDescription = "Homework", tint = MaterialTheme.colorScheme.error)
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("${chapter.title} - ${courseClass.title}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F172A))
+                            Text("${chapter.title} - ${courseClass.title}", fontSize = 15.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                             Spacer(modifier = Modifier.height(4.dp))
-                            Text(subject.title, fontSize = 13.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
+                            Text(subject.title, fontSize = 13.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Medium)
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Button(
@@ -690,7 +690,7 @@ fun StudentCoursesScreen(
             Box(
                 modifier = Modifier
                     .size(64.dp)
-                    .background(Color(0xFFDFD8C8), RoundedCornerShape(16.dp)),
+                    .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp)),
                 contentAlignment = Alignment.Center
             ) {
                 Text("🐧", fontSize = 32.sp)

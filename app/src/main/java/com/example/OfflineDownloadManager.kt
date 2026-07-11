@@ -318,11 +318,14 @@ object OfflineDownloadManager {
  */
 fun sanitizeUrl(url: String): String {
     val trimmed = url.trim()
-    try {
-        trimmed.toHttpUrl()
-        return trimmed
-    } catch (e: Exception) {
-        // Continue to custom encoder
+    val needsEncoding = trimmed.contains(" ") || trimmed.any { it.code > 127 || it == '[' || it == ']' || it == '{' || it == '}' }
+    if (!needsEncoding) {
+        try {
+            trimmed.toHttpUrl()
+            return trimmed
+        } catch (e: Exception) {
+            // Continue to custom encoder
+        }
     }
 
     try {

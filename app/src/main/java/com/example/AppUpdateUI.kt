@@ -90,7 +90,7 @@ fun UpdatePromptDialog(
                     text = "নতুন আপডেট উপলব্ধ! 🚀",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = Color(0xFF1E293B)
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         },
@@ -113,7 +113,7 @@ fun UpdatePromptDialog(
                             Text(
                                 text = "বর্তমান ভার্সন: v${AppUpdateManager.getCurrentVersionName(context)}",
                                 fontSize = 12.sp,
-                                color = Color(0xFF64748B)
+                                color = MaterialTheme.colorScheme.primary
                             )
                             Text(
                                 text = "নতুন ভার্সন: v${update.version_name}",
@@ -131,7 +131,7 @@ fun UpdatePromptDialog(
                     text = "আপডেটে যা থাকছে:",
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp,
-                    color = Color(0xFF1E293B)
+                    color = MaterialTheme.colorScheme.primary
                 )
                 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -139,7 +139,7 @@ fun UpdatePromptDialog(
                 Text(
                     text = update.changelog.ifBlank { "রিলিজ নোট বা কোনো বিবরণ দেওয়া হয়নি।" },
                     fontSize = 13.sp,
-                    color = Color(0xFF475569),
+                    color = MaterialTheme.colorScheme.primary,
                     lineHeight = 20.sp
                 )
 
@@ -166,8 +166,8 @@ fun UpdatePromptDialog(
                                 Toast.makeText(context, "টেলিগ্রাম লিংক ওপেন করা সম্ভব হয়নি।", Toast.LENGTH_SHORT).show()
                             }
                         },
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFFE0F2FE)),
-                    border = BorderStroke(1.dp, Color(0xFFBAE6FD)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
@@ -177,7 +177,7 @@ fun UpdatePromptDialog(
                         Icon(
                             imageVector = Icons.Default.Campaign,
                             contentDescription = "Telegram Channel",
-                            tint = Color(0xFF0284C7),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(24.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -186,12 +186,12 @@ fun UpdatePromptDialog(
                                 text = "টেলিগ্রাম চ্যানেলে যুক্ত হোন 📢",
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 13.sp,
-                                color = Color(0xFF0369A1)
+                                color = MaterialTheme.colorScheme.primary
                             )
                             Text(
                                 text = "নতুন ভার্সন ও সকল আপডেট সবার আগে পেতে আমাদের অফিশিয়াল চ্যানেলে যোগ দিন।",
                                 fontSize = 11.sp,
-                                color = Color(0xFF0284C7),
+                                color = MaterialTheme.colorScheme.primary,
                                 lineHeight = 14.sp
                             )
                         }
@@ -202,8 +202,8 @@ fun UpdatePromptDialog(
                     Spacer(modifier = Modifier.height(12.dp))
                     Card(
                         modifier = Modifier.fillMaxWidth(),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFFEF3C7)),
-                        border = BorderStroke(1.dp, Color(0xFFFCD34D)),
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.errorContainer),
                         shape = RoundedCornerShape(10.dp)
                     ) {
                         Row(
@@ -213,14 +213,14 @@ fun UpdatePromptDialog(
                             Icon(
                                 imageVector = Icons.Default.Info,
                                 contentDescription = "Cloud Link Info",
-                                tint = Color(0xFFD97706),
+                                tint = MaterialTheme.colorScheme.error,
                                 modifier = Modifier.size(20.dp)
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 text = "এটি একটি এক্সটার্নাল/ক্লাউড লিংক (যেমন: Mega, Drive, Telegram)। বাটনটিতে ক্লিক করলে এটি আপনার ব্রাউজারে বা সংশ্লিষ্ট অ্যাপে ওপেন হবে এবং সেখান থেকে আপনি নতুন ভার্সনটি নামাতে পারবেন।",
                                 fontSize = 11.sp,
-                                color = Color(0xFF92400E),
+                                color = MaterialTheme.colorScheme.error,
                                 lineHeight = 15.sp
                             )
                         }
@@ -265,7 +265,7 @@ fun UpdatePromptDialog(
                                 Icon(
                                     imageVector = Icons.Default.CheckCircle,
                                     contentDescription = "Success",
-                                    tint = Color(0xFF10B981),
+                                    tint = MaterialTheme.colorScheme.secondary,
                                     modifier = Modifier.size(20.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -273,7 +273,7 @@ fun UpdatePromptDialog(
                                     text = "ডাউনলোড সফল হয়েছে!",
                                     fontSize = 13.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF10B981)
+                                    color = MaterialTheme.colorScheme.secondary
                                 )
                             }
                         }
@@ -323,7 +323,7 @@ fun UpdatePromptDialog(
                     }
                 },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = if (state is UpdateDownloadState.Success && isDirect) Color(0xFF10B981) else accentColor
+                    containerColor = if (state is UpdateDownloadState.Success && isDirect) MaterialTheme.colorScheme.secondary else accentColor
                 ),
                 shape = RoundedCornerShape(10.dp)
             ) {
@@ -358,7 +358,7 @@ fun UpdatePromptDialog(
                     AppUpdateManager.resetState()
                     onDismiss()
                 }) {
-                    Text("পরে করুন", color = Color(0xFF64748B))
+                    Text("পরে করুন", color = MaterialTheme.colorScheme.primary)
                 }
             }
         }
@@ -426,7 +426,7 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                     text = if (existingUpdate != null) "আপডেট এডিট করুন ✏️" else "নতুন আপডেট রিলিজ করুন 📣",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = Color(0xFF1E293B)
+                    color = MaterialTheme.colorScheme.primary
                 )
             }
         },
@@ -488,12 +488,12 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                             text = "বাধ্যতামূলক আপডেট (Force Update)",
                             fontSize = 14.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = Color(0xFF1E293B)
+                            color = MaterialTheme.colorScheme.primary
                         )
                         Text(
                             text = "শিক্ষার্থীদের অবশ্যই আপডেট করতে হবে",
                             fontSize = 11.sp,
-                            color = Color(0xFF64748B)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                     Switch(
@@ -503,14 +503,14 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                     )
                 }
 
-                Divider(color = Color(0xFFE2E8F0))
+                Divider(color = MaterialTheme.colorScheme.surfaceVariant)
 
                 // Database Table Setup Instructions inside popup
                 Button(
                     onClick = { showSqlInstructions = !showSqlInstructions },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF1F5F9),
-                        contentColor = Color(0xFF475569)
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.primary
                     ),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(8.dp),
@@ -528,8 +528,8 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
-                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                             .padding(8.dp)
                     ) {
                         Row(
@@ -539,7 +539,7 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                         ) {
                             Text(
                                 text = "SQL Script",
-                                color = Color(0xFF38BDF8),
+                                color = MaterialTheme.colorScheme.primary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -562,7 +562,7 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = sqlSchema,
-                            color = Color(0xFFE2E8F0),
+                            color = MaterialTheme.colorScheme.surfaceVariant,
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             lineHeight = 14.sp
@@ -634,7 +634,7 @@ CREATE POLICY "Allow all app_updates" ON app_updates
         dismissButton = {
             if (!isSubmitting) {
                 TextButton(onClick = onDismiss) {
-                    Text("বাতিল", color = Color(0xFF64748B))
+                    Text("বাতিল", color = MaterialTheme.colorScheme.primary)
                 }
             }
         }

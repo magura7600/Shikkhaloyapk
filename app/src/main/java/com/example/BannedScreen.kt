@@ -26,7 +26,7 @@ fun BannedScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFEE2E2)), // Light Red background
+            .background(MaterialTheme.colorScheme.primary), // Light Red background
         contentAlignment = Alignment.Center
     ) {
         Card(
@@ -46,7 +46,7 @@ fun BannedScreen(
                 Box(
                     modifier = Modifier
                         .size(72.dp)
-                        .background(Color(0xFFFEF2F2), RoundedCornerShape(20.dp)),
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
@@ -61,25 +61,25 @@ fun BannedScreen(
                     text = "অ্যাকাউন্ট নিষিদ্ধ করা হয়েছে ⚠️",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF991B1B),
+                    color = MaterialTheme.colorScheme.error,
                     textAlign = TextAlign.Center
                 )
 
                 Text(
                     text = "দুঃখিত, আপনার অ্যাকাউন্টটি আমাদের নীতিমালা লঙ্ঘনের কারণে সাময়িকভাবে বা স্থায়ীভাবে নিষিদ্ধ (Banned) করা হয়েছে।",
                     fontSize = 14.sp,
-                    color = Color(0xFF4B5563),
+                    color = MaterialTheme.colorScheme.primary,
                     textAlign = TextAlign.Center,
                     lineHeight = 22.sp
                 )
 
-                Divider(color = Color(0xFFF3F4F6))
+                Divider(color = MaterialTheme.colorScheme.surfaceVariant)
 
                 // Account Information
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF9FAFB), RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
                         .padding(12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp)
                 ) {
@@ -109,14 +109,14 @@ fun BannedScreen(
                     Icon(
                         imageVector = Icons.Default.SupportAgent,
                         contentDescription = "Support",
-                        tint = Color(0xFF4B5563),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(16.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "সহায়তার জন্য এডমিন বা মেন্টরদের সাথে যোগাযোগ করুন।",
                         fontSize = 11.sp,
-                        color = Color(0xFF4B5563)
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
 

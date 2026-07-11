@@ -219,7 +219,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                     Icon(
                         imageVector = Icons.Default.Build,
                         contentDescription = "Fix DB",
-                        tint = Color(0xFFD97706)
+                        tint = MaterialTheme.colorScheme.error
                     )
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
@@ -227,18 +227,18 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                             text = "ডাটাবেজ টেবিল আপডেট গাইড",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = Color(0xFF92400E)
+                            color = MaterialTheme.colorScheme.error
                         )
                         Text(
                             text = "ইউজার ব্যান সিস্টেম সচল করতে প্রয়োজনীয় SQL রান করুন",
                             fontSize = 11.sp,
-                            color = Color(0xFFB45309)
+                            color = MaterialTheme.colorScheme.error
                         )
                     }
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = "More",
-                        tint = Color(0xFFD97706)
+                        tint = MaterialTheme.colorScheme.error
                     )
                 }
             }
@@ -302,7 +302,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                border = BorderStroke(1.dp, Color(0xFFF1F5F9))
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Row(
@@ -314,20 +314,20 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                             text = latestNotice!!.title,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
-                                            color = Color(0xFF334155)
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                         Text(
                                             text = "সক্রিয় 🟢",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = Color(0xFF10B981)
+                                            color = MaterialTheme.colorScheme.secondary
                                         )
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = latestNotice!!.content,
                                         fontSize = 11.sp,
-                                        color = Color(0xFF64748B),
+                                        color = MaterialTheme.colorScheme.primary,
                                         maxLines = 2
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -381,7 +381,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                 Icon(
                                     imageVector = Icons.Default.SystemUpdate,
                                     contentDescription = "Update",
-                                    tint = Color(0xFF10B981)
+                                    tint = MaterialTheme.colorScheme.secondary
                                 )
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Column {
@@ -400,7 +400,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                             }
                             Button(
                                 onClick = onPublishUpdateClick,
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF10B981)),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                 shape = RoundedCornerShape(8.dp)
                             ) {
@@ -415,7 +415,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
                                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                border = BorderStroke(1.dp, Color(0xFFF1F5F9))
+                                border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant)
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
                                     Row(
@@ -428,19 +428,19 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                                 text = "সর্বশেষ রিলিজ: v${latestAppUpdate!!.version_name}",
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.sp,
-                                                color = Color(0xFF334155)
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                             Text(
                                                 text = "ভার্সন কোড: ${latestAppUpdate!!.version_code}",
                                                 fontSize = 11.sp,
-                                                color = Color(0xFF64748B)
+                                                color = MaterialTheme.colorScheme.primary
                                             )
                                         }
                                         Text(
                                             text = if (latestAppUpdate!!.is_force_update) "বাধ্যতামূলক ⚠️" else "ঐচ্ছিক 🟢",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (latestAppUpdate!!.is_force_update) Color.Red else Color(0xFF10B981)
+                                            color = if (latestAppUpdate!!.is_force_update) Color.Red else MaterialTheme.colorScheme.secondary
                                         )
                                     }
                                     
@@ -448,14 +448,14 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                     Text(
                                         text = "চ্যাঞ্জেলগ: ${latestAppUpdate!!.changelog.ifBlank { "কোন বিবরণ নেই" }}",
                                         fontSize = 11.sp,
-                                        color = Color(0xFF475569)
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                     
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
                                         text = "লিংক: ${latestAppUpdate!!.apk_url}",
                                         fontSize = 10.sp,
-                                        color = Color(0xFF0284C7),
+                                        color = MaterialTheme.colorScheme.primary,
                                         maxLines = 1
                                     )
 
@@ -467,8 +467,8 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                     ) {
                                         OutlinedButton(
                                             onClick = { showEditUpdateDialog = true },
-                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF0F766E)),
-                                            border = BorderStroke(1.dp, Color(0xFF0F766E).copy(alpha = 0.5f)),
+                                            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.primary),
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)),
                                             contentPadding = PaddingValues(horizontal = 10.dp, vertical = 2.dp),
                                             shape = RoundedCornerShape(6.dp),
                                             modifier = Modifier.padding(end = 8.dp)
@@ -604,8 +604,8 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFF0F172A), RoundedCornerShape(8.dp))
-                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(8.dp))
+                            .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
+                            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(8.dp))
                             .padding(8.dp)
                     ) {
                         Row(
@@ -615,7 +615,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                         ) {
                             Text(
                                 text = "SQL Script",
-                                color = Color(0xFF38BDF8),
+                                color = MaterialTheme.colorScheme.primary,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -708,7 +708,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
             dismissButton = {
                 if (!isDeletingUpdate) {
                     TextButton(onClick = { showDeleteUpdateConfirm = false }) {
-                        Text("বাতিল", color = Color(0xFF64748B))
+                        Text("বাতিল", color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
@@ -781,7 +781,7 @@ fun UserManagementRow(
                     modifier = Modifier
                         .size(46.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF1F5F9))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     if (!user.profile_image_url.isNullOrBlank()) {
                         Image(
@@ -890,7 +890,7 @@ fun UserManagementRow(
                     },
                     enabled = !isUpdating,
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = if (user.is_banned) Color(0xFF10B981) else Color.Red
+                        containerColor = if (user.is_banned) MaterialTheme.colorScheme.secondary else Color.Red
                     ),
                     shape = RoundedCornerShape(8.dp),
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)

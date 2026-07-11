@@ -47,14 +47,14 @@ object ThemeManager {
     val LightColorScheme = lightColorScheme(
         primary = Color(0xFF1E3A8A), // Navy Blue
         onPrimary = Color.White,
-        primaryContainer = Color(0xFFEFF6FF),
+        primaryContainer = Color(0xFFDBEAFE),
         onPrimaryContainer = Color(0xFF1E3A8A),
-        secondary = Color(0xFF0F766E), // Teal Green
+        secondary = Color(0xFF0F766E),
         onSecondary = Color.White,
-        secondaryContainer = Color(0xFFECFDF5),
-        onSecondaryContainer = Color(0xFF065F46),
-        tertiary = Color(0xFFF4B400), // Gold / Yellow
-        background = Color(0xFFF8FAFC), // Off-white
+        secondaryContainer = Color(0xFFCCFBF1),
+        onSecondaryContainer = Color(0xFF0F766E),
+        tertiary = Color(0xFFD97706),
+        background = Color(0xFFF8FAFC),
         surface = Color.White,
         onBackground = Color(0xFF1E293B),
         onSurface = Color(0xFF1E293B),
@@ -63,19 +63,19 @@ object ThemeManager {
 
     val DarkColorScheme = darkColorScheme(
         primary = Color(0xFF93C5FD), // Light blue
-        onPrimary = Color(0xFF1E3A8A),
+        onPrimary = Color(0xFF0F172A),
         primaryContainer = Color(0xFF1E3A8A),
-        onPrimaryContainer = Color(0xFFEFF6FF),
-        secondary = Color(0xFF2DD4BF), // Light Teal
-        onSecondary = Color(0xFF0F766E),
+        onPrimaryContainer = Color(0xFFDBEAFE),
+        secondary = Color(0xFF5EEAD4), // Light Teal
+        onSecondary = Color(0xFF0F172A),
         secondaryContainer = Color(0xFF0F766E),
-        onSecondaryContainer = Color(0xFFECFDF5),
-        tertiary = Color(0xFFFCD34D),
+        onSecondaryContainer = Color(0xFFCCFBF1),
+        tertiary = Color(0xFFFBBF24),
         background = Color(0xFF0F172A), // Slate 900
         surface = Color(0xFF1E293B), // Slate 800
         onBackground = Color(0xFFF1F5F9),
         onSurface = Color(0xFFF1F5F9),
-        error = Color(0xFFF87171)
+        error = Color(0xFFEF4444)
     )
 }
 

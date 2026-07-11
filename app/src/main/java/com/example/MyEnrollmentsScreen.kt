@@ -35,7 +35,7 @@ fun MyEnrollmentsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFBF8F1))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -46,7 +46,7 @@ fun MyEnrollmentsScreen(
                 Text("আমার ভর্তি তথ্য", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
         },
-        containerColor = Color(0xFFFBF8F1)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             if (myRequests.isEmpty() && enrollments.none { it.user_id == profile.user_id }) {
@@ -76,9 +76,9 @@ fun MyEnrollmentsScreen(
                                 Text("TrxID: ${req.transaction_id}", fontSize = 14.sp)
                                 
                                 val statusColor = when (req.status) {
-                                    "PENDING" -> Color(0xFFEAB308)
-                                    "APPROVED" -> Color(0xFF22C55E)
-                                    else -> Color(0xFFEF4444)
+                                    "PENDING" -> MaterialTheme.colorScheme.error
+                                    "APPROVED" -> MaterialTheme.colorScheme.secondary
+                                    else -> MaterialTheme.colorScheme.error
                                 }
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {

@@ -52,34 +52,35 @@ fun EmergencyNoticeDialog(
     val uriHandler = LocalUriHandler.current
 
     // Determine color schemes and icons based on Notice type
-    val themeColors = remember(notice.type) {
+    val colorScheme = MaterialTheme.colorScheme
+    val themeColors = remember(notice.type, colorScheme) {
         when (notice.type.lowercase()) {
             "warning" -> NoticeThemeColors(
                 primary = Color(0xFFEF4444),
-                background = Color(0xFFFEF2F2),
-                border = Color(0xFFFCA5A5),
-                onBg = Color(0xFF991B1B),
+                background = Color(0xFFF3F4F6),
+                border = Color(0xFFEF4444),
+                onBg = Color(0xFFEF4444),
                 icon = Icons.Default.Warning
             )
             "offer" -> NoticeThemeColors(
-                primary = Color(0xFF8B5CF6),
-                background = Color(0xFFF5F3FF),
-                border = Color(0xFFDDD6FE),
-                onBg = Color(0xFF5B21B6),
+                primary = Color(0xFF1E3A8A),
+                background = Color(0xFFF3F4F6),
+                border = Color(0xFFEFF6FF),
+                onBg = Color(0xFF1E3A8A),
                 icon = Icons.Default.Star
             )
             "exam" -> NoticeThemeColors(
-                primary = Color(0xFFF4B400),
-                background = Color(0xFFFFFBEB),
-                border = Color(0xFFFDE68A),
-                onBg = Color(0xFF92400E),
+                primary = Color(0xFFEF4444),
+                background = Color(0xFF1E3A8A),
+                border = Color(0xFFF59E0B),
+                onBg = Color(0xFFEF4444),
                 icon = Icons.Default.MenuBook
             )
             else -> NoticeThemeColors(
                 primary = accentColor,
-                background = Color(0xFFF8FAFC),
-                border = Color(0xFFE2E8F0),
-                onBg = Color(0xFF1E293B),
+                background = Color(0xFFF3F4F6),
+                border = Color(0xFFF3F4F6),
+                onBg = Color(0xFF1E3A8A),
                 icon = Icons.Default.Campaign
             )
         }
@@ -109,7 +110,7 @@ fun EmergencyNoticeDialog(
                 text = L.translateNotice(notice.title),
                 fontWeight = FontWeight.Bold,
                 fontSize = 20.sp,
-                color = Color(0xFF0F172A),
+                color = Color(0xFF1E3A8A),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -132,8 +133,8 @@ fun EmergencyNoticeDialog(
                             .fillMaxWidth()
                             .heightIn(max = 180.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(14.dp))
-                            .background(Color(0xFFF8FAFC)),
+                            .border(1.dp, Color(0xFFF3F4F6), RoundedCornerShape(14.dp))
+                            .background(Color(0xFFF3F4F6)),
                         contentScale = ContentScale.Crop
                     )
                 }
@@ -192,7 +193,7 @@ fun EmergencyNoticeDialog(
                 Text(
                     text = "ঠিক আছে, বুঝতে পেরেছি".t(),
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF64748B),
+                    color = Color(0xFF1E3A8A),
                     fontSize = 14.sp
                 )
             }
@@ -288,7 +289,7 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                     text = "উন্নত নোটিশ পাবলিশ 📢",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = Color(0xFF1E293B)
+                    color = Color(0xFF1E3A8A)
                 )
             }
         },
@@ -327,7 +328,7 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                     text = "নোটিশের ধরণ (Notice Category)",
                     fontWeight = FontWeight.Bold,
                     fontSize = 13.sp,
-                    color = Color(0xFF475569),
+                    color = Color(0xFF1E3A8A),
                     modifier = Modifier.padding(top = 4.dp)
                 )
                 Row(
@@ -335,17 +336,17 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val types = listOf(
-                        Triple("general", "সাধারণ", Color(0xFF0F766E)),
+                        Triple("general", "সাধারণ", Color(0xFF1E3A8A)),
                         Triple("warning", "জরুরি", Color(0xFFEF4444)),
-                        Triple("offer", "অফার/প্রোমো", Color(0xFF8B5CF6)),
-                        Triple("exam", "পরীক্ষা", Color(0xFFF4B400))
+                        Triple("offer", "অফার/প্রোমো", Color(0xFF1E3A8A)),
+                        Triple("exam", "পরীক্ষা", Color(0xFFEF4444))
                     )
                     types.forEach { (typeKey, typeLabel, color) ->
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .background(
-                                    if (selectedType == typeKey) color.copy(alpha = 0.15f) else Color(0xFFF1F5F9),
+                                    if (selectedType == typeKey) color.copy(alpha = 0.15f) else Color(0xFFF3F4F6),
                                     RoundedCornerShape(8.dp)
                                 )
                                 .border(
@@ -361,7 +362,7 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                                 text = typeLabel,
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = if (selectedType == typeKey) color else Color(0xFF475569)
+                                color = if (selectedType == typeKey) color else Color(0xFF1E3A8A)
                             )
                         }
                     }
@@ -378,19 +379,19 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                             text = "নোটিফিকেশন ইমেজ (Optional)",
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = Color(0xFF475569)
+                            color = Color(0xFF1E3A8A)
                         )
                         Text(
                             text = if (imageUrlInput.isBlank()) "কোনো ছবি যুক্ত করা হয়নি" else "ছবি সফলভাবে যুক্ত করা হয়েছে",
                             fontSize = 11.sp,
-                            color = if (imageUrlInput.isBlank()) Color(0xFF64748B) else Color(0xFF10B981)
+                            color = if (imageUrlInput.isBlank()) Color(0xFF1E3A8A) else Color(0xFF10B981)
                         )
                     }
                     Button(
                         onClick = { imagePickerLauncher.launch("image/*") },
                         enabled = !isUploadingImage,
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (imageUrlInput.isBlank()) accentColor.copy(alpha = 0.1f) else Color(0xFFFEF2F2),
+                            containerColor = if (imageUrlInput.isBlank()) accentColor.copy(alpha = 0.1f) else Color(0xFFF3F4F6),
                             contentColor = if (imageUrlInput.isBlank()) accentColor else Color(0xFFEF4444)
                         ),
                         shape = RoundedCornerShape(8.dp),
@@ -418,7 +419,7 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                             .fillMaxWidth()
                             .height(110.dp)
                             .clip(RoundedCornerShape(8.dp))
-                            .border(1.dp, Color(0xFFE2E8F0), RoundedCornerShape(8.dp))
+                            .border(1.dp, Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
                             .clickable { imageUrlInput = "" },
                         contentScale = ContentScale.Crop
                     )
@@ -469,24 +470,24 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                         Box(
                             modifier = Modifier
                                 .weight(1f)
-                                .background(Color(0xFFF1F5F9), RoundedCornerShape(6.dp))
+                                .background(Color(0xFFF3F4F6), RoundedCornerShape(6.dp))
                                 .clickable { scheduledTimeInput = valStr }
                                 .padding(vertical = 6.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF334155))
+                            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E3A8A))
                         }
                     }
                 }
 
-                Divider(color = Color(0xFFE2E8F0))
+                Divider(color = Color(0xFFF3F4F6))
 
                 // SQL Guide dropdown
                 Button(
                     onClick = { showSqlInstructions = !showSqlInstructions },
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF8FAFC),
-                        contentColor = Color(0xFF475569)
+                        containerColor = Color(0xFFF3F4F6),
+                        contentColor = Color(0xFF1E3A8A)
                     ),
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(10.dp),
@@ -504,8 +505,8 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFF0F172A), RoundedCornerShape(10.dp))
-                            .border(1.dp, Color(0xFF334155), RoundedCornerShape(10.dp))
+                            .background(Color(0xFF1E3A8A), RoundedCornerShape(10.dp))
+                            .border(1.dp, Color(0xFF1E3A8A), RoundedCornerShape(10.dp))
                             .padding(10.dp)
                     ) {
                         Row(
@@ -515,7 +516,7 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                         ) {
                             Text(
                                 text = "SQL Migration Script",
-                                color = Color(0xFF38BDF8),
+                                color = Color(0xFF1E3A8A),
                                 fontSize = 11.sp,
                                 fontWeight = FontWeight.Bold,
                                 fontFamily = FontFamily.Monospace
@@ -538,7 +539,7 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = sqlSchema,
-                            color = Color(0xFFE2E8F0),
+                            color = Color(0xFFF3F4F6),
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             lineHeight = 14.sp
@@ -600,7 +601,7 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
         dismissButton = {
             if (!isSubmitting) {
                 TextButton(onClick = onDismiss) {
-                    Text("বাতিল", color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
+                    Text("বাতিল", color = Color(0xFF1E3A8A), fontWeight = FontWeight.Medium)
                 }
             }
         }

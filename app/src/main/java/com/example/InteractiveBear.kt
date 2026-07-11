@@ -90,26 +90,26 @@ fun InteractiveBear(
 
         // Left Ear outer
         drawCircle(
-            color = Color(0xFF8D5B4C),
+            color = Color(0xFFEF4444),
             radius = earRadius,
             center = Offset(leftEarX, leftEarY)
         )
         // Left Ear inner
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = earRadius * 0.6f,
             center = Offset(leftEarX, leftEarY)
         )
 
         // Right Ear outer
         drawCircle(
-            color = Color(0xFF8D5B4C),
+            color = Color(0xFFEF4444),
             radius = earRadius,
             center = Offset(rightEarX, rightEarY)
         )
         // Right Ear inner
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = earRadius * 0.6f,
             center = Offset(rightEarX, rightEarY)
         )
@@ -134,18 +134,18 @@ fun InteractiveBear(
         }
         drawPath(
             path = hatPath,
-            color = Color(0xFF818CF8) // indigo light purple
+            color = Color(0xFF1E3A8A) // indigo light purple
         )
         // Tiny pompom on the hat
         drawCircle(
-            color = Color(0xFF6366F1),
+            color = Color(0xFF1E3A8A),
             radius = 6f,
             center = Offset(hatCenterX, hatCenterY - hatRadius)
         )
 
         // 3. DRAW HEAD (Face base)
         drawCircle(
-            color = Color(0xFF8D5B4C),
+            color = Color(0xFFEF4444),
             radius = headRadius,
             center = Offset(centerX, centerY)
         )
@@ -156,7 +156,7 @@ fun InteractiveBear(
         val muzzleX = centerX - muzzleWidth / 2f
         val muzzleY = centerY + headRadius * 0.2f
         drawOval(
-            color = Color(0xFFF5EBE0),
+            color = Color(0xFF1E3A8A),
             topLeft = Offset(muzzleX, muzzleY),
             size = Size(muzzleWidth, muzzleHeight)
         )
@@ -167,7 +167,7 @@ fun InteractiveBear(
         val noseX = centerX - noseWidth / 2f
         val noseY = centerY + headRadius * 0.26f
         drawOval(
-            color = Color(0xFF2D1A18),
+            color = Color(0xFF1E3A8A),
             topLeft = Offset(noseX, noseY),
             size = Size(noseWidth, noseHeight)
         )
@@ -181,7 +181,7 @@ fun InteractiveBear(
         }
         drawPath(
             path = mouthPath,
-            color = Color(0xFF2D1A18),
+            color = Color(0xFF1E3A8A),
             style = Stroke(width = 3.5f, cap = StrokeCap.Round)
         )
 
@@ -206,7 +206,7 @@ fun InteractiveBear(
             val pLookY = if (peekProgress > 0.05f) -2f else lookY
             
             drawCircle(
-                color = Color(0xFF2D1A18),
+                color = Color(0xFF1E3A8A),
                 radius = currentPupilRadius,
                 center = Offset(eyeLeftX + pLookX, eyeY + pLookY)
             )
@@ -225,7 +225,7 @@ fun InteractiveBear(
             }
             drawPath(
                 path = leftEyePath,
-                color = Color(0xFF2D1A18),
+                color = Color(0xFF1E3A8A),
                 style = Stroke(width = 4f, cap = StrokeCap.Round)
             )
         }
@@ -244,7 +244,7 @@ fun InteractiveBear(
 
             // Pupil
             drawCircle(
-                color = Color(0xFF2D1A18),
+                color = Color(0xFF1E3A8A),
                 radius = currentPupilRadius,
                 center = Offset(eyeRightX + lookX, eyeY + lookY)
             )
@@ -263,7 +263,7 @@ fun InteractiveBear(
             }
             drawPath(
                 path = rightEyePath,
-                color = Color(0xFF2D1A18),
+                color = Color(0xFF1E3A8A),
                 style = Stroke(width = 4f, cap = StrokeCap.Round)
             )
         }
@@ -300,58 +300,58 @@ fun InteractiveBear(
 
         // Draw Left Paw
         drawCircle(
-            color = Color(0xFF8D5B4C),
+            color = Color(0xFFEF4444),
             radius = pawRadius,
             center = Offset(targetLeftPawX, targetLeftPawY)
         )
         // Left Paw Pad
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = pawRadius * 0.5f,
             center = Offset(targetLeftPawX, targetLeftPawY + 2f)
         )
         // Left Paw toes
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = pawRadius * 0.16f,
             center = Offset(targetLeftPawX - 10f, targetLeftPawY - 10f)
         )
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = pawRadius * 0.16f,
             center = Offset(targetLeftPawX, targetLeftPawY - 14f)
         )
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = pawRadius * 0.16f,
             center = Offset(targetLeftPawX + 10f, targetLeftPawY - 10f)
         )
 
         // Draw Right Paw
         drawCircle(
-            color = Color(0xFF8D5B4C),
+            color = Color(0xFFEF4444),
             radius = pawRadius,
             center = Offset(targetRightPawX, targetRightPawY)
         )
         // Right Paw Pad
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = pawRadius * 0.5f,
             center = Offset(targetRightPawX, targetRightPawY + 2f)
         )
         // Right Paw toes
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = pawRadius * 0.16f,
             center = Offset(targetRightPawX - 10f, targetRightPawY - 10f)
         )
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = pawRadius * 0.16f,
             center = Offset(targetRightPawX, targetRightPawY - 14f)
         )
         drawCircle(
-            color = Color(0xFFF3A683),
+            color = Color(0xFFEF4444),
             radius = pawRadius * 0.16f,
             center = Offset(targetRightPawX + 10f, targetRightPawY - 10f)
         )

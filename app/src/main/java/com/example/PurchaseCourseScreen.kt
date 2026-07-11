@@ -56,7 +56,7 @@ fun PurchaseCourseScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFBF8F1))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -67,7 +67,7 @@ fun PurchaseCourseScreen(
                 Text("কোর্স কিনুন", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
         },
-        containerColor = Color(0xFFFBF8F1)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { paddingValues ->
         Column(
             modifier = Modifier
@@ -165,7 +165,7 @@ fun PurchaseCourseScreen(
             val currentNumber = methods.find { it.first == paymentMethod }?.second ?: ""
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9))
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Row(
                     modifier = Modifier.padding(16.dp).fillMaxWidth(),

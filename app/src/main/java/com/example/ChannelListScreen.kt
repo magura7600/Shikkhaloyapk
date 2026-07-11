@@ -82,7 +82,7 @@ fun ChannelListScreen(
                 Icon(Icons.Default.Add, contentDescription = "Create Channel")
             }
         },
-        containerColor = Color(0xFFFBF8F1)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
             if (isLoading) {
@@ -133,7 +133,7 @@ fun ChannelItemCard(channel: UserProfile, onClick: () -> Unit) {
                 modifier = Modifier
                     .size(50.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFE2E8F0)),
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
                 if (channel.profile_image_url != null) {

@@ -157,7 +157,7 @@ fun LoginScreen(
             TextButton(
                 onClick = { isLoginTab = true },
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = if (isLoginTab) Color(0xFF0F766E) else Color.Gray
+                    contentColor = if (isLoginTab) MaterialTheme.colorScheme.primary else Color.Gray
                 )
             ) {
                 Text(
@@ -171,7 +171,7 @@ fun LoginScreen(
             TextButton(
                 onClick = { isLoginTab = false },
                 colors = ButtonDefaults.textButtonColors(
-                    contentColor = if (!isLoginTab) Color(0xFF0F766E) else Color.Gray
+                    contentColor = if (!isLoginTab) MaterialTheme.colorScheme.primary else Color.Gray
                 )
             ) {
                 Text(
@@ -273,7 +273,7 @@ fun LoginScreen(
                 Icon(
                     imageVector = Icons.Default.Email,
                     contentDescription = "Email",
-                    tint = Color(0xFF0F766E),
+                    tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(48.dp)
                 )
             },
@@ -282,14 +282,14 @@ fun LoginScreen(
                     text = "ইমেইল ভেরিফিকেশন প্রয়োজন",
                     fontWeight = FontWeight.Bold,
                     fontSize = 18.sp,
-                    color = Color(0xFF1E293B)
+                    color = MaterialTheme.colorScheme.primary
                 )
             },
             text = {
                 Text(
                     text = "আপনার অ্যাকাউন্ট তৈরি সফল হয়েছে! আমরা '${emailAddress.trim()}' ইমেইলে একটি ভেরিফিকেশন লিঙ্ক পাঠিয়েছি। অনুগ্রহ করে আপনার ইনবক্স (বা স্প্যাম ফোল্ডার) চেক করুন এবং অ্যাকাউন্টটি সক্রিয় করতে লিঙ্কটিতে ক্লিক করুন। এরপর লগইন করুন।",
                     fontSize = 14.sp,
-                    color = Color(0xFF475569)
+                    color = MaterialTheme.colorScheme.primary
                 )
             },
             confirmButton = {
@@ -298,7 +298,7 @@ fun LoginScreen(
                         showVerificationSentDialog = false
                         isLoginTab = true 
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Text("ঠিক আছে", color = Color.White)
                 }
@@ -351,7 +351,7 @@ fun OnboardingScreen(
             Icon(
                 imageVector = Icons.Default.VerifiedUser,
                 contentDescription = "Verified",
-                tint = Color(0xFF0F766E),
+                tint = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(32.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))
@@ -360,7 +360,7 @@ fun OnboardingScreen(
                     text = "প্রোফাইল সম্পন্ন করুন",
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E1B4B)
+                    color = MaterialTheme.colorScheme.primary
                 )
                 Text(
                     text = "সংযুক্ত অ্যাকাউন্ট: $email",
@@ -390,7 +390,7 @@ fun OnboardingScreen(
         Text(
             text = "সতর্কতা: আপনার ভূমিকা (শিক্ষক/শিক্ষার্থী) একবার নির্বাচন করার পর আর পরিবর্তন করা যাবে না।",
             fontSize = 11.sp,
-            color = Color(0xFFEF4444),
+            color = MaterialTheme.colorScheme.error,
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 12.dp)
         )
@@ -410,7 +410,7 @@ fun OnboardingScreen(
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(
                     width = if (selectedRole == "teacher") 2.dp else 1.dp,
-                    color = if (selectedRole == "teacher") Color(0xFF0F766E) else Color.LightGray
+                    color = if (selectedRole == "teacher") MaterialTheme.colorScheme.primary else Color.LightGray
                 ),
                 colors = CardDefaults.cardColors(
                     containerColor = if (selectedRole == "teacher") MaterialTheme.colorScheme.primaryContainer else Color.White
@@ -424,7 +424,7 @@ fun OnboardingScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(if (selectedRole == "teacher") Color(0xFF0F766E) else Color(0xFFF3F4F6)),
+                            .background(if (selectedRole == "teacher") MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -439,7 +439,7 @@ fun OnboardingScreen(
                         text = "শিক্ষক (Teacher)",
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
-                        color = if (selectedRole == "teacher") Color(0xFF0F766E) else Color.DarkGray
+                        color = if (selectedRole == "teacher") MaterialTheme.colorScheme.primary else Color.DarkGray
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
@@ -459,7 +459,7 @@ fun OnboardingScreen(
                 shape = RoundedCornerShape(12.dp),
                 border = BorderStroke(
                     width = if (selectedRole == "student") 2.dp else 1.dp,
-                    color = if (selectedRole == "student") Color(0xFF10B981) else Color.LightGray
+                    color = if (selectedRole == "student") MaterialTheme.colorScheme.secondary else Color.LightGray
                 ),
                 colors = CardDefaults.cardColors(
                     containerColor = if (selectedRole == "student") MaterialTheme.colorScheme.secondaryContainer else Color.White
@@ -473,7 +473,7 @@ fun OnboardingScreen(
                         modifier = Modifier
                             .size(44.dp)
                             .clip(CircleShape)
-                            .background(if (selectedRole == "student") Color(0xFF10B981) else Color(0xFFF3F4F6)),
+                            .background(if (selectedRole == "student") MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceVariant),
                         contentAlignment = Alignment.Center
                     ) {
                         Icon(
@@ -488,7 +488,7 @@ fun OnboardingScreen(
                         text = "শিক্ষার্থী (Student)",
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
-                        color = if (selectedRole == "student") Color(0xFF10B981) else Color.DarkGray
+                        color = if (selectedRole == "student") MaterialTheme.colorScheme.secondary else Color.DarkGray
                     )
                     Spacer(modifier = Modifier.height(2.dp))
                     Text(
@@ -547,9 +547,9 @@ fun OnboardingScreen(
             enabled = !isSavingProfile,
             colors = ButtonDefaults.buttonColors(
                 containerColor = when (selectedRole) {
-                    "student" -> Color(0xFF10B981)
+                    "student" -> MaterialTheme.colorScheme.secondary
                     "admin" -> Color.Red
-                    else -> Color(0xFF0F766E)
+                    else -> MaterialTheme.colorScheme.primary
                 }
             )
         ) {

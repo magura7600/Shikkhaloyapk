@@ -231,7 +231,7 @@ fun AddEditSubjectDialog(
     }
 
     Dialog(onDismissRequest = onDismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(modifier = Modifier.fillMaxSize(), color = Color(0xFF0F172A)) {
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.primary) {
             Column(modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState())) {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text(if (initialSubject == null) "নতুন বিষয় যোগ করুন" else "বিষয় এডিট করুন", fontSize = 20.sp, fontWeight = FontWeight.Bold)
@@ -260,7 +260,7 @@ fun AddEditSubjectDialog(
                     Button(
                         onClick = { logoPickerLauncher.launch("image/*") },
                         enabled = !isUploadingLogo,
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                     ) {
                         if (isUploadingLogo) {
                             CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.White)
@@ -366,14 +366,14 @@ fun AddEditSubjectDialog(
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF334155).copy(alpha = 0.3f)),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0).copy(alpha = 0.5f))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                 ) {
                     Column(
                         modifier = Modifier.padding(14.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text("কালার স্লাইডার ব্যবহার করে রং পছন্দ করুন:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = Color(0xFF0F766E))
+                        Text("কালার স্লাইডার ব্যবহার করে রং পছন্দ করুন:", fontSize = 13.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
                         
                         // Hue slider
                         Column {
@@ -509,7 +509,7 @@ fun AddEditSubjectDialog(
                     Spacer(modifier = Modifier.height(24.dp))
                     Text("যেসব কোর্সে এই বিষয়টি যুক্ত থাকবে", fontWeight = FontWeight.Bold, color = Color.Gray, fontSize = 14.sp)
                     Spacer(modifier = Modifier.height(8.dp))
-                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6))) {
+                    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(8.dp), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
                         Column(modifier = Modifier.padding(8.dp)) {
                             otherCourses.forEach { otherCourse ->
                                 Row(

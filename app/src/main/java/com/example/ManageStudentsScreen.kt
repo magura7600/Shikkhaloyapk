@@ -268,7 +268,7 @@ fun StudentItem(
 
             if (isBanned) {
                 IconButton(onClick = onUnbanClick) {
-                    Icon(Icons.Default.CheckCircle, contentDescription = "Unban", tint = Color(0xFF10B981))
+                    Icon(Icons.Default.CheckCircle, contentDescription = "Unban", tint = MaterialTheme.colorScheme.secondary)
                 }
             } else {
                 IconButton(onClick = onBanClick) {

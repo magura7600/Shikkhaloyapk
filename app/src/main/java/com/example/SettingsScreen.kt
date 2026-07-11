@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PlayCircleOutline
 import androidx.compose.material.icons.outlined.SystemUpdate
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,7 +93,7 @@ fun SettingsScreen(
                 text = "সেটিংস".t(),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF1E293B)
+                color = MaterialTheme.colorScheme.onBackground
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -101,7 +102,7 @@ fun SettingsScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onBackground),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -125,7 +126,7 @@ fun SettingsScreen(
                             onClick = { showProfileEditDialog = true }
                         )
                     }
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
+                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                     SettingItem(
                         icon = Icons.Default.Lock,
                         title = "পাসওয়ার্ড পরিবর্তন".t(),
@@ -142,13 +143,13 @@ fun SettingsScreen(
                 text = "পছন্দসমূহ".t(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B).copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onBackground),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -161,7 +162,7 @@ fun SettingsScreen(
                         accentColor = accentColor,
                         onClick = { showLanguageSheet = true }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
+                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                     SettingItem(
                         icon = Icons.Outlined.Palette,
                         title = "থিম পরিবর্তন".t(),
@@ -173,7 +174,7 @@ fun SettingsScreen(
                         accentColor = accentColor,
                         onClick = { showThemeSheet = true }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
+                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                     SettingToggleItem(
                         icon = Icons.Outlined.PlayCircleOutline,
                         title = "পপ-আপ ভিডিও মোড".t(),
@@ -185,7 +186,7 @@ fun SettingsScreen(
                         }
                     )
                     if (!isTeacher) {
-                        Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
+                        Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                         SettingItem(
                             icon = Icons.Outlined.Download,
                             title = "অফলাইন ডাউনলোড".t(),
@@ -204,18 +205,18 @@ fun SettingsScreen(
                     text = "প্রশাসনিক প্যানেল".t(),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B).copy(alpha = 0.7f),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                 )
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (ThemeManager.isDarkTheme()) Color(0xFF1E3A8A).copy(alpha = 0.4f) else Color(0xFFEFF6FF)
+                        containerColor = if (ThemeManager.isDarkTheme()) MaterialTheme.colorScheme.primary.copy(alpha = 0.4f) else MaterialTheme.colorScheme.primaryContainer
                     ),
                     border = androidx.compose.foundation.BorderStroke(
                         1.dp,
-                        if (ThemeManager.isDarkTheme()) Color(0xFF0F766E).copy(alpha = 0.5f) else Color(0xFFBFDBFE)
+                        if (ThemeManager.isDarkTheme()) MaterialTheme.colorScheme.primary.copy(alpha = 0.5f) else MaterialTheme.colorScheme.outlineVariant
                     ),
                     elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                 ) {
@@ -239,13 +240,13 @@ fun SettingsScreen(
                 text = "এপ আপডেট".t(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B).copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onBackground),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -277,7 +278,7 @@ fun SettingsScreen(
                         }
                     )
                     if (isAdmin) {
-                        Divider(modifier = Modifier.padding(horizontal = 16.dp), color = Color(0xFFF3F4F6))
+                        Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                         SettingItem(
                             icon = Icons.Outlined.CloudUpload,
                             title = "আপডেট পাবলিশ করুন".t(),
@@ -295,13 +296,13 @@ fun SettingsScreen(
                 text = "অ্যাকাউন্ট ও নিরাপত্তা".t(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B).copy(alpha = 0.7f),
+                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF1E293B)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.onBackground),
                 elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(
@@ -338,7 +339,7 @@ fun SettingsScreen(
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = Color.Red)
                 ) {
-                    Text("হ্যাঁ, লগ আউট করুন".t(), color = Color.White)
+                    Text("হ্যাঁ, লগ আউট করুন".t(), color = MaterialTheme.colorScheme.surface)
                 }
             },
             dismissButton = {
@@ -429,7 +430,7 @@ fun LanguageSelectionSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1E293B)
+        containerColor = MaterialTheme.colorScheme.onBackground
     ) {
         Column(
             modifier = Modifier
@@ -440,7 +441,7 @@ fun LanguageSelectionSheet(
                 text = if (currentLang == "bn") "ভাষা পরিবর্তন করুন" else "Select Language",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = MaterialTheme.colorScheme.surfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -463,7 +464,7 @@ fun LanguageSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("English", fontSize = 16.sp, color = Color(0xFF0F172A))
+                Text("English", fontSize = 16.sp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
 
             Row(
@@ -485,7 +486,7 @@ fun LanguageSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("বাংলা (Bengali)", fontSize = 16.sp, color = Color(0xFF0F172A))
+                Text("বাংলা (Bengali)", fontSize = 16.sp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -504,7 +505,7 @@ fun ThemeSelectionSheet(
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF1E293B)
+        containerColor = MaterialTheme.colorScheme.onBackground
     ) {
         Column(
             modifier = Modifier
@@ -515,7 +516,7 @@ fun ThemeSelectionSheet(
                 text = "থিম নির্বাচন করুন".t(),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF0F172A)
+                color = MaterialTheme.colorScheme.surfaceVariant
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -539,7 +540,7 @@ fun ThemeSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("লাইট থিম".t(), fontSize = 16.sp, color = Color(0xFF0F172A))
+                Text("লাইট থিম".t(), fontSize = 16.sp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
 
             // Dark theme option
@@ -562,7 +563,7 @@ fun ThemeSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("ডার্ক থিম".t(), fontSize = 16.sp, color = Color(0xFF0F172A))
+                Text("ডার্ক থিম".t(), fontSize = 16.sp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
 
             // System default theme option
@@ -585,7 +586,7 @@ fun ThemeSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("সistem ডিফল্ট".t(), fontSize = 16.sp, color = Color(0xFF0F172A))
+                Text("সistem ডিফল্ট".t(), fontSize = 16.sp, color = MaterialTheme.colorScheme.surfaceVariant)
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -612,7 +613,7 @@ fun ChangePasswordDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text("পাসওয়ার্ড পরিবর্তন করুন".t(), fontWeight = FontWeight.Bold, fontSize = 20.sp)
         },
@@ -722,7 +723,7 @@ fun ChangePasswordDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.surface)
                 } else {
                     Text("পরিবর্তন করুন".t())
                 }
@@ -781,7 +782,7 @@ fun ProfileEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color.White,
+        containerColor = MaterialTheme.colorScheme.surface,
         title = {
             Text("Edit Profile", fontWeight = FontWeight.Bold, fontSize = 20.sp)
         },
@@ -795,7 +796,7 @@ fun ProfileEditDialog(
                     modifier = Modifier
                         .size(80.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFF3F4F6))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { imagePicker.launch("image/*") },
                     contentAlignment = Alignment.Center
                 ) {
@@ -881,7 +882,7 @@ fun ProfileEditDialog(
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
             ) {
                 if (isSaving) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White)
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MaterialTheme.colorScheme.surface)
                 } else {
                     Text("Save Changes")
                 }
@@ -914,7 +915,7 @@ fun SettingItem(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .background(if (isDestructive) Color(0xFFFEE2E2) else Color(0xFFF3F4F6), CircleShape),
+                .background(if (isDestructive) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -966,7 +967,7 @@ fun SettingToggleItem(
         Box(
             modifier = Modifier
                 .size(40.dp)
-                .background(Color(0xFFF3F4F6), CircleShape),
+                .background(MaterialTheme.colorScheme.surfaceVariant, CircleShape),
             contentAlignment = Alignment.Center
         ) {
             Icon(
@@ -994,7 +995,7 @@ fun SettingToggleItem(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = androidx.compose.material3.SwitchDefaults.colors(
-                checkedThumbColor = Color.White,
+                checkedThumbColor = MaterialTheme.colorScheme.surface,
                 checkedTrackColor = accentColor
             )
         )

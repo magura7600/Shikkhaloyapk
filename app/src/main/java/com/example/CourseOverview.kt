@@ -189,7 +189,7 @@ fun UnenrolledCourseOverview(
                         Spacer(modifier = Modifier.width(8.dp))
                         Box(
                             modifier = Modifier
-                                .background(Color(0xFFFEE2E2), RoundedCornerShape(4.dp))
+                                .background(Color(0xFF1E3A8A), RoundedCornerShape(4.dp))
                                 .padding(horizontal = 6.dp, vertical = 2.dp)
                         ) {
                             Text("$pct% ছাড়", fontSize = 11.sp, color = Color.Red, fontWeight = FontWeight.Bold)
@@ -266,15 +266,15 @@ fun UnenrolledCourseOverview(
                     
                     if (currentDate.isBefore(start)) {
                         statusText = "পড়ানো হবে"
-                        statusColor = Color(0xFF0F766E) // Blue
+                        statusColor = Color(0xFF1E3A8A) // Blue
                         statusIcon = Icons.Default.Schedule
                     } else if (currentDate.isAfter(end)) {
                         statusText = "সম্পন্ন"
-                        statusColor = Color(0xFF22C55E) // Green
+                        statusColor = Color(0xFF10B981) // Green
                         statusIcon = Icons.Default.CheckCircle
                     } else {
                         statusText = "পড়ানো হচ্ছে"
-                        statusColor = Color(0xFFEAB308) // Yellow/Orange
+                        statusColor = Color(0xFFEF4444) // Yellow/Orange
                         statusIcon = Icons.Default.PlayCircle
                     }
                 } catch (e: Exception) { }
@@ -282,7 +282,7 @@ fun UnenrolledCourseOverview(
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                    border = BorderStroke(1.dp, Color(0xFFF3F4F6)),
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Column(modifier = Modifier.padding(16.dp).fillMaxWidth()) {
@@ -410,7 +410,7 @@ fun LearningResourcesScreen(
                 )
             }
         },
-        containerColor = Color(0xFFF1F5F9), // Light gray background
+        containerColor = Color(0xFFF3F4F6), // Light gray background
         floatingActionButton = {
             if (isTeacher) {
                 FloatingActionButton(
@@ -449,7 +449,20 @@ fun LearningResourcesScreen(
                     val isDownloaded = downloadedRecord != null
                     val downloadState = downloadStates[pdf.url]
                     
-                    val isCloudOrWebUrl = remember { { url: String -> false } }
+                    val isCloudOrWebUrl = remember {
+                        { url: String ->
+                            val lower = url.lowercase().trim()
+                            val clean = if (lower.contains("?")) lower.substringBefore("?") else lower
+                            clean.contains("drive.google.com") ||
+                            clean.contains("docs.google.com") ||
+                            clean.contains("dropbox.com") ||
+                            clean.contains("mega.nz") ||
+                            clean.contains("mediafire.com") ||
+                            clean.contains("onedrive") ||
+                            clean.contains("google.com/open") ||
+                            (!clean.endsWith(".pdf") && clean.isNotEmpty())
+                        }
+                    }
                     val openBrowserIntent = remember {
                         { targetUrl: String ->
                             try {
@@ -493,13 +506,13 @@ fun LearningResourcesScreen(
                                     text = pdf.title,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1E293B)
+                                    color = Color(0xFF1E3A8A)
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(
                                     text = if (isDownloaded) "অফলাইন (ডাউনলোডকৃত)" else "অনলাইন রিসোর্স",
                                     fontSize = 12.sp,
-                                    color = if (isDownloaded) Color(0xFF10B981) else Color(0xFF64748B),
+                                    color = if (isDownloaded) Color(0xFF10B981) else Color(0xFF1E3A8A),
                                     fontWeight = if (isDownloaded) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
@@ -614,7 +627,7 @@ fun LearningResourcesScreen(
                                         Icon(
                                             imageVector = Icons.Default.Download,
                                             contentDescription = "Download",
-                                            tint = Color(0xFF64748B)
+                                            tint = Color(0xFF1E3A8A)
                                         )
                                     }
                                 }

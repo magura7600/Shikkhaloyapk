@@ -87,9 +87,24 @@ object FacebookVideoExtractor {
         }
     }
 
+    private fun isFacebookOrInstagramUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.contains("facebook.com") || 
+               lower.contains("fbcdn.net") || 
+               lower.contains("fb.watch") || 
+               lower.contains("fb.me") || 
+               lower.contains("instagram.com") || 
+               lower.contains("cdninstagram.com")
+    }
+
     private fun resolveVideoDirectUrlRedirect(urlStr: String): String {
+        val trimmed = urlStr.trim()
+        val cleanUrl = trimmed.replace(" ", "%20")
+        if (!isFacebookOrInstagramUrl(cleanUrl)) {
+            return cleanUrl
+        }
         try {
-            var currentUrl = urlStr.trim().replace(" ", "%20")
+            var currentUrl = cleanUrl
             for (i in 0..4) {
                 val connection = java.net.URL(currentUrl).openConnection() as java.net.HttpURLConnection
                 connection.instanceFollowRedirects = false

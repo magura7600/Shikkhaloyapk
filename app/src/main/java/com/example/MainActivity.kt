@@ -459,9 +459,9 @@ class MainActivity : ComponentActivity() {
             ) {
                 val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
                     colors = if (isDark) {
-                        listOf(Color(0xFF0F172A), Color(0xFF020617))
+                        listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary)
                     } else {
-                        listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+                        listOf(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.colorScheme.surfaceVariant)
                     }
                 )
                 Surface(
@@ -862,7 +862,7 @@ fun MainAppContent() {
     if (currentUpdate != null) {
         UpdatePromptDialog(
             update = currentUpdate,
-            accentColor = Color(0xFF6366F1),
+            accentColor = MaterialTheme.colorScheme.primary,
             isAdmin = userIsAdmin,
             onDismiss = { activeUpdateToPrompt = null }
         )
@@ -872,7 +872,7 @@ fun MainAppContent() {
     if (currentNotice != null) {
         EmergencyNoticeDialog(
             notice = currentNotice,
-            accentColor = Color(0xFF6366F1),
+            accentColor = MaterialTheme.colorScheme.primary,
             onDismiss = { activeNoticeToPrompt = null }
         )
     }

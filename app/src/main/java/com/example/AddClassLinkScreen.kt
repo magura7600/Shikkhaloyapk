@@ -77,7 +77,7 @@ fun AddClassLinkScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .background(Color(0xFFF1F5F9))
+                .background(MaterialTheme.colorScheme.surfaceVariant)
                 .padding(16.dp)
         ) {
             // Date Picker Card

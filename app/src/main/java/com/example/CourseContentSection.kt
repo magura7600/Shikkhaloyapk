@@ -322,7 +322,7 @@ fun CourseContentSection(
                     modifier = Modifier
                         .background(
                             Brush.linearGradient(
-                                colors = listOf(Color(0xFF2563EB), Color(0xFF0F766E))
+                                colors = listOf(Color(0xFF1E3A8A), Color(0xFF1E3A8A))
                             )
                         )
                         .padding(horizontal = 20.dp, vertical = 18.dp)
@@ -412,10 +412,10 @@ fun CourseContentSection(
                             ""
                         }
 
-                        val cardBgColor = if (isSelected) Color(0xFF2563EB) else Color.White
-                        val cardTextColor = if (isSelected) Color.White else Color(0xFF1E293B)
-                        val cardSubTextColor = if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B)
-                        val cardBorderColor = if (isSelected) Color(0xFF1D4ED8) else Color(0xFFE2E8F0)
+                        val cardBgColor = if (isSelected) Color(0xFF1E3A8A) else Color.White
+                        val cardTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
+                        val cardSubTextColor = if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0xFF1E3A8A)
+                        val cardBorderColor = if (isSelected) Color(0xFF1E3A8A) else Color(0xFFF3F4F6)
 
                         Card(
                             onClick = { selectedQuarterName = qName },
@@ -445,7 +445,7 @@ fun CourseContentSection(
                                     // Dynamic Quarter Status Badge
                                     var quarterStatus = "আনলক"
                                     var statusBgColor = if (isSelected) Color.White.copy(alpha = 0.2f) else Color(0xFFD1FAE5)
-                                    var statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
+                                    var statusTextColor = if (isSelected) Color.White else Color(0xFF10B981)
 
                                     if (quarterObj != null && quarterObj.startDate.isNotBlank() && quarterObj.endDate.isNotBlank()) {
                                         try {
@@ -458,22 +458,22 @@ fun CourseContentSection(
                                             if (today.isBefore(start)) {
                                                 if (hasClasses) {
                                                     quarterStatus = "পড়ানো হচ্ছে"
-                                                    statusBgColor = if (isSelected) Color(0xFFFEF08A).copy(alpha = 0.3f) else Color(0xFFFEF9C3)
-                                                    statusTextColor = if (isSelected) Color.White else Color(0xFF854D0E)
+                                                    statusBgColor = if (isSelected) Color(0xFFF59E0B).copy(alpha = 0.3f) else Color(0xFF1E3A8A)
+                                                    statusTextColor = if (isSelected) Color.White else Color(0xFFEF4444)
                                                 } else {
                                                     quarterStatus = "পড়ানো হবে"
-                                                    statusBgColor = if (isSelected) Color(0xFF93C5FD).copy(alpha = 0.3f) else Color(0xFFDBEAFE)
+                                                    statusBgColor = if (isSelected) Color(0xFF1E3A8A).copy(alpha = 0.3f) else Color(0xFFEFF6FF)
                                                     statusTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
                                                 }
                                             } else if (today.isAfter(end)) {
 
                                                 quarterStatus = "পড়ানো শেষ"
                                                 statusBgColor = if (isSelected) Color(0xFFD1FAE5).copy(alpha = 0.3f) else Color(0xFFD1FAE5)
-                                                statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFF10B981)
                                             } else {
                                                 quarterStatus = "পড়ানো হচ্ছে"
-                                                statusBgColor = if (isSelected) Color(0xFFFEF08A).copy(alpha = 0.3f) else Color(0xFFFEF9C3)
-                                                statusTextColor = if (isSelected) Color.White else Color(0xFF854D0E)
+                                                statusBgColor = if (isSelected) Color(0xFFF59E0B).copy(alpha = 0.3f) else Color(0xFF1E3A8A)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFFEF4444)
                                             }
                                         } catch (e: Exception) { }
                                     }
@@ -561,7 +561,7 @@ fun CourseContentSection(
                                     .clickable { onSelectedSubjectChange(subject) },
                                 shape = RoundedCornerShape(20.dp),
                                 colors = CardDefaults.cardColors(containerColor = Color.White),
-                                border = BorderStroke(1.dp, Color(0xFFE2E8F0)),
+                                border = BorderStroke(1.dp, Color(0xFFF3F4F6)),
                                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
                             ) {
                                 Box(modifier = Modifier.fillMaxSize()) {
@@ -656,7 +656,7 @@ fun CourseContentSection(
                                     ) {
                                         Text(
                                             text = subject.title,
-                                            color = Color(0xFF0F172A),
+                                            color = Color(0xFF1E3A8A),
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 15.sp,
                                             maxLines = 1,
@@ -673,19 +673,19 @@ fun CourseContentSection(
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier
-                                                    .background(Color(0xFFEFF6FF), shape = RoundedCornerShape(6.dp))
+                                                    .background(Color(0xFFF3F4F6), shape = RoundedCornerShape(6.dp))
                                                     .padding(horizontal = 6.dp, vertical = 3.dp)
                                             ) {
                                                 Icon(
                                                     imageVector = Icons.Default.PlayCircle,
                                                     contentDescription = "Videos",
-                                                    tint = Color(0xFF0F766E),
+                                                    tint = Color(0xFF1E3A8A),
                                                     modifier = Modifier.size(10.dp)
                                                 )
                                                 Spacer(modifier = Modifier.width(3.dp))
                                                 Text(
                                                     text = "${convertToBengaliDigits(totalVideos.toString())} ভিডিও",
-                                                    color = Color(0xFF1D4ED8),
+                                                    color = Color(0xFF1E3A8A),
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     maxLines = 1,
@@ -696,7 +696,7 @@ fun CourseContentSection(
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier
-                                                    .background(Color(0xFFF0FDF4), shape = RoundedCornerShape(6.dp))
+                                                    .background(Color(0xFFF3F4F6), shape = RoundedCornerShape(6.dp))
                                                     .padding(horizontal = 6.dp, vertical = 3.dp)
                                             ) {
                                                 Icon(
@@ -708,7 +708,7 @@ fun CourseContentSection(
                                                 Spacer(modifier = Modifier.width(3.dp))
                                                 Text(
                                                     text = "${convertToBengaliDigits(totalPdfs.toString())} ডকুমেন্ট",
-                                                    color = Color(0xFF047857),
+                                                    color = Color(0xFF10B981),
                                                     fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     maxLines = 1,
@@ -794,10 +794,10 @@ fun CourseContentSection(
                             ""
                         }
 
-                        val cardBgColor = if (isSelected) Color(0xFF2563EB) else Color.White
-                        val cardTextColor = if (isSelected) Color.White else Color(0xFF1E293B)
-                        val cardSubTextColor = if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0xFF64748B)
-                        val cardBorderColor = if (isSelected) Color(0xFF1D4ED8) else Color(0xFFE2E8F0)
+                        val cardBgColor = if (isSelected) Color(0xFF1E3A8A) else Color.White
+                        val cardTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
+                        val cardSubTextColor = if (isSelected) Color.White.copy(alpha = 0.8f) else Color(0xFF1E3A8A)
+                        val cardBorderColor = if (isSelected) Color(0xFF1E3A8A) else Color(0xFFF3F4F6)
 
                         Card(
                             onClick = { selectedQuarterName = qName },
@@ -826,7 +826,7 @@ fun CourseContentSection(
                                     // Dynamic Quarter Status Badge
                                     var quarterStatus = "আনলক"
                                     var statusBgColor = if (isSelected) Color.White.copy(alpha = 0.2f) else Color(0xFFD1FAE5)
-                                    var statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
+                                    var statusTextColor = if (isSelected) Color.White else Color(0xFF10B981)
 
                                     if (quarterObj != null && quarterObj.startDate.isNotBlank() && quarterObj.endDate.isNotBlank()) {
                                         try {
@@ -839,22 +839,22 @@ fun CourseContentSection(
                                             if (today.isBefore(start)) {
                                                 if (hasClasses) {
                                                     quarterStatus = "পড়ানো হচ্ছে"
-                                                    statusBgColor = if (isSelected) Color(0xFFFEF08A).copy(alpha = 0.3f) else Color(0xFFFEF9C3)
-                                                    statusTextColor = if (isSelected) Color.White else Color(0xFF854D0E)
+                                                    statusBgColor = if (isSelected) Color(0xFFF59E0B).copy(alpha = 0.3f) else Color(0xFF1E3A8A)
+                                                    statusTextColor = if (isSelected) Color.White else Color(0xFFEF4444)
                                                 } else {
                                                     quarterStatus = "পড়ানো হবে"
-                                                    statusBgColor = if (isSelected) Color(0xFF93C5FD).copy(alpha = 0.3f) else Color(0xFFDBEAFE)
+                                                    statusBgColor = if (isSelected) Color(0xFF1E3A8A).copy(alpha = 0.3f) else Color(0xFFEFF6FF)
                                                     statusTextColor = if (isSelected) Color.White else Color(0xFF1E3A8A)
                                                 }
                                             } else if (today.isAfter(end)) {
 
                                                 quarterStatus = "পড়ানো শেষ"
                                                 statusBgColor = if (isSelected) Color(0xFFD1FAE5).copy(alpha = 0.3f) else Color(0xFFD1FAE5)
-                                                statusTextColor = if (isSelected) Color.White else Color(0xFF065F46)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFF10B981)
                                             } else {
                                                 quarterStatus = "পড়ানো হচ্ছে"
-                                                statusBgColor = if (isSelected) Color(0xFFFEF08A).copy(alpha = 0.3f) else Color(0xFFFEF9C3)
-                                                statusTextColor = if (isSelected) Color.White else Color(0xFF854D0E)
+                                                statusBgColor = if (isSelected) Color(0xFFF59E0B).copy(alpha = 0.3f) else Color(0xFF1E3A8A)
+                                                statusTextColor = if (isSelected) Color.White else Color(0xFFEF4444)
                                             }
                                         } catch (e: Exception) { }
                                     }
@@ -983,7 +983,7 @@ fun CourseContentSection(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 32.dp)
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
+                        .background(Color(0xFFF3F4F6), RoundedCornerShape(16.dp))
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -992,19 +992,19 @@ fun CourseContentSection(
                             imageVector = Icons.Default.EventAvailable,
                             contentDescription = "Empty",
                             modifier = Modifier.size(64.dp),
-                            tint = Color(0xFF0F172A).copy(alpha = 0.5f)
+                            tint = Color(0xFF1E3A8A).copy(alpha = 0.5f)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
                             text = "এই কোয়ার্টারে ক্লাস শুরু হয়নি",
-                            color = Color(0xFF475569),
+                            color = Color(0xFF1E3A8A),
                             fontSize = 18.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "খুব শীঘ্রই এই কোয়ার্টারের ক্লাস শুরু হবে। প্রস্তুতি নিতে থাকুন!",
-                            color = Color(0xFF64748B),
+                            color = Color(0xFF1E3A8A),
                             fontSize = 14.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center
                         )
@@ -1017,19 +1017,19 @@ fun CourseContentSection(
                     // Display Badge according to Teaching Status
                     val displayStatus = if (chapter.classes.isEmpty()) "পড়ানো হবে" else chapter.teachingStatus
                     val (statusBgColor, statusTextColor) = when (displayStatus) {
-                        "পড়ানো শেষ" -> Pair(Color(0xFFD1FAE5), Color(0xFF065F46))
-                        "পড়ানো হচ্ছে" -> Pair(Color(0xFFDBEAFE), Color(0xFF1E40AF))
-                        else -> Pair(Color(0xFFF1F5F9), Color(0xFF475569)) // পড়ানো হবে
+                        "পড়ানো শেষ" -> Pair(Color(0xFFD1FAE5), Color(0xFF10B981))
+                        "পড়ানো হচ্ছে" -> Pair(Color(0xFFEFF6FF), Color(0xFF1E3A8A))
+                        else -> Pair(Color(0xFFF3F4F6), Color(0xFF1E3A8A)) // পড়ানো হবে
                     }
 
                     Card(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(bottom = 12.dp)
-                            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color(0xFF64748B).copy(alpha = 0.2f)),
+                            .shadow(4.dp, RoundedCornerShape(16.dp), spotColor = Color(0xFF1E3A8A).copy(alpha = 0.2f)),
                         shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
-                        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
+                        border = BorderStroke(1.dp, Color(0xFFF3F4F6))
                     ) {
                         Column(modifier = Modifier.padding(16.dp)) {
                             Row(
@@ -1104,20 +1104,20 @@ fun CourseContentSection(
                                     // Class Count Badge (e.g., "২ ক্লাস")
                                     Row(
                                         modifier = Modifier
-                                            .background(Color(0xFFEFF6FF), RoundedCornerShape(8.dp))
+                                            .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
                                             .padding(horizontal = 8.dp, vertical = 6.dp),
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Icon(
                                             imageVector = Icons.Default.ListAlt,
                                             contentDescription = null,
-                                            tint = Color(0xFF0F766E),
+                                            tint = Color(0xFF1E3A8A),
                                             modifier = Modifier.size(14.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
                                             text = "${chapter.classes.size} ক্লাস",
-                                            color = Color(0xFF1D4ED8),
+                                            color = Color(0xFF1E3A8A),
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 12.sp
                                         )
@@ -1158,14 +1158,14 @@ fun CourseContentSection(
                                     Card(
                                         onClick = { onSelectedChapterChange(chapter) },
                                         shape = CircleShape,
-                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF1F5F9)),
+                                        colors = CardDefaults.cardColors(containerColor = Color(0xFFF3F4F6)),
                                         modifier = Modifier.size(32.dp)
                                     ) {
                                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                             Icon(
                                                 imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                                 contentDescription = "Open Chapter",
-                                                tint = Color(0xFF475569),
+                                                tint = Color(0xFF1E3A8A),
                                                 modifier = Modifier.size(16.dp).rotate(180f)
                                             )
                                         }
@@ -1180,7 +1180,7 @@ fun CourseContentSection(
                                 text = chapter.title,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Bold,
-                                color = Color(0xFF1E293B),
+                                color = Color(0xFF1E3A8A),
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clickable { onSelectedChapterChange(chapter) }
@@ -1525,7 +1525,7 @@ fun CourseContentSection(
         ) {
             Surface(
                 modifier = Modifier.fillMaxSize(),
-                color = Color(0xFF0F172A)
+                color = Color(0xFF1E3A8A)
             ) {
                 Column(
                     modifier = Modifier.fillMaxSize().padding(16.dp)
@@ -1602,9 +1602,9 @@ fun CourseContentSection(
                                     readOnly = true,
                                     enabled = false,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        disabledTextColor = Color(0xFF0F172A),
-                                        disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                        disabledLabelColor = Color(0xFF64748B)
+                                        disabledTextColor = Color(0xFF1E3A8A),
+                                        disabledBorderColor = Color(0xFF9CA3AF),
+                                        disabledLabelColor = Color(0xFF1E3A8A)
                                     )
                                 )
                             }
@@ -1630,9 +1630,9 @@ fun CourseContentSection(
                                     readOnly = true,
                                     enabled = false,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        disabledTextColor = Color(0xFF0F172A),
-                                        disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                        disabledLabelColor = Color(0xFF64748B)
+                                        disabledTextColor = Color(0xFF1E3A8A),
+                                        disabledBorderColor = Color(0xFF9CA3AF),
+                                        disabledLabelColor = Color(0xFF1E3A8A)
                                     )
                                 )
                             }
@@ -1652,10 +1652,10 @@ fun CourseContentSection(
                                         modifier = Modifier.fillMaxWidth(),
                                         trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown") },
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            disabledTextColor = Color(0xFF0F172A),
-                                            disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                            disabledLabelColor = Color(0xFF64748B),
-                                            disabledTrailingIconColor = Color(0xFF64748B)
+                                            disabledTextColor = Color(0xFF1E3A8A),
+                                            disabledBorderColor = Color(0xFF9CA3AF),
+                                            disabledLabelColor = Color(0xFF1E3A8A),
+                                            disabledTrailingIconColor = Color(0xFF1E3A8A)
                                         )
                                     )
                                 }
@@ -1689,10 +1689,10 @@ fun CourseContentSection(
                                     modifier = Modifier.fillMaxWidth(),
                                     trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown") },
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        disabledTextColor = Color(0xFF0F172A),
-                                        disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                        disabledLabelColor = Color(0xFF64748B),
-                                        disabledTrailingIconColor = Color(0xFF64748B)
+                                        disabledTextColor = Color(0xFF1E3A8A),
+                                        disabledBorderColor = Color(0xFF9CA3AF),
+                                        disabledLabelColor = Color(0xFF1E3A8A),
+                                        disabledTrailingIconColor = Color(0xFF1E3A8A)
                                     )
                                 )
                             }
@@ -1726,7 +1726,7 @@ fun CourseContentSection(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .padding(vertical = 4.dp)
-                                    .background(Color(0xFFF1F5F9), RoundedCornerShape(8.dp))
+                                    .background(Color(0xFFF3F4F6), RoundedCornerShape(8.dp))
                                     .padding(horizontal = 8.dp, vertical = 6.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.SpaceBetween

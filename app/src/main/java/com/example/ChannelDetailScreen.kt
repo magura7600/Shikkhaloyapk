@@ -81,7 +81,7 @@ fun ChannelDetailScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFBF8F1))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize()
@@ -94,7 +94,7 @@ fun ChannelDetailScreen(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(170.dp)
-                            .background(Color(0xFFE2E8F0))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                     ) {
                         if (currentChannel.cover_image_url != null) {
                             AsyncImage(
@@ -129,7 +129,7 @@ fun ChannelDetailScreen(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .clip(CircleShape)
-                                .background(Color(0xFFE2E8F0)),
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
                             if (currentChannel.profile_image_url != null) {
@@ -165,12 +165,12 @@ fun ChannelDetailScreen(
                         currentChannel.full_name,
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 24.sp,
-                        color = Color(0xFF1E293B)
+                        color = MaterialTheme.colorScheme.primary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         "@${currentChannel.handle}",
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.primary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -198,7 +198,7 @@ fun ChannelDetailScreen(
                                     "কোর্স",
                                     fontSize = 15.sp,
                                     fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selectedTab == 0) accentColor else Color(0xFF64748B)
+                                    color = if (selectedTab == 0) accentColor else MaterialTheme.colorScheme.primary
                                 )
                             }
                         )
@@ -210,7 +210,7 @@ fun ChannelDetailScreen(
                                     "মিডিয়া",
                                     fontSize = 15.sp,
                                     fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (selectedTab == 1) accentColor else Color(0xFF64748B)
+                                    color = if (selectedTab == 1) accentColor else MaterialTheme.colorScheme.primary
                                 )
                             }
                         )
@@ -275,13 +275,13 @@ fun ChannelDetailScreen(
                                             course.title,
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 16.sp,
-                                            color = Color(0xFF1E293B)
+                                            color = MaterialTheme.colorScheme.primary
                                         )
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             course.description,
                                             fontSize = 13.sp,
-                                            color = Color(0xFF64748B),
+                                            color = MaterialTheme.colorScheme.primary,
                                             maxLines = 1
                                         )
                                         Spacer(modifier = Modifier.height(8.dp))
@@ -297,7 +297,7 @@ fun ChannelDetailScreen(
                                                 Text(
                                                     "৳${course.mainPrice}",
                                                     fontSize = 12.sp,
-                                                    color = Color(0xFF64748B)
+                                                    color = MaterialTheme.colorScheme.primary
                                                 )
                                             }
                                             if (course.isQuarterOn && course.quarters.isNotEmpty()) {
@@ -305,7 +305,7 @@ fun ChannelDetailScreen(
                                                 Text(
                                                     "${course.quarters.size} Quarters",
                                                     fontSize = 12.sp,
-                                                    color = Color(0xFF64748B)
+                                                    color = MaterialTheme.colorScheme.primary
                                                 )
                                             }
                                         }
@@ -361,7 +361,7 @@ fun ChannelDetailScreen(
                 onClick = onBack,
                 modifier = Modifier
                     .size(40.dp)
-                    .background(Color(0x77000000), shape = CircleShape)
+                    .background(MaterialTheme.colorScheme.onSurface, shape = CircleShape)
             ) {
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
@@ -376,7 +376,7 @@ fun ChannelDetailScreen(
                     onClick = { isEditing = true },
                     modifier = Modifier
                         .size(40.dp)
-                        .background(Color(0x77000000), shape = CircleShape)
+                        .background(MaterialTheme.colorScheme.onSurface, shape = CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Edit,
@@ -470,8 +470,8 @@ fun CourseTabContent(
                     }
                     Spacer(modifier = Modifier.width(16.dp))
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(course.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color(0xFF2D3748))
-                        Text(course.description, fontSize = 12.sp, color = Color(0xFF718096), maxLines = 1)
+                        Text(course.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.primary)
+                        Text(course.description, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary, maxLines = 1)
                         Spacer(modifier = Modifier.height(8.dp))
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(course.pricingOption, fontSize = 12.sp, color = accentColor, fontWeight = FontWeight.Bold)

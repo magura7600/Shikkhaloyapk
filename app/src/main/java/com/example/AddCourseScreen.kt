@@ -118,7 +118,7 @@ fun AddCourseScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        containerColor = Color(0xFFFBF8F1)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier

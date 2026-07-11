@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -162,7 +163,7 @@ fun ChapterDetailScreen(
             Card(
                 onClick = onBack,
                 shape = CircleShape,
-                colors = CardDefaults.cardColors(containerColor = Color.White),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                 modifier = Modifier.size(42.dp)
             ) {
@@ -170,7 +171,7 @@ fun ChapterDetailScreen(
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color(0xFF1E293B),
+                        tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -183,14 +184,14 @@ fun ChapterDetailScreen(
                     text = chapter.title,
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF1E293B),
+                    color = MaterialTheme.colorScheme.onBackground,
                     lineHeight = 20.sp
                 )
                 Spacer(modifier = Modifier.height(1.dp))
                 Text(
                     text = "অধ্যায় বিস্তারিত - ${subject.title}",
                     fontSize = 11.sp,
-                    color = Color(0xFF64748B),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontWeight = FontWeight.Medium
                 )
             }
@@ -199,14 +200,14 @@ fun ChapterDetailScreen(
                 Card(
                     onClick = onAddClassClick,
                     shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color(0xFF0F766E)),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primary),
                     modifier = Modifier.size(42.dp)
                 ) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Icon(
                             imageVector = Icons.Default.Add,
                             contentDescription = "Add Class",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.surface,
                             modifier = Modifier.size(22.dp)
                         )
                     }
@@ -223,14 +224,14 @@ fun ChapterDetailScreen(
             Box(
                 modifier = Modifier
                     .size(12.dp)
-                    .background(Color(0xFF0F766E), CircleShape)
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
             )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = "ক্লাস ও উপকরণসমূহ",
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF1E293B)
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
         
@@ -239,8 +240,8 @@ fun ChapterDetailScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 32.dp)
-                    .background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
-                    .border(BorderStroke(1.dp, Color(0xFFE2E8F0)), RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
+                    .border(BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(16.dp))
                     .padding(24.dp),
                 contentAlignment = Alignment.Center
             ) {
@@ -254,7 +255,7 @@ fun ChapterDetailScreen(
                     Spacer(modifier = Modifier.height(12.dp))
                     Text(
                         text = "কোনো ক্লাস বা উপকরণ যোগ করা হয়নি।",
-                        color = Color(0xFF64748B),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Medium
                     )
@@ -266,8 +267,8 @@ fun ChapterDetailScreen(
                 val isQuarterPurchased = userEnrollment != null && clazz.quarterId.isNotEmpty() && userEnrollment.purchased_quarters.split(",").contains(clazz.quarterId)
                 val canViewClass = isTeacher || clazz.isFree || isFullCoursePurchased || isQuarterPurchased
                 
-                val cardBorderColor = if (index % 2 == 0) Color(0xFFDBEAFE) else Color(0xFFD1FAE5)
-                val cardBgColor = if (index % 2 == 0) Color(0xFFEFF6FF) else Color(0xFFECFDF5)
+                val cardBorderColor = if (index % 2 == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
+                val cardBgColor = if (index % 2 == 0) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
                 
                 Card(
                     modifier = Modifier
@@ -302,17 +303,17 @@ fun ChapterDetailScreen(
                                     text = clazz.type,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF64748B)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Box(
                                     modifier = Modifier
-                                        .background(if (clazz.recordedLink.isNotBlank()) Color(0xFFD1FAE5) else Color(0xFFFEE2E2), RoundedCornerShape(4.dp))
+                                        .background(if (clazz.recordedLink.isNotBlank()) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer, RoundedCornerShape(4.dp))
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
                                         text = if (clazz.recordedLink.isNotBlank()) "রেকর্ডেড" else "লাইভ",
-                                        color = if (clazz.recordedLink.isNotBlank()) Color(0xFF065F46) else Color(0xFF991B1B),
+                                        color = if (clazz.recordedLink.isNotBlank()) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer,
                                         fontSize = 9.sp,
                                         fontWeight = FontWeight.Bold
                                     )
@@ -328,7 +329,7 @@ fun ChapterDetailScreen(
                                         Icon(
                                             imageVector = Icons.Default.Edit,
                                             contentDescription = "Edit Class",
-                                            tint = Color(0xFF64748B),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(16.dp)
                                         )
                                     }
@@ -355,7 +356,7 @@ fun ChapterDetailScreen(
                                         }
                                     },
                                     shape = CircleShape,
-                                    colors = CardDefaults.cardColors(containerColor = Color.White),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                                     modifier = Modifier.size(32.dp),
                                     elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
                                 ) {
@@ -363,7 +364,7 @@ fun ChapterDetailScreen(
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                                             contentDescription = "Enter class",
-                                            tint = Color(0xFF64748B),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.size(14.dp).rotate(180f)
                                         )
                                     }
@@ -377,7 +378,7 @@ fun ChapterDetailScreen(
                             text = clazz.title,
                             fontSize = 15.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFF1E293B),
+                            color = MaterialTheme.colorScheme.onBackground,
                             lineHeight = 18.sp
                         )
                         
@@ -387,14 +388,14 @@ fun ChapterDetailScreen(
                                 Icon(
                                     imageVector = Icons.Default.DateRange,
                                     contentDescription = null,
-                                    tint = Color(0xFF0F172A).copy(alpha = 0.5f),
+                                    tint = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text(
                                     text = "${clazz.date} • ${clazz.time}",
                                     fontSize = 11.sp,
-                                    color = Color(0xFF64748B),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     fontWeight = FontWeight.Medium
                                 )
                             }
@@ -405,7 +406,7 @@ fun ChapterDetailScreen(
                             Spacer(modifier = Modifier.height(4.dp))
                             Row(
                                 modifier = Modifier
-                                    .background(Color.White, RoundedCornerShape(8.dp))
+                                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(8.dp))
                                     .padding(horizontal = 6.dp, vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
@@ -430,7 +431,7 @@ fun ChapterDetailScreen(
                                     text = mentorObj.name.uppercase(),
                                     fontSize = 10.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1E293B)
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                             }
                         }

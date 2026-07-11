@@ -42,7 +42,7 @@ fun CustomBottomNavigation(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
-                .background(Color(0xFF2D2D2D))
+                .background(Color(0xFF111827))
                 .padding(vertical = 6.dp, horizontal = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
