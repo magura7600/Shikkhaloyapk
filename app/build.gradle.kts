@@ -20,7 +20,7 @@ android {
   defaultConfig {
     applicationId = "com.shikkhaloyai.app"
     minSdk = 26
-    targetSdk = 36
+    targetSdk = 34
     versionCode = 16
     versionName = "16.0"
 

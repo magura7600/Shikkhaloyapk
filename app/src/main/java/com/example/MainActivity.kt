@@ -387,23 +387,23 @@ class MainActivity : ComponentActivity() {
             e.printStackTrace()
         }
 
+        var initialCrashReport: String? = null
+        try {
+            val file = java.io.File(cacheDir, "crash_report.txt")
+            if (file.exists()) {
+                initialCrashReport = file.readText()
+                file.delete() // Clear so it only shows once
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         setContent {
             val isDark = ThemeManager.isDarkTheme()
             val colorScheme = if (isDark) ThemeManager.DarkColorScheme else ThemeManager.LightColorScheme
 
             // Check for previous crash logs
-            var crashReport by remember { mutableStateOf<String?>(null) }
-            LaunchedEffect(Unit) {
-                try {
-                    val file = java.io.File(cacheDir, "crash_report.txt")
-                    if (file.exists()) {
-                        crashReport = file.readText()
-                        file.delete() // Clear so it only shows once
-                    }
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
-            }
+            var crashReport by remember { mutableStateOf(initialCrashReport) }
 
             if (crashReport != null) {
                 MaterialTheme(
