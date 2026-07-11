@@ -155,8 +155,8 @@ object ClassNotificationScheduler {
             }
         }
 
-        if (finalApiKey.isBlank() || finalApiKey == "null") {
-            Log.d("Scheduler", "OneSignal REST API Key is missing. Skipping push scheduling.")
+        if (finalApiKey.isBlank() || finalApiKey == "null" || finalApiKey.contains("YOUR_ONESIGNAL_REST_API_KEY")) {
+            Log.d("Scheduler", "OneSignal REST API Key is missing or placeholder. Skipping push scheduling.")
             return
         }
 

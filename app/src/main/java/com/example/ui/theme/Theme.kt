@@ -10,10 +10,15 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.WindowCompat
 
 private val DarkColorScheme = darkColorScheme(
@@ -73,9 +78,40 @@ fun MyApplicationTheme(
         }
     }
     
+    val context = LocalContext.current
+    val safeFontFamily = remember(context) {
+        try {
+            // Pre-verify that the system can load custom font resources without throwing
+            val typeface = ResourcesCompat.getFont(context, com.example.R.font.hind_siliguri_regular)
+            if (typeface != null) {
+                FontFamily(
+                    Font(com.example.R.font.hind_siliguri_regular, FontWeight.Normal),
+                    Font(com.example.R.font.hind_siliguri_medium, FontWeight.Medium),
+                    Font(com.example.R.font.hind_siliguri_bold, FontWeight.Bold)
+                )
+            } else {
+                FontFamily.SansSerif
+            }
+        } catch (e: Throwable) {
+            // Graceful fallback to SansSerif on bugged Samsung Android 13/14 custom system fonts
+            android.util.Log.e("MyApplicationTheme", "System custom font engine failed, using safe fallback", e)
+            FontFamily.SansSerif
+        }
+    }
+
+    val dynamicTypography = remember(safeFontFamily) {
+        Typography.copy(
+            bodyLarge = Typography.bodyLarge.copy(fontFamily = safeFontFamily),
+            bodyMedium = Typography.bodyMedium.copy(fontFamily = safeFontFamily),
+            titleLarge = Typography.titleLarge.copy(fontFamily = safeFontFamily),
+            titleMedium = Typography.titleMedium.copy(fontFamily = safeFontFamily),
+            labelLarge = Typography.labelLarge.copy(fontFamily = safeFontFamily)
+        )
+    }
+
     MaterialTheme(
         colorScheme = colorScheme,
-        typography = Typography,
+        typography = dynamicTypography,
         shapes = Shapes,
         content = content
     )

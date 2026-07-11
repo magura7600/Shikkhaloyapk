@@ -41,8 +41,14 @@ object ImgBBClient {
                 )
                 .build()
 
+            val apiKey = BuildConfig.IMGBB_API_KEY
+            if (apiKey.isBlank() || apiKey.contains("YOUR_IMGBB_API_KEY")) {
+                Log.e("ImgBBClient", "ImgBB API Key is not configured. Skipping upload.")
+                return@withContext null
+            }
+
             val request = Request.Builder()
-                .url("https://api.imgbb.com/1/upload?key=${BuildConfig.IMGBB_API_KEY}")
+                .url("https://api.imgbb.com/1/upload?key=$apiKey")
                 .post(requestBody)
                 .build()
 

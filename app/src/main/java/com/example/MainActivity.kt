@@ -121,8 +121,19 @@ data class UserProfile(
 var appContext: android.content.Context? = null
 
 val supabase by lazy {
-    val url = BuildConfig.SUPABASE_URL.ifBlank { "https://gputlynskpbbiexbpphj.supabase.co" }
-    val key = BuildConfig.SUPABASE_KEY.ifBlank { "sb_publishable_NwiSPi0Rl4VAf_B2v5Fp6g_KgwTb_Ol" }
+    val rawUrl = BuildConfig.SUPABASE_URL
+    val url = if (rawUrl.isBlank() || rawUrl.contains("YOUR_SUPABASE_URL")) {
+        "https://gputlynskpbbiexbpphj.supabase.co"
+    } else {
+        rawUrl
+    }
+    
+    val rawKey = BuildConfig.SUPABASE_KEY
+    val key = if (rawKey.isBlank() || rawKey.contains("YOUR_SUPABASE_ANON_KEY")) {
+        "sb_publishable_NwiSPi0Rl4VAf_B2v5Fp6g_KgwTb_Ol"
+    } else {
+        rawKey
+    }
     createSupabaseClient(
         supabaseUrl = if (url.startsWith("http")) url else "https://gputlynskpbbiexbpphj.supabase.co",
         supabaseKey = key
