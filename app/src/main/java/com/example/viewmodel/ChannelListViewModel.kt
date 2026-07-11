@@ -15,9 +15,8 @@ sealed class ChannelListUiState {
     data class Error(val message: String) : ChannelListUiState()
 }
 
-class ChannelListViewModel(
-    private val repository: SupabaseRepository = SupabaseRepository()
-) : ViewModel() {
+class ChannelListViewModel : ViewModel() {
+    private val repository = SupabaseRepository()
 
     private val _uiState = MutableStateFlow<ChannelListUiState>(ChannelListUiState.Loading)
     val uiState: StateFlow<ChannelListUiState> = _uiState.asStateFlow()

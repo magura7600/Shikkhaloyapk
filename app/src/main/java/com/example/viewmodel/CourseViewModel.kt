@@ -7,9 +7,8 @@ import com.example.CourseSubject
 import com.example.data.SupabaseRepository
 import kotlinx.coroutines.launch
 
-class CourseViewModel(
-    private val repository: SupabaseRepository = SupabaseRepository()
-) : ViewModel() {
+class CourseViewModel : ViewModel() {
+    private val repository = SupabaseRepository()
 
     fun syncSubjectToAllCourses(
         course: CourseItem,

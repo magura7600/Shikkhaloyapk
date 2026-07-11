@@ -28,9 +28,8 @@ data class DashboardUiState(
     val isInitialLoadComplete: Boolean = false
 )
 
-class DashboardViewModel(
-    private val repository: SupabaseRepository = SupabaseRepository()
-) : ViewModel() {
+class DashboardViewModel : ViewModel() {
+    private val repository = SupabaseRepository()
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()

@@ -19,9 +19,8 @@ data class CourseDetailUiState(
     val error: String? = null
 )
 
-class CourseDetailViewModel(
-    private val repository: SupabaseRepository = SupabaseRepository()
-) : ViewModel() {
+class CourseDetailViewModel : ViewModel() {
+    private val repository = SupabaseRepository()
     private val _uiState = MutableStateFlow(CourseDetailUiState())
     val uiState: StateFlow<CourseDetailUiState> = _uiState.asStateFlow()
 
