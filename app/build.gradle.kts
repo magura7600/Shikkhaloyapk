@@ -48,8 +48,14 @@ android {
         keyAlias = envKeyAlias
         keyPassword = envKeyPassword
       } else {
-        // Fallback to debug keystore for local builds only
-        storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+        // Fallback to debug keystore in the project root for local/sandboxed builds
+        val localKeystore = rootProject.file("debug.keystore")
+        if (localKeystore.exists()) {
+          storeFile = localKeystore
+        } else {
+          // Legacy home folder fallback
+          storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+        }
         storePassword = "android"
         keyAlias = "androiddebugkey"
         keyPassword = "android"

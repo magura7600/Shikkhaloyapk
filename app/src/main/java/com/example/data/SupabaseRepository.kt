@@ -137,6 +137,13 @@ open class SupabaseRepository {
         supabase.from("profiles").update(profile) { filter { eq("user_id", profile.user_id) } }
     }
 
+    suspend fun getUserProfile(userId: String): UserProfile? = withContext(Dispatchers.IO) {
+        val fetched = supabase.from("profiles").select {
+            filter { eq("user_id", userId) }
+        }.decodeList<UserProfile>()
+        fetched.firstOrNull()
+    }
+
     suspend fun getMentors(): List<Mentor> = withContext(Dispatchers.IO) {
         supabase.from("mentors").select().decodeList<Mentor>()
     }

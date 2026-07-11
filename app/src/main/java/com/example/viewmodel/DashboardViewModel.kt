@@ -391,6 +391,14 @@ class DashboardViewModel(private val repository: SupabaseRepository = SupabaseRe
         }
     }
 
+    suspend fun getChannelsForUser(userId: String): List<UserProfile> {
+        return repository.getChannelsForUser(userId)
+    }
+
+    suspend fun getUserProfile(userId: String): UserProfile? {
+        return repository.getUserProfile(userId)
+    }
+
     fun reloadEnrollmentsAndRequests(profile: UserProfile, isTeacher: Boolean, isAdmin: Boolean) {
         viewModelScope.launch {
             try {

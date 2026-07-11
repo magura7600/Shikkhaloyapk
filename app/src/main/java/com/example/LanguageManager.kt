@@ -14,12 +14,37 @@ object L {
         sharedPrefs = PrefUtils.getSecurePrefs(context)
         currentLanguage = sharedPrefs.getString("selected_language_code", "bn") ?: "bn"
         hasInitialized = true
+        
+        // Ensure standard locale is set on init
+        try {
+            val locale = java.util.Locale(currentLanguage)
+            java.util.Locale.setDefault(locale)
+            val resources = context.resources
+            val config = resources.configuration
+            config.setLocale(locale)
+            resources.updateConfiguration(config, resources.displayMetrics)
+        } catch (e: Exception) {
+            android.util.Log.e("LanguageManager", "Failed to init configuration locale", e)
+        }
     }
 
     fun setLanguage(context: Context, lang: String) {
         init(context)
         currentLanguage = lang
         sharedPrefs.edit().putString("selected_language_code", lang).apply()
+        
+        // Update System/App Configuration Locale dynamically
+        try {
+            val locale = java.util.Locale(lang)
+            java.util.Locale.setDefault(locale)
+            val resources = context.resources
+            val config = resources.configuration
+            config.setLocale(locale)
+            context.createConfigurationContext(config)
+            resources.updateConfiguration(config, resources.displayMetrics)
+        } catch (e: Exception) {
+            android.util.Log.e("LanguageManager", "Failed to update configuration locale", e)
+        }
     }
 
     // High performance translation lookup

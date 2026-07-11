@@ -69,7 +69,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.auth.Auth
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.handleDeeplinks
@@ -294,11 +293,7 @@ fun DashboardScreen(
     LaunchedEffect(isTeacher) {
         if (isTeacher) {
             try {
-                val fetchedChannels = withContext(Dispatchers.IO) {
-                    supabase.from("profiles").select {
-                        filter { eq("user_id", profile.user_id) }
-                    }.decodeList<UserProfile>()
-                }
+                val fetchedChannels = viewModel.getChannelsForUser(profile.user_id)
                 teacherChannel = fetchedChannels.firstOrNull { it.handle != null && it.handle.isNotBlank() }
                 
             } catch (e: Exception) {
@@ -482,12 +477,7 @@ fun DashboardScreen(
                             isLoadingChannel = true
                             coroutineScope.launch {
                                 try {
-                                    val fetchedChannels = withContext(Dispatchers.IO) {
-                                        supabase.from("profiles").select {
-                                            filter { eq("user_id", profile.user_id) }
-                                        }.decodeList<UserProfile>()
-                                    }
-                                    val updatedProf = fetchedChannels.firstOrNull()
+                                    val updatedProf = viewModel.getUserProfile(profile.user_id)
                                     if (updatedProf != null) {
                                         onProfileUpdate(updatedProf)
                                         teacherChannel = if (updatedProf.handle != null && updatedProf.handle.isNotBlank()) updatedProf else null
