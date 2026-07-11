@@ -133,6 +133,7 @@ val supabase by lazy {
             host = "login-callback"
             appContext?.let { ctx ->
                 sessionManager = SharedPreferencesSessionManager(ctx)
+                codeVerifierCache = MyCodeVerifierCache(ctx)
             }
         }
         defaultSerializer = KotlinXSerializer(Json { 
@@ -380,7 +381,7 @@ class MainActivity : ComponentActivity() {
             if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
                 registerReceiver(pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"), android.content.Context.RECEIVER_NOT_EXPORTED)
             } else {
-                androidx.core.content.ContextCompat.registerReceiver(this, pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
+                registerReceiver(pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"))
             }
         } catch (e: Throwable) {
             e.printStackTrace()

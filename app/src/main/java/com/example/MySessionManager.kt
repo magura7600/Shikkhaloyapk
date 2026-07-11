@@ -65,3 +65,14 @@ class SharedPreferencesSessionManager(context: Context) : SessionManager {
 }
 
 
+
+class MyCodeVerifierCache(context: Context) : io.github.jan.supabase.auth.CodeVerifierCache {
+    private val prefs = context.getSharedPreferences("supabase_code_verifier", Context.MODE_PRIVATE)
+    override suspend fun saveCodeVerifier(codeVerifier: String) {
+        prefs.edit().putString("code", codeVerifier).apply()
+    }
+    override suspend fun loadCodeVerifier(): String? = prefs.getString("code", null)
+    override suspend fun deleteCodeVerifier() {
+        prefs.edit().remove("code").apply()
+    }
+}
