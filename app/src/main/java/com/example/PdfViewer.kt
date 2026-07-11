@@ -859,24 +859,26 @@ fun ZoomablePdfPage(
                         } else {
                             1f
                         }
-                        val width = (rawWidth * scaleFactor).toInt()
-                        val height = (rawHeight * scaleFactor).toInt()
+                        val width = maxOf(1, (rawWidth * scaleFactor).toInt())
+                        val height = maxOf(1, (rawHeight * scaleFactor).toInt())
 
                         try {
                             bmp = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
                         } catch (e: OutOfMemoryError) {
                             System.gc()
                             try {
-                                val fallbackWidth = (width * 0.75f).toInt()
-                                val fallbackHeight = (height * 0.75f).toInt()
+                                val fallbackWidth = maxOf(1, (width * 0.75f).toInt())
+                                val fallbackHeight = maxOf(1, (height * 0.75f).toInt())
                                 bmp = Bitmap.createBitmap(fallbackWidth, fallbackHeight, Bitmap.Config.ARGB_8888)
                             } catch (e2: OutOfMemoryError) {
                                 try {
-                                    bmp = Bitmap.createBitmap(page.width, page.height, Bitmap.Config.ARGB_8888)
+                                    bmp = Bitmap.createBitmap(maxOf(1, page.width), maxOf(1, page.height), Bitmap.Config.ARGB_8888)
                                 } catch (e3: OutOfMemoryError) {
                                     e3.printStackTrace()
                                 }
                             }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
                         }
 
                         if (bmp != null) {
@@ -891,6 +893,10 @@ fun ZoomablePdfPage(
                         bitmapCache.put(pageIndex, bmp)
                         withContext(Dispatchers.Main) {
                             bitmap = bmp
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) {
+                            pageErrorMsg = "Not enough memory to render page"
                         }
                     }
                 } catch (e: Exception) {
