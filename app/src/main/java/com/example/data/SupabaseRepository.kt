@@ -115,6 +115,26 @@ class SupabaseRepository {
         supabase.from("enrollment_requests").delete { filter { eq("course_id", courseId) } }
     }
 
+    suspend fun addEnrollment(enrollment: Enrollment) = withContext(Dispatchers.IO) {
+        supabase.from("enrollments").insert(enrollment)
+    }
+
+    suspend fun deleteEnrollment(enrollmentId: String) = withContext(Dispatchers.IO) {
+        supabase.from("enrollments").delete { filter { eq("id", enrollmentId) } }
+    }
+
+    suspend fun addEnrollmentRequest(request: EnrollmentRequest) = withContext(Dispatchers.IO) {
+        supabase.from("enrollment_requests").insert(request)
+    }
+
+    suspend fun deleteEnrollmentRequest(requestId: String) = withContext(Dispatchers.IO) {
+        supabase.from("enrollment_requests").delete { filter { eq("id", requestId) } }
+    }
+    
+    suspend fun updateProfile(profile: UserProfile) = withContext(Dispatchers.IO) {
+        supabase.from("profiles").update(profile) { filter { eq("user_id", profile.user_id) } }
+    }
+
     suspend fun getMentors(): List<Mentor> = withContext(Dispatchers.IO) {
         supabase.from("mentors").select().decodeList<Mentor>()
     }

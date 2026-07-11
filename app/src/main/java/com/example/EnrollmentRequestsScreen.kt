@@ -27,6 +27,8 @@ fun EnrollmentRequestsScreen(
     courses: List<CourseItem>,
     accentColor: Color,
     onBack: () -> Unit,
+    onApprove: (EnrollmentRequest) -> Unit = {},
+    onReject: (EnrollmentRequest) -> Unit = {},
     onUpdateRequests: () -> Unit
 ) {
     val context = LocalContext.current
@@ -104,23 +106,7 @@ fun EnrollmentRequestsScreen(
                                                 coroutineScope.launch {
                                                     isProcessing = true
                                                     try {
-                                                        // 1. Create Enrollment
-                                                        val enrollment = Enrollment(
-                                                            user_id = request.user_id,
-                                                            course_id = request.course_id,
-                                                            price_paid = request.amount,
-                                                            purchased_quarters = if (request.requested_quarters == "FULL") "" else request.requested_quarters
-                                                        )
-                                                        supabase.from("enrollments").insert(enrollment)
-                                                        
-                                                        // 2. Update Request Status
-                                                        supabase.from("enrollment_requests").update(
-                                                            {
-                                                                set("status", "APPROVED")
-                                                            }
-                                                        ) {
-                                                            filter { eq("id", request.id) }
-                                                        }
+                                                        onApprove(request)
                                                         Toast.makeText(context, "Approved!", Toast.LENGTH_SHORT).show()
                                                         onUpdateRequests()
                                                     } catch (e: Exception) {

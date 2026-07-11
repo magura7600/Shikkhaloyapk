@@ -90,6 +90,8 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 
+import com.example.viewmodel.DashboardViewModel
+
 // --- PERSONALIZED DASHBOARD SCREEN ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,7 +100,8 @@ fun DashboardScreen(
     userId: String,
     profile: UserProfile,
     onLogout: () -> Unit,
-    onProfileUpdate: (UserProfile) -> Unit
+    onProfileUpdate: (UserProfile) -> Unit,
+    viewModel: DashboardViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     var currentScreen by remember { mutableStateOf("dashboard") }
@@ -112,7 +115,6 @@ fun DashboardScreen(
     var showPublishUpdateDialog by remember { mutableStateOf(false) }
     var showPublishNoticeDialog by remember { mutableStateOf(false) }
     var showAllNotificationsDialog by remember { mutableStateOf(false) }
-    var mentors by remember { mutableStateOf(listOf<Mentor>()) }
     val isTeacher = profile.role == "teacher"
     val isAdmin = profile.role == "admin"
     val isManagementUser = isTeacher || isAdmin
@@ -151,18 +153,23 @@ fun DashboardScreen(
         }
     }
 
-    var courses by remember { mutableStateOf(initialCourses) }
-    var allChannels by remember { mutableStateOf(listOf<UserProfile>()) }
-    var enrollments by remember { mutableStateOf(initialEnrollments) }
+    // Initialize DashboardViewModel with cached data
+    LaunchedEffect(initialCourses, initialEnrollments) {
+        viewModel.initializeCachedData(initialCourses, initialEnrollments)
+    }
 
-    var enrollmentRequests by remember { mutableStateOf(listOf<EnrollmentRequest>()) }
+    val uiState by viewModel.uiState.collectAsState()
+    val courses = uiState.courses
+    val allChannels = uiState.allChannels
+    val enrollments = uiState.enrollments
+    val enrollmentRequests = uiState.enrollmentRequests
+    val courseInteractions = uiState.courseInteractions
+    val isInitialLoadComplete = uiState.isInitialLoadComplete
 
-    var courseInteractions by remember { mutableStateOf(listOf<CourseInteraction>()) }
     var isRefreshing by remember { mutableStateOf(false) }
     var isOffline by remember { mutableStateOf(false) }
     var hasPromptedOffline by remember { mutableStateOf(false) }
     var showOfflineDownloadsGlobal by remember { mutableStateOf(false) }
-    var isInitialLoadComplete by remember { mutableStateOf(initialCourses.isNotEmpty()) }
     val coroutineScope = rememberCoroutineScope()
     var lastBackPressTime by remember { mutableStateOf(0L) }
     val activity = context as? ComponentActivity
@@ -249,90 +256,31 @@ fun DashboardScreen(
         }
     }
 
-    // Data Loading Logic optimized to truly only load what's needed for the current screen
-    LaunchedEffect(currentScreen, selectedTab, focusCourseId, selectedCourse?.id, isOffline, enteredWithNetwork, profile.user_id) {
-        try {
-            // 1. My Enrollments (needed globally for a student to know what they own)
-            if (!isTeacher && !isAdmin) {
-                 val newEnrollments = withContext(Dispatchers.IO) {
-                     try {
-                         supabase.from("enrollments").select { filter { eq("user_id", profile.user_id) } }.decodeList<Enrollment>()
-                     } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollments", e); enrollments }
-                 }
-                 if (newEnrollments != enrollments) {
-                     enrollments = newEnrollments
-                     try {
-                         sharedPrefs.edit().putString("cached_enrollments_${profile.user_id}", Json.encodeToString(newEnrollments)).apply()
-                     } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-                 }
-                 
-                 val myRequests = withContext(Dispatchers.IO) {
-                     try { supabase.from("enrollment_requests").select { filter { eq("user_id", profile.user_id) } }.decodeList<EnrollmentRequest>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollmentsReq", e); enrollmentRequests }
-                 }
-                 if (myRequests != enrollmentRequests) enrollmentRequests = myRequests
-            }
-
-            // 2. All Enrollments & Requests (ONLY needed if Teacher/Admin goes to Management)
-            if ((isTeacher || isAdmin)) {
-                 enrollments = withContext(Dispatchers.IO) {
-                     try { supabase.from("enrollments").select().decodeList<Enrollment>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollments", e); enrollments }
-                 }
-                 if (selectedTab == 2 || currentScreen == "enrollment_requests") {
-                     enrollmentRequests = withContext(Dispatchers.IO) {
-                         try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollmentsReq", e); enrollmentRequests }
-                     }
-                 }
-            }
-
-            // 3. Courses
-            val newCourses = withContext(Dispatchers.IO) {
-                try { supabase.from("courses").select().decodeList<CourseItem>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error courses", e); courses }
-            }
-            val mappedCourses = if (isTeacher || isAdmin) {
-                newCourses.map { c -> c.copy(studentsCount = enrollments.count { it.course_id == c.id }) }
-            } else {
-                newCourses
-            }
-            if (mappedCourses != courses) {
-                courses = mappedCourses
-                try {
-                    sharedPrefs.edit().putString("cached_courses_${profile.user_id}", Json.encodeToString(mappedCourses)).apply()
-                } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-            }
-            hasLoadedAllCourses = true
-
-            // 4. Channels
-            allChannels = withContext(Dispatchers.IO) {
-                try {
-                    supabase.from("public_channels").select().decodeList<UserProfile>()
-                } catch (e: Exception) {
-                    try {
-                        supabase.from("profiles").select().decodeList<UserProfile>().filter { it.handle != null && it.handle.isNotBlank() }
-                    } catch (ex: Exception) {
-                        allChannels
-                    }
-                }
-            }
-
-            // 5. Course Interactions & Mentors (ONLY needed for Course Detail screen)
-            if (currentScreen == "course_detail" && selectedCourse != null) {
-                 courseInteractions = withContext(Dispatchers.IO) {
-                     try { selectedCourse?.id?.let { cid -> supabase.from("course_interactions").select { filter { eq("course_id", cid) } }.decodeList<CourseInteraction>() } ?: courseInteractions } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error interactions", e); courseInteractions }
-                 }
-                 mentors = withContext(Dispatchers.IO) {
-                     try {
-                         val cid = selectedCourse?.channel_id
-                         if (!cid.isNullOrBlank()) {
-                             supabase.from("mentors").select { filter { eq("channel_id", cid) } }.decodeList<Mentor>()
-                         } else {
-                             supabase.from("mentors").select().decodeList<Mentor>()
-                         }
-                     } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error mentors", e); mentors }
-                 }
-            }
-        } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) } finally {
-            isInitialLoadComplete = true
+    // Auto-save courses and enrollments to secure cache when they change
+    LaunchedEffect(courses, enrollments, profile.user_id) {
+        if (courses.isNotEmpty()) {
+            try {
+                sharedPrefs.edit().putString("cached_courses_${profile.user_id}", Json.encodeToString(courses)).apply()
+            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error caching courses", e) }
         }
+        if (enrollments.isNotEmpty()) {
+            try {
+                sharedPrefs.edit().putString("cached_enrollments_${profile.user_id}", Json.encodeToString(enrollments)).apply()
+            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error caching enrollments", e) }
+        }
+    }
+
+    // Data Loading Logic delegated to DashboardViewModel
+    LaunchedEffect(currentScreen, selectedTab, focusCourseId, selectedCourse?.id, isOffline, enteredWithNetwork, profile.user_id) {
+        viewModel.loadData(
+            currentScreen = currentScreen,
+            selectedTab = selectedTab,
+            selectedCourse = selectedCourse,
+            profile = profile,
+            isTeacher = isTeacher,
+            isAdmin = isAdmin
+        )
+        hasLoadedAllCourses = true
     }
 
     LaunchedEffect(isTeacher) {
@@ -345,16 +293,6 @@ fun DashboardScreen(
                 }
                 teacherChannel = fetchedChannels.firstOrNull { it.handle != null && it.handle.isNotBlank() }
                 
-                try {
-                    val fetchedMentors = withContext(Dispatchers.IO) {
-                        supabase.from("mentors").select {
-                            filter { eq("channel_id", profile.user_id) }
-                        }.decodeList<Mentor>()
-                    }
-                    mentors = fetchedMentors
-                } catch(e: Exception) {
-                    // Mentors table might not exist yet
-                }
             } catch (e: Exception) {
                 // handle
             } finally {
@@ -611,13 +549,11 @@ fun DashboardScreen(
                         if (teacherChannel != null) {
                             currentScreen = "add_course" 
                         } else {
-                            Toast.makeText(context, "অনুগ্রহ করে কোর্স যোগ করার আগে আপনার চ্যানেল সেটআপ করুন।", Toast.LENGTH_SHORT).show()
-                            currentScreen = "create_channel"
+                            Toast.makeText(context, "অনুগ্রহ করে কোর্স যোগ করার আগে আপনার চ্যানেল সেটআপ করুন", Toast.LENGTH_SHORT).show()
                         }
                     },
-                    containerColor = accentColor,
-                    contentColor = Color.White,
-                    modifier = Modifier.navigationBarsPadding()
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
                 ) {
                     Icon(Icons.Default.Add, contentDescription = "Add Course")
                 }
@@ -629,48 +565,15 @@ fun DashboardScreen(
             onRefresh = {
                 isRefreshing = true
                 coroutineScope.launch {
-                    try {
-                        withContext(Dispatchers.IO) {
-                            val newCourses = try { supabase.from("courses").select().decodeList<CourseItem>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error courses", e); courses }
-                            val newEnrollments = try {
-                                if (isTeacher || isAdmin) {
-                                    supabase.from("enrollments").select().decodeList<Enrollment>()
-                                } else {
-                                    supabase.from("enrollments").select { filter { eq("user_id", profile.user_id) } }.decodeList<Enrollment>()
-                                }
-                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollments", e); enrollments }
-                            val newRequests = try { 
-                                if (isTeacher || isAdmin) {
-                                    supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
-                                } else {
-                                    supabase.from("enrollment_requests").select { filter { eq("user_id", profile.user_id) } }.decodeList<EnrollmentRequest>()
-                                }
-                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollmentsReq", e); enrollmentRequests }
-                            
-                            withContext(Dispatchers.Main) {
-                                if (newEnrollments != enrollments) {
-                                    enrollments = newEnrollments
-                                    try {
-                                        sharedPrefs.edit().putString("cached_enrollments_${profile.user_id}", Json.encodeToString(newEnrollments)).apply()
-                                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-                                }
-                                val mappedCourses = if (isTeacher || isAdmin) {
-                                    newCourses.map { c -> c.copy(studentsCount = newEnrollments.count { it.course_id == c.id }) }
-                                } else {
-                                    newCourses
-                                }
-                                if (mappedCourses != courses) {
-                                    courses = mappedCourses
-                                    try {
-                                        sharedPrefs.edit().putString("cached_courses_${profile.user_id}", Json.encodeToString(mappedCourses)).apply()
-                                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-                                }
-                                enrollmentRequests = newRequests
-                            }
-                        }
-                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) } finally {
-                        isRefreshing = false
-                    }
+                    viewModel.loadData(
+                        currentScreen = currentScreen,
+                        selectedTab = selectedTab,
+                        selectedCourse = selectedCourse,
+                        profile = profile,
+                        isTeacher = isTeacher,
+                        isAdmin = isAdmin
+                    )
+                    isRefreshing = false
                 }
             },
             modifier = Modifier.fillMaxSize().padding(paddingValues)
@@ -692,24 +595,13 @@ fun DashboardScreen(
                     onCourseAdded = { newCourse ->
                         val isEditMode = currentScreen == "edit_course"
                         val courseToSave = newCourse.copy(channel_id = teacherChannel?.user_id)
-                        coroutineScope.launch {
-                            try {
-                                if (isEditMode) {
-                                    withContext(Dispatchers.IO) {
-                                        supabase.from("courses").update(courseToSave) {
-                                            filter { eq("id", courseToSave.id) }
-                                        }
-                                    }
-                                    courses = courses.map { if (it.id == courseToSave.id) courseToSave else it }
-                                } else {
-                                    withContext(Dispatchers.IO) {
-                                        supabase.from("courses").insert(courseToSave)
-                                    }
-                                    courses = courses + courseToSave
-                                }
+                        viewModel.saveCourse(
+                            courseToSave = courseToSave,
+                            onSuccess = {
                                 currentScreen = "dashboard"
                                 editingCourse = null
-                            } catch (e: Exception) {
+                            },
+                            onError = { e ->
                                 val msg = e.message ?: ""
                                 if (msg.contains("subjects") || msg.contains("quarters") || msg.contains("isQuarterOn")) {
                                     Toast.makeText(context, "Error: Supabase-এ কলাম অনুপস্থিত বা ত্রুটি! (${e.message})", Toast.LENGTH_LONG).show()
@@ -717,7 +609,7 @@ fun DashboardScreen(
                                     Toast.makeText(context, "Error saving course: ${e.message}", Toast.LENGTH_LONG).show()
                                 }
                             }
-                        }
+                        )
                     }
                 )
             } else if (currentScreen == "select_course_for_students") {
@@ -736,20 +628,11 @@ fun DashboardScreen(
                     courses = courses.filter { it.channel_id == profile.user_id },
                     accentColor = accentColor,
                     onCourseUpdate = { updatedCourse ->
-                        coroutineScope.launch {
-                            try {
-                                withContext(Dispatchers.IO) {
-                                    supabase.from("courses").update(updatedCourse) {
-                                        filter { eq("id", updatedCourse.id) }
-                                    }
-                                }
-                                val newCourses = courses.map { if (it.id == updatedCourse.id) updatedCourse else it }
-                                courses = newCourses
-                                Toast.makeText(context, "ক্লাস লিংক সফলভাবে আপডেট করা হয়েছে", Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                Toast.makeText(context, "Error updating link: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
+                        viewModel.saveCourse(
+                            courseToSave = updatedCourse,
+                            onSuccess = { Toast.makeText(context, "ক্লাস লিংক সফলভাবে আপডেট করা হয়েছে", Toast.LENGTH_SHORT).show() },
+                            onError = { e -> Toast.makeText(context, "Error updating link: ${e.message}", Toast.LENGTH_SHORT).show() }
+                        )
                     },
                     onBack = { currentScreen = "dashboard" }
                 )
@@ -829,16 +712,7 @@ fun DashboardScreen(
                 val activeCourse = selectedCourse
                 if (activeCourse != null) {
                     LaunchedEffect(activeCourse.id) {
-                        val hasView = courseInteractions.any { it.course_id == activeCourse.id && it.user_id == profile.user_id && !it.is_like }
-                        if (!hasView) {
-                            try {
-                                val newView = CourseInteraction(user_id = profile.user_id, course_id = activeCourse.id, is_like = false)
-                                withContext(Dispatchers.IO) {
-                                    supabase.from("course_interactions").insert(newView)
-                                }
-                                courseInteractions = courseInteractions + newView
-                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-                        }
+                        viewModel.addViewInteraction(activeCourse.id, profile.user_id)
                     }
                     CourseDetailScreen(
                         initialCourse = activeCourse,
@@ -864,13 +738,16 @@ fun DashboardScreen(
                                 }
                                 val pricePaid = "0"
                                 val enrollment = Enrollment(user_id = profile.user_id, course_id = currentCourse.id, price_paid = pricePaid, purchased_quarters = purchasedQuarters)
-                                withContext(Dispatchers.IO) {
-                                    supabase.from("enrollments").insert(enrollment)
-                                }
-                                enrollments = enrollments + enrollment
-                                courses = courses.map { if (it.id == currentCourse.id) it.copy(studentsCount = it.studentsCount + 1) else it }
-                                selectedCourse = courses.find { it.id == currentCourse.id }
-                                Toast.makeText(context, "Successfully Enrolled!", Toast.LENGTH_SHORT).show()
+                                viewModel.enrollInCourse(
+                                    enrollment = enrollment,
+                                    onSuccess = {
+                                        selectedCourse = courses.find { it.id == currentCourse.id }
+                                        Toast.makeText(context, "Successfully Enrolled!", Toast.LENGTH_SHORT).show()
+                                    },
+                                    onError = { e ->
+                                        Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                                    }
+                                )
                             } catch(e: Exception) {
                                 Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
                             }
@@ -879,7 +756,7 @@ fun DashboardScreen(
 
                     onMultipleCoursesUpdate = { updatedCourses ->
                         val updatedMap = updatedCourses.associateBy { it.id }
-                        courses = courses.map { updatedMap[it.id] ?: it }
+                        viewModel.setCourses(courses.map { updatedMap[it.id] ?: it })
                         Toast.makeText(context, "Multiple courses updated!", Toast.LENGTH_SHORT).show()
                     },
                     accentColor = accentColor,
@@ -900,12 +777,15 @@ fun DashboardScreen(
                     profile = profile,
                     accentColor = accentColor,
                     onBack = { currentScreen = "course_detail" },
+                    onRequestEnrollment = { req -> 
+                        viewModel.requestEnrollment(
+                            request = req,
+                            onSuccess = { Toast.makeText(context, "রিকোয়েস্ট সফলভাবে জমা হয়েছে!", Toast.LENGTH_LONG).show() },
+                            onError = { e -> Toast.makeText(context, "ত্রুটি: ${e.message}", Toast.LENGTH_LONG).show() }
+                        ) 
+                    },
                     onPurchaseSubmitted = {
-                        coroutineScope.launch {
-                            try {
-                                enrollmentRequests = supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
-                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-                        }
+                        viewModel.reloadEnrollmentsAndRequests(profile, isTeacher, isAdmin)
                         currentScreen = "course_detail"
                     }
                 )
@@ -916,14 +796,10 @@ fun DashboardScreen(
                     courses = courses,
                     accentColor = accentColor,
                     onBack = { currentScreen = "dashboard" },
+                    onApprove = { req -> viewModel.approveEnrollment(req) },
+                    onReject = { req -> viewModel.rejectEnrollment(req) },
                     onUpdateRequests = {
-                        coroutineScope.launch {
-                            try {
-                                enrollmentRequests = supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
-                                val fetched = supabase.from("enrollments").select().decodeList<Enrollment>()
-                                enrollments = fetched
-                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-                        }
+                        viewModel.reloadEnrollmentsAndRequests(profile, isTeacher, isAdmin)
                     }
                 )
             } else if (currentScreen == "my_enrollments") {
@@ -946,27 +822,7 @@ fun DashboardScreen(
                             allChannels = allChannels,
                             courseInteractions = courseInteractions,
                             onLikeToggle = { course ->
-                                coroutineScope.launch {
-                                    try {
-                                        val existing = courseInteractions.find { it.course_id == course.id && it.user_id == profile.user_id && it.is_like }
-                                        if (existing != null) {
-                                            withContext(Dispatchers.IO) {
-                                                supabase.from("course_interactions").delete {
-                                                    filter { eq("id", existing.id) }
-                                                }
-                                            }
-                                            courseInteractions = courseInteractions.filter { it.id != existing.id }
-                                        } else {
-                                            val newInteraction = CourseInteraction(user_id = profile.user_id, course_id = course.id, is_like = true)
-                                            withContext(Dispatchers.IO) {
-                                                supabase.from("course_interactions").insert(newInteraction)
-                                            }
-                                            courseInteractions = courseInteractions + newInteraction
-                                        }
-                                    } catch(e: Exception) {
-                                        Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
+                                viewModel.toggleLike(course.id, profile.user_id)
                             },
                             onChannelClick = { channel ->
                                 selectedChannel = channel
@@ -1028,42 +884,11 @@ fun DashboardScreen(
                                 currentScreen = "edit_course"
                             },
                             onDeleteCourse = { course ->
-                                coroutineScope.launch {
-                                    try {
-                                        withContext(Dispatchers.IO) {
-                                            // Delete related enrollments
-                                            try {
-                                                supabase.from("enrollments").delete {
-                                                    filter { eq("course_id", course.id) }
-                                                }
-                                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-                                            
-                                            // Delete related interactions
-                                            try {
-                                                supabase.from("course_interactions").delete {
-                                                    filter { eq("course_id", course.id) }
-                                                }
-                                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-
-                                            // Delete related enrollment_requests
-                                            try {
-                                                supabase.from("enrollment_requests").delete {
-                                                    filter { eq("course_id", course.id) }
-                                                }
-                                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-
-                                            // Delete the course itself
-                                            supabase.from("courses").delete {
-                                                filter { eq("id", course.id) }
-                                            }
-                                        }
-                                        courses = courses.filter { it.id != course.id }
-                                        enrollmentRequests = enrollmentRequests.filter { it.course_id != course.id }
-                                        Toast.makeText(context, "কোর্স মুছে ফেলা হয়েছে!", Toast.LENGTH_SHORT).show()
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Error deleting course: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
+                                viewModel.deleteCourse(
+                                    courseId = course.id,
+                                    onSuccess = { Toast.makeText(context, "কোর্স মুছে ফেলা হয়েছে!", Toast.LENGTH_SHORT).show() },
+                                    onError = { e -> Toast.makeText(context, "Error deleting course: ${e.message}", Toast.LENGTH_SHORT).show() }
+                                )
                             }
                         )
                     } else if (selectedTab == 1) {
@@ -1124,27 +949,7 @@ fun DashboardScreen(
                             allChannels = allChannels,
                             courseInteractions = courseInteractions,
                             onLikeToggle = { course ->
-                                coroutineScope.launch {
-                                    try {
-                                        val existing = courseInteractions.find { it.course_id == course.id && it.user_id == profile.user_id && it.is_like }
-                                        if (existing != null) {
-                                            withContext(Dispatchers.IO) {
-                                                supabase.from("course_interactions").delete {
-                                                    filter { eq("id", existing.id) }
-                                                }
-                                            }
-                                            courseInteractions = courseInteractions.filter { it.id != existing.id }
-                                        } else {
-                                            val newInteraction = CourseInteraction(user_id = profile.user_id, course_id = course.id, is_like = true)
-                                            withContext(Dispatchers.IO) {
-                                                supabase.from("course_interactions").insert(newInteraction)
-                                            }
-                                            courseInteractions = courseInteractions + newInteraction
-                                        }
-                                    } catch(e: Exception) {
-                                        Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    }
-                                }
+                                viewModel.toggleLike(course.id, profile.user_id)
                             },
                             onChannelClick = { channel ->
                                 selectedChannel = channel
@@ -1189,69 +994,27 @@ fun DashboardScreen(
 
     if (showMentorsDialog) {
         MentorsListDialog(
-            mentors = mentors,
+            mentors = uiState.mentors,
             onAddMentor = { newMentor -> 
-                val mentorWithChannel = newMentor.copy(channel_id = profile.user_id)
-                coroutineScope.launch {
-                    try {
-                        val fetchedMentors = withContext(Dispatchers.IO) {
-                            supabase.from("mentors").insert(mentorWithChannel)
-                            supabase.from("mentors").select {
-                                filter { eq("channel_id", profile.user_id) }
-                            }.decodeList<Mentor>()
-                        }
-                        mentors = fetchedMentors
-                        Toast.makeText(context, "মেন্টর যোগ করা হয়েছে", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
+                viewModel.saveMentor(
+                    mentor = newMentor.copy(channel_id = profile.user_id),
+                    onSuccess = { Toast.makeText(context, "মেন্টর যোগ করা হয়েছে", Toast.LENGTH_SHORT).show() },
+                    onError = { e -> Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show() }
+                )
             },
             onEditMentor = { editedMentor ->
-                coroutineScope.launch {
-                    try {
-                        val fetchedMentors = withContext(Dispatchers.IO) {
-                            supabase.from("mentors").update(editedMentor) {
-                                filter {
-                                    eq("id", editedMentor.id)
-                                }
-                            }
-                            supabase.from("mentors").select {
-                                filter { eq("channel_id", profile.user_id) }
-                            }.decodeList<Mentor>()
-                        }
-                        mentors = fetchedMentors
-                        Toast.makeText(context, "মেন্টর আপডেট করা হয়েছে", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
+                viewModel.saveMentor(
+                    mentor = editedMentor,
+                    onSuccess = { Toast.makeText(context, "মেন্টর আপডেট করা হয়েছে", Toast.LENGTH_SHORT).show() },
+                    onError = { e -> Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show() }
+                )
             },
             onDeleteMentor = { mentorToDelete ->
-                coroutineScope.launch {
-                    try {
-                        val fetchedMentors = withContext(Dispatchers.IO) {
-                            supabase.from("mentors").delete {
-                                filter {
-                                    eq("id", mentorToDelete.id)
-                                }
-                            }
-                            supabase.from("mentors").select {
-                                filter { eq("channel_id", profile.user_id) }
-                            }.decodeList<Mentor>()
-                        }
-                        mentors = fetchedMentors
-                        Toast.makeText(context, "মেন্টর ডিলিট করা হয়েছে", Toast.LENGTH_SHORT).show()
-                    } catch (e: Exception) {
-                        withContext(Dispatchers.Main) {
-                            Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
-                        }
-                    }
-                }
+                viewModel.deleteMentor(
+                    mentorId = mentorToDelete.id,
+                    onSuccess = { Toast.makeText(context, "মেন্টর ডিলিট করা হয়েছে", Toast.LENGTH_SHORT).show() },
+                    onError = { e -> Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show() }
+                )
             },
             onDismiss = { showMentorsDialog = false },
             accentColor = accentColor

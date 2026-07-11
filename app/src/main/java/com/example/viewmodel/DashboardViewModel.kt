@@ -8,6 +8,7 @@ import com.example.EnrollmentRequest
 import com.example.CourseInteraction
 import com.example.Mentor
 import com.example.UserProfile
+import com.example.data.SupabaseRepository
 import com.example.supabase
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
@@ -27,10 +28,50 @@ data class DashboardUiState(
     val isInitialLoadComplete: Boolean = false
 )
 
-class DashboardViewModel : ViewModel() {
+class DashboardViewModel(
+    private val repository: SupabaseRepository = SupabaseRepository()
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+
+    fun initializeCachedData(cachedCourses: List<CourseItem>, cachedEnrollments: List<Enrollment>) {
+        if (!_uiState.value.isInitialLoadComplete) {
+            _uiState.value = _uiState.value.copy(
+                courses = cachedCourses,
+                enrollments = cachedEnrollments,
+                isInitialLoadComplete = cachedCourses.isNotEmpty()
+            )
+        }
+    }
+
+    fun setCourses(newCourses: List<CourseItem>) {
+        _uiState.value = _uiState.value.copy(courses = newCourses)
+    }
+
+    fun setEnrollments(newEnrollments: List<Enrollment>) {
+        _uiState.value = _uiState.value.copy(enrollments = newEnrollments)
+    }
+
+    fun setEnrollmentRequests(newRequests: List<EnrollmentRequest>) {
+        _uiState.value = _uiState.value.copy(enrollmentRequests = newRequests)
+    }
+
+    fun setCourseInteractions(newInteractions: List<CourseInteraction>) {
+        _uiState.value = _uiState.value.copy(courseInteractions = newInteractions)
+    }
+
+    fun setAllChannels(newChannels: List<UserProfile>) {
+        _uiState.value = _uiState.value.copy(allChannels = newChannels)
+    }
+
+    fun setMentors(newMentors: List<Mentor>) {
+        _uiState.value = _uiState.value.copy(mentors = newMentors)
+    }
+
+    fun setInitialLoadComplete(complete: Boolean) {
+        _uiState.value = _uiState.value.copy(isInitialLoadComplete = complete)
+    }
 
     fun loadData(
         currentScreen: String,
@@ -47,32 +88,33 @@ class DashboardViewModel : ViewModel() {
 
                 // 1. My Enrollments
                 if (!isTeacher && !isAdmin) {
-                    newEnrollments = withContext(Dispatchers.IO) {
-                        try {
-                            supabase.from("enrollments").select { filter { eq("user_id", profile.user_id) } }.decodeList<Enrollment>()
-                        } catch(e: Exception) { _uiState.value.enrollments }
-                    }
-                    newRequests = withContext(Dispatchers.IO) {
-                        try { supabase.from("enrollment_requests").select { filter { eq("user_id", profile.user_id) } }.decodeList<EnrollmentRequest>() } catch(e: Exception) { _uiState.value.enrollmentRequests }
-                    }
+                    newEnrollments = try {
+                        repository.getEnrollmentsForUser(profile.user_id)
+                    } catch(e: Exception) { _uiState.value.enrollments }
+                    
+                    newRequests = try {
+                        repository.getEnrollmentRequestsForUser(profile.user_id)
+                    } catch(e: Exception) { _uiState.value.enrollmentRequests }
                 }
 
                 // 2. All Enrollments & Requests
                 if (isTeacher || isAdmin) {
-                    newEnrollments = withContext(Dispatchers.IO) {
-                        try { supabase.from("enrollments").select().decodeList<Enrollment>() } catch(e: Exception) { _uiState.value.enrollments }
-                    }
+                    newEnrollments = try {
+                        repository.getAllEnrollments()
+                    } catch(e: Exception) { _uiState.value.enrollments }
+                    
                     if (selectedTab == 2 || currentScreen == "enrollment_requests") {
-                        newRequests = withContext(Dispatchers.IO) {
-                            try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { _uiState.value.enrollmentRequests }
-                        }
+                        newRequests = try {
+                            repository.getAllEnrollmentRequests()
+                        } catch(e: Exception) { _uiState.value.enrollmentRequests }
                     }
                 }
 
                 // 3. Courses
-                val newCourses = withContext(Dispatchers.IO) {
-                    try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { _uiState.value.courses }
-                }
+                val newCourses = try {
+                    repository.getAllCourses()
+                } catch(e: Exception) { _uiState.value.courses }
+                
                 val mappedCourses = if (isTeacher || isAdmin) {
                     newCourses.map { c -> c.copy(studentsCount = newEnrollments.count { it.course_id == c.id }) }
                 } else {
@@ -80,35 +122,25 @@ class DashboardViewModel : ViewModel() {
                 }
 
                 // 4. Channels
-                val allChannels = withContext(Dispatchers.IO) {
-                    try {
-                        supabase.from("public_channels").select().decodeList<UserProfile>()
-                    } catch (e: Exception) {
-                        try {
-                            supabase.from("profiles").select().decodeList<UserProfile>().filter { it.handle != null && it.handle.isNotBlank() }
-                        } catch (ex: Exception) {
-                            _uiState.value.allChannels
-                        }
-                    }
-                }
+                val allChannels = try {
+                    repository.getAllChannels()
+                } catch(e: Exception) { _uiState.value.allChannels }
 
                 // 5. Course Interactions & Mentors
                 var courseInteractions = _uiState.value.courseInteractions
                 var mentors = _uiState.value.mentors
                 if (currentScreen == "course_detail" && selectedCourse != null) {
-                    courseInteractions = withContext(Dispatchers.IO) {
-                        try { supabase.from("course_interactions").select { filter { eq("course_id", selectedCourse.id) } }.decodeList<CourseInteraction>() } catch(e: Exception) { _uiState.value.courseInteractions }
-                    }
-                    mentors = withContext(Dispatchers.IO) {
-                        try {
-                            val cid = selectedCourse.channel_id
-                            if (!cid.isNullOrBlank()) {
-                                supabase.from("mentors").select { filter { eq("channel_id", cid) } }.decodeList<Mentor>()
-                            } else {
-                                supabase.from("mentors").select().decodeList<Mentor>()
-                            }
-                        } catch(e: Exception) { _uiState.value.mentors }
-                    }
+                    courseInteractions = try {
+                        repository.getCourseInteractions(selectedCourse.id)
+                    } catch(e: Exception) { _uiState.value.courseInteractions }
+                    
+                    mentors = try {
+                        repository.getMentorsForChannel(selectedCourse.channel_id)
+                    } catch(e: Exception) { _uiState.value.mentors }
+                } else if (isTeacher) {
+                    mentors = try {
+                        repository.getMentorsForChannel(profile.user_id)
+                    } catch(e: Exception) { _uiState.value.mentors }
                 }
 
                 _uiState.value = _uiState.value.copy(
@@ -124,6 +156,209 @@ class DashboardViewModel : ViewModel() {
             } catch (e: Exception) {
                 // Handle error
             }
+        }
+    }
+
+    fun saveCourse(courseToSave: CourseItem, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+        viewModelScope.launch {
+            try {
+                if (courseToSave.id.isNotBlank()) {
+                    repository.updateCourse(courseToSave)
+                    _uiState.value = _uiState.value.copy(
+                        courses = _uiState.value.courses.map { if (it.id == courseToSave.id) courseToSave else it }
+                    )
+                } else {
+                    val newId = java.util.UUID.randomUUID().toString()
+                    val newCourse = courseToSave.copy(id = newId)
+                    repository.addCourse(newCourse)
+                    _uiState.value = _uiState.value.copy(
+                        courses = _uiState.value.courses + newCourse
+                    )
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
+    fun deleteCourse(courseId: String, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+        viewModelScope.launch {
+            try {
+                repository.deleteEnrollmentsForCourse(courseId)
+                repository.deleteInteractionsForCourse(courseId)
+                repository.deleteRequestsForCourse(courseId)
+                repository.deleteCourse(courseId)
+                _uiState.value = _uiState.value.copy(
+                    courses = _uiState.value.courses.filter { it.id != courseId },
+                    enrollmentRequests = _uiState.value.enrollmentRequests.filter { it.course_id != courseId }
+                )
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
+    fun enrollInCourse(enrollment: Enrollment, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+        viewModelScope.launch {
+            try {
+                repository.addEnrollment(enrollment)
+                val updatedCourses = _uiState.value.courses.map {
+                    if (it.id == enrollment.course_id) it.copy(studentsCount = it.studentsCount + 1) else it
+                }
+                _uiState.value = _uiState.value.copy(
+                    enrollments = _uiState.value.enrollments + enrollment,
+                    courses = updatedCourses
+                )
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
+    fun toggleLike(courseId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                val existing = _uiState.value.courseInteractions.find { it.course_id == courseId && it.user_id == userId && it.is_like }
+                if (existing != null) {
+                    repository.removeCourseInteraction(existing.id)
+                    _uiState.value = _uiState.value.copy(
+                        courseInteractions = _uiState.value.courseInteractions.filter { it.id != existing.id }
+                    )
+                } else {
+                    val newInteraction = CourseInteraction(course_id = courseId, user_id = userId, is_like = true)
+                    repository.addCourseInteraction(newInteraction)
+                    _uiState.value = _uiState.value.copy(
+                        courseInteractions = _uiState.value.courseInteractions + newInteraction
+                    )
+                }
+            } catch (e: Exception) {
+                // handle error silently
+            }
+        }
+    }
+    
+    fun addViewInteraction(courseId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                val hasViewed = _uiState.value.courseInteractions.any { it.course_id == courseId && it.user_id == userId && !it.is_like }
+                if (!hasViewed) {
+                    val newView = CourseInteraction(course_id = courseId, user_id = userId, is_like = false)
+                    repository.addCourseInteraction(newView)
+                    _uiState.value = _uiState.value.copy(
+                        courseInteractions = _uiState.value.courseInteractions + newView
+                    )
+                }
+            } catch (e: Exception) {
+                // handle error silently
+            }
+        }
+    }
+
+    fun approveEnrollment(request: EnrollmentRequest) {
+        viewModelScope.launch {
+            try {
+                val enrollment = Enrollment(
+                    user_id = request.user_id,
+                    course_id = request.course_id,
+                    price_paid = request.amount,
+                    purchased_quarters = if (request.requested_quarters == "FULL") "" else request.requested_quarters
+                )
+                repository.addEnrollment(enrollment)
+                repository.deleteEnrollmentRequest(request.id)
+                _uiState.value = _uiState.value.copy(
+                    enrollmentRequests = _uiState.value.enrollmentRequests.filter { it.id != request.id },
+                    enrollments = _uiState.value.enrollments + enrollment
+                )
+            } catch(e: Exception) { }
+        }
+    }
+
+    fun rejectEnrollment(request: EnrollmentRequest) {
+        viewModelScope.launch {
+            try {
+                repository.deleteEnrollmentRequest(request.id)
+                _uiState.value = _uiState.value.copy(
+                    enrollmentRequests = _uiState.value.enrollmentRequests.filter { it.id != request.id }
+                )
+            } catch(e: Exception) { }
+        }
+    }
+    
+    fun requestEnrollment(request: EnrollmentRequest, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+        viewModelScope.launch {
+            try {
+                repository.addEnrollmentRequest(request)
+                onSuccess()
+            } catch(e: Exception) {
+                onError(e)
+            }
+        }
+    }
+    
+    fun saveMentor(mentor: Mentor, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+        viewModelScope.launch {
+            try {
+                if (mentor.id.isNotBlank()) {
+                    repository.updateMentor(mentor)
+                    _uiState.value = _uiState.value.copy(
+                        mentors = _uiState.value.mentors.map { if(it.id == mentor.id) mentor else it }
+                    )
+                } else {
+                    val newId = java.util.UUID.randomUUID().toString()
+                    val newMentor = mentor.copy(id = newId)
+                    repository.addMentor(newMentor)
+                    _uiState.value = _uiState.value.copy(
+                        mentors = _uiState.value.mentors + newMentor
+                    )
+                }
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+    
+    fun deleteMentor(mentorId: String, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+        viewModelScope.launch {
+            try {
+                repository.deleteMentor(mentorId)
+                _uiState.value = _uiState.value.copy(
+                    mentors = _uiState.value.mentors.filter { it.id != mentorId }
+                )
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
+    fun updateProfile(profile: UserProfile, onSuccess: () -> Unit, onError: (Exception) -> Unit) {
+        viewModelScope.launch {
+            try {
+                repository.updateProfile(profile)
+                onSuccess()
+            } catch (e: Exception) {
+                onError(e)
+            }
+        }
+    }
+
+    fun reloadEnrollmentsAndRequests(profile: UserProfile, isTeacher: Boolean, isAdmin: Boolean) {
+        viewModelScope.launch {
+            try {
+                if (!isTeacher && !isAdmin) {
+                    val enrollments = repository.getEnrollmentsForUser(profile.user_id)
+                    val requests = repository.getEnrollmentRequestsForUser(profile.user_id)
+                    _uiState.value = _uiState.value.copy(enrollments = enrollments, enrollmentRequests = requests)
+                } else {
+                    val enrollments = repository.getAllEnrollments()
+                    val requests = repository.getAllEnrollmentRequests()
+                    _uiState.value = _uiState.value.copy(enrollments = enrollments, enrollmentRequests = requests)
+                }
+            } catch(e: Exception) { }
         }
     }
 }

@@ -31,6 +31,7 @@ fun PurchaseCourseScreen(
     profile: UserProfile,
     accentColor: Color,
     onBack: () -> Unit,
+    onRequestEnrollment: (EnrollmentRequest) -> Unit = {},
     onPurchaseSubmitted: () -> Unit
 ) {
     val context = LocalContext.current
@@ -233,7 +234,7 @@ fun PurchaseCourseScreen(
                                 transaction_id = transactionId,
                                 status = "PENDING"
                             )
-                            supabase.from("enrollment_requests").insert(req)
+                            onRequestEnrollment(req)
                             Toast.makeText(context, "রিকোয়েস্ট সফলভাবে জমা হয়েছে!", Toast.LENGTH_LONG).show()
                             onPurchaseSubmitted()
                         } catch (e: Exception) {
