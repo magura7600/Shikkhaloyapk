@@ -27,36 +27,13 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
-  signingConfigs {
-    create("release") {
-      val keystorePath = System.getenv("KEYSTORE_PATH") ?: "${rootDir}/my-upload-key.jks"
-      val isReleaseTask = gradle.startParameter.taskNames.any { taskName ->
-        taskName.contains("Release", ignoreCase = true) || taskName == "assemble" || taskName == "bundle"
-      }
-      if (file(keystorePath).exists()) {
-        storeFile = file(keystorePath)
-        storePassword = System.getenv("STORE_PASSWORD")
-        keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
-        keyPassword = System.getenv("KEY_PASSWORD")
-      } else if (System.getenv("GITHUB_ACTIONS") == "true" && isReleaseTask) {
-        throw GradleException("Keystore file not found at $keystorePath in GitHub Actions! Please check your repository secrets (e.g., RELEASE_KEYSTORE_BASE64).")
-      } else {
-        // Fallback to debug keystore to allow building unsigned/debug-signed release APKs
-        storeFile = file("${rootDir}/debug.keystore")
-        storePassword = "android"
-        keyAlias = "androiddebugkey"
-        keyPassword = "android"
-      }
-    }
-  }
-
   buildTypes {
     release {
       isCrunchPngs = false
       isMinifyEnabled = false
       isShrinkResources = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("release")
+      signingConfig = signingConfigs.getByName("debug")
     }
     debug {
       // Use default debug signing config automatically
