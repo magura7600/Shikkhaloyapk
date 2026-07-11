@@ -118,7 +118,7 @@ fun CreateChannelScreen(
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.White)
             )
         },
-        containerColor = Color(0xFFFBF8F1)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { padding ->
         Column(
             modifier = Modifier
@@ -161,7 +161,7 @@ fun CreateChannelScreen(
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE2E8F0))
+                        .background(MaterialTheme.colorScheme.surfaceVariant)
                         .clickable { if (!isSaving) profileImagePicker.launch("image/*") },
                     contentAlignment = Alignment.Center
                 ) {
@@ -214,9 +214,9 @@ fun CreateChannelScreen(
                         focusedLabelColor = accentColor
                     )
                 )
-                if (handleError != null) {
+                handleError?.let { errorMsg ->
                     Text(
-                        text = handleError!!,
+                        text = errorMsg,
                         color = Color.Red,
                         fontSize = 12.sp,
                         modifier = Modifier.padding(start = 16.dp, top = 4.dp)

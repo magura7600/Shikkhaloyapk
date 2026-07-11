@@ -327,9 +327,9 @@ fun OfflineDownloadsDialog(
         }
 
         // Display PDF Viewer Dialog when a PDF is selected
-        if (pdfToView != null) {
+        pdfToView?.let { pdf ->
             PdfViewerDialog(
-                file = pdfToView!!,
+                file = pdf,
                 title = pdfTitleToView,
                 url = pdfUrlToView,
                 onClose = { pdfToView = null }
@@ -337,9 +337,9 @@ fun OfflineDownloadsDialog(
         }
 
         // Display offline video player Dialog when a video is selected
-        if (videoToPlay != null) {
+        videoToPlay?.let { video ->
             OfflineVideoPlayerDialog(
-                file = videoToPlay!!,
+                file = video,
                 title = videoTitleToPlay,
                 onClose = { videoToPlay = null }
             )

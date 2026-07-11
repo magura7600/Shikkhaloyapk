@@ -277,7 +277,7 @@ fun UnenrolledCourseOverview(
                         statusColor = Color(0xFFEF4444) // Yellow/Orange
                         statusIcon = Icons.Default.PlayCircle
                     }
-                } catch (e: Exception) { }
+                } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
 
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -347,7 +347,7 @@ fun LearningResourcesScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        OfflineDownloadManager.deleteDownload(context, recordToDelete!!)
+                        recordToDelete?.let { OfflineDownloadManager.deleteDownload(context, it) }
                         recordToDelete = null
                         downloadsList = OfflineDownloadManager.getDownloadRecords(context)
                         Toast.makeText(context, "ডিলিট সম্পন্ন হয়েছে!", Toast.LENGTH_SHORT).show()
@@ -380,7 +380,7 @@ fun LearningResourcesScreen(
 
     if (activePdfToView != null) {
         FullScreenPdfViewer(
-            file = activePdfToView!!,
+            file = activePdfToView ?: File(""),
             title = activePdfTitle,
             url = activePdfUrl,
             onClose = { activePdfToView = null }
@@ -541,7 +541,7 @@ fun LearningResourcesScreen(
                                         openBrowserIntent(pdf.url)
                                     } else {
                                         if (isDownloaded) {
-                                            activePdfToView = File(downloadedRecord!!.localPath)
+                                            downloadedRecord?.localPath?.let { activePdfToView = File(it) }
                                             activePdfTitle = pdf.title
                                             activePdfUrl = pdf.url
                                         } else {

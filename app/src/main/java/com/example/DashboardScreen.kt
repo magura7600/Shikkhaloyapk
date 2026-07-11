@@ -191,7 +191,7 @@ fun DashboardScreen(
             focusCourseId = myEnrolledCourseIds.firstOrNull()
             try {
                 sharedPrefs.edit().putString("cached_focus_course_id_${profile.user_id}", focusCourseId).apply()
-            } catch (e: Exception) {}
+            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
         }
         
         try {
@@ -257,17 +257,17 @@ fun DashboardScreen(
                  val newEnrollments = withContext(Dispatchers.IO) {
                      try {
                          supabase.from("enrollments").select { filter { eq("user_id", profile.user_id) } }.decodeList<Enrollment>()
-                     } catch(e: Exception) { enrollments }
+                     } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollments", e); enrollments }
                  }
                  if (newEnrollments != enrollments) {
                      enrollments = newEnrollments
                      try {
                          sharedPrefs.edit().putString("cached_enrollments_${profile.user_id}", Json.encodeToString(newEnrollments)).apply()
-                     } catch (e: Exception) { e.printStackTrace() }
+                     } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                  }
                  
                  val myRequests = withContext(Dispatchers.IO) {
-                     try { supabase.from("enrollment_requests").select { filter { eq("user_id", profile.user_id) } }.decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
+                     try { supabase.from("enrollment_requests").select { filter { eq("user_id", profile.user_id) } }.decodeList<EnrollmentRequest>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollmentsReq", e); enrollmentRequests }
                  }
                  if (myRequests != enrollmentRequests) enrollmentRequests = myRequests
             }
@@ -275,18 +275,18 @@ fun DashboardScreen(
             // 2. All Enrollments & Requests (ONLY needed if Teacher/Admin goes to Management)
             if ((isTeacher || isAdmin)) {
                  enrollments = withContext(Dispatchers.IO) {
-                     try { supabase.from("enrollments").select().decodeList<Enrollment>() } catch(e: Exception) { enrollments }
+                     try { supabase.from("enrollments").select().decodeList<Enrollment>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollments", e); enrollments }
                  }
                  if (selectedTab == 2 || currentScreen == "enrollment_requests") {
                      enrollmentRequests = withContext(Dispatchers.IO) {
-                         try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch(e: Exception) { enrollmentRequests }
+                         try { supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollmentsReq", e); enrollmentRequests }
                      }
                  }
             }
 
             // 3. Courses
             val newCourses = withContext(Dispatchers.IO) {
-                try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { courses }
+                try { supabase.from("courses").select().decodeList<CourseItem>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error courses", e); courses }
             }
             val mappedCourses = if (isTeacher || isAdmin) {
                 newCourses.map { c -> c.copy(studentsCount = enrollments.count { it.course_id == c.id }) }
@@ -297,7 +297,7 @@ fun DashboardScreen(
                 courses = mappedCourses
                 try {
                     sharedPrefs.edit().putString("cached_courses_${profile.user_id}", Json.encodeToString(mappedCourses)).apply()
-                } catch (e: Exception) { e.printStackTrace() }
+                } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
             }
             hasLoadedAllCourses = true
 
@@ -317,7 +317,7 @@ fun DashboardScreen(
             // 5. Course Interactions & Mentors (ONLY needed for Course Detail screen)
             if (currentScreen == "course_detail" && selectedCourse != null) {
                  courseInteractions = withContext(Dispatchers.IO) {
-                     try { supabase.from("course_interactions").select { filter { eq("course_id", selectedCourse!!.id) } }.decodeList<CourseInteraction>() } catch(e: Exception) { courseInteractions }
+                     try { selectedCourse?.id?.let { cid -> supabase.from("course_interactions").select { filter { eq("course_id", cid) } }.decodeList<CourseInteraction>() } ?: courseInteractions } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error interactions", e); courseInteractions }
                  }
                  mentors = withContext(Dispatchers.IO) {
                      try {
@@ -327,12 +327,10 @@ fun DashboardScreen(
                          } else {
                              supabase.from("mentors").select().decodeList<Mentor>()
                          }
-                     } catch(e: Exception) { mentors }
+                     } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error mentors", e); mentors }
                  }
             }
-        } catch (e: Exception) {
-            // silent
-        } finally {
+        } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) } finally {
             isInitialLoadComplete = true
         }
     }
@@ -433,7 +431,7 @@ fun DashboardScreen(
                                                         focusCourseId = course.id
                                                         try {
                                                             sharedPrefs.edit().putString("cached_focus_course_id_${profile.user_id}", course.id).apply()
-                                                        } catch (e: Exception) {}
+                                                        } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                                                         expanded = false
                                                     }
                                                 )
@@ -517,7 +515,7 @@ fun DashboardScreen(
                         containerColor = Color.White
                     )
                 )
-                Divider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
                 if (isOffline) {
                     Row(
                         modifier = Modifier
@@ -550,7 +548,7 @@ fun DashboardScreen(
                             textDecoration = TextDecoration.Underline
                         )
                     }
-                    Divider(color = MaterialTheme.colorScheme.error, thickness = 1.dp)
+                    HorizontalDivider(color = MaterialTheme.colorScheme.error, thickness = 1.dp)
                 }
                 }
             }
@@ -633,28 +631,28 @@ fun DashboardScreen(
                 coroutineScope.launch {
                     try {
                         withContext(Dispatchers.IO) {
-                            val newCourses = try { supabase.from("courses").select().decodeList<CourseItem>() } catch(e: Exception) { courses }
+                            val newCourses = try { supabase.from("courses").select().decodeList<CourseItem>() } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error courses", e); courses }
                             val newEnrollments = try {
                                 if (isTeacher || isAdmin) {
                                     supabase.from("enrollments").select().decodeList<Enrollment>()
                                 } else {
                                     supabase.from("enrollments").select { filter { eq("user_id", profile.user_id) } }.decodeList<Enrollment>()
                                 }
-                            } catch(e: Exception) { enrollments }
+                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollments", e); enrollments }
                             val newRequests = try { 
                                 if (isTeacher || isAdmin) {
                                     supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
                                 } else {
                                     supabase.from("enrollment_requests").select { filter { eq("user_id", profile.user_id) } }.decodeList<EnrollmentRequest>()
                                 }
-                            } catch(e: Exception) { enrollmentRequests }
+                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error enrollmentsReq", e); enrollmentRequests }
                             
                             withContext(Dispatchers.Main) {
                                 if (newEnrollments != enrollments) {
                                     enrollments = newEnrollments
                                     try {
                                         sharedPrefs.edit().putString("cached_enrollments_${profile.user_id}", Json.encodeToString(newEnrollments)).apply()
-                                    } catch (e: Exception) {}
+                                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                                 }
                                 val mappedCourses = if (isTeacher || isAdmin) {
                                     newCourses.map { c -> c.copy(studentsCount = newEnrollments.count { it.course_id == c.id }) }
@@ -665,14 +663,12 @@ fun DashboardScreen(
                                     courses = mappedCourses
                                     try {
                                         sharedPrefs.edit().putString("cached_courses_${profile.user_id}", Json.encodeToString(mappedCourses)).apply()
-                                    } catch (e: Exception) {}
+                                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                                 }
                                 enrollmentRequests = newRequests
                             }
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
-                    } finally {
+                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) } finally {
                         isRefreshing = false
                     }
                 }
@@ -758,14 +754,17 @@ fun DashboardScreen(
                     onBack = { currentScreen = "dashboard" }
                 )
             } else if (currentScreen == "manage_students" && selectedCourse != null) {
-                ManageStudentsScreen(
-                    course = selectedCourse!!,
-                    accentColor = accentColor,
-                    onBack = { 
-                        currentScreen = "dashboard"
-                        selectedCourse = null
-                    }
-                )
+                val currentSelectedCourse = selectedCourse
+                if (currentSelectedCourse != null) {
+                    ManageStudentsScreen(
+                        course = currentSelectedCourse,
+                        accentColor = accentColor,
+                        onBack = { 
+                            currentScreen = "dashboard"
+                            selectedCourse = null
+                        }
+                    )
+                }
             } else if (currentScreen == "create_channel") {
                 CreateChannelScreen(
                     profile = profile,
@@ -788,8 +787,7 @@ fun DashboardScreen(
                                         onProfileUpdate(updatedProf)
                                         teacherChannel = if (updatedProf.handle != null && updatedProf.handle.isNotBlank()) updatedProf else null
                                     }
-                                } catch (e: Exception) {
-                                } finally {
+                                } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) } finally {
                                     isLoadingChannel = false
                                 }
                             }
@@ -839,18 +837,13 @@ fun DashboardScreen(
                                     supabase.from("course_interactions").insert(newView)
                                 }
                                 courseInteractions = courseInteractions + newView
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
+                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                         }
                     }
                     CourseDetailScreen(
-                        course = activeCourse,
+                        initialCourse = activeCourse,
                         profile = profile,
-                        mentors = mentors,
                         userEnrollment = enrollments.find { it.course_id == activeCourse.id && it.user_id == profile.user_id },
-                        isLiked = courseInteractions.any { it.course_id == activeCourse.id && it.user_id == profile.user_id && it.is_like },
-                        courseInteractions = courseInteractions,
                         initialSubjectId = initialSubjectId,
                         initialChapterId = initialChapterId,
                         initialClassId = initialClassId,
@@ -883,51 +876,7 @@ fun DashboardScreen(
                             }
                         }
                     },
-                    onLikeToggle = {
-                        coroutineScope.launch {
-                            try {
-                                val currentCourse = selectedCourse ?: return@launch
-                                val existing = courseInteractions.find { it.course_id == currentCourse.id && it.user_id == profile.user_id && it.is_like }
-                                if (existing != null) {
-                                    withContext(Dispatchers.IO) {
-                                        supabase.from("course_interactions").delete {
-                                            filter { eq("id", existing.id) }
-                                        }
-                                    }
-                                    courseInteractions = courseInteractions.filter { it.id != existing.id }
-                                } else {
-                                    val newInteraction = CourseInteraction(user_id = profile.user_id, course_id = currentCourse.id, is_like = true)
-                                    withContext(Dispatchers.IO) {
-                                        supabase.from("course_interactions").insert(newInteraction)
-                                    }
-                                    courseInteractions = courseInteractions + newInteraction
-                                }
-                            } catch(e: Exception) {
-                                Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                            }
-                        }
-                    },
-                    onCourseUpdate = { updatedCourse ->
-                        coroutineScope.launch {
-                            try {
-                                withContext(Dispatchers.IO) {
-                                    supabase.from("courses").update(updatedCourse) {
-                                        filter { eq("id", updatedCourse.id) }
-                                    }
-                                }
-                                courses = courses.map { if (it.id == updatedCourse.id) updatedCourse else it }
-                                selectedCourse = updatedCourse
-                                Toast.makeText(context, "Course updated!", Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                val msg = e.message ?: ""
-                                if (msg.contains("subjects") || msg.contains("quarters") || msg.contains("isQuarterOn")) {
-                                    Toast.makeText(context, "Error: Supabase-এ কলাম অনুপস্থিত বা ত্রুটি! (${e.message})", Toast.LENGTH_LONG).show()
-                                } else {
-                                    Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_LONG).show()
-                                }
-                            }
-                        }
-                    },
+
                     onMultipleCoursesUpdate = { updatedCourses ->
                         val updatedMap = updatedCourses.associateBy { it.id }
                         courses = courses.map { updatedMap[it.id] ?: it }
@@ -955,7 +904,7 @@ fun DashboardScreen(
                         coroutineScope.launch {
                             try {
                                 enrollmentRequests = supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
-                            } catch (e: Exception) { e.printStackTrace() }
+                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                         }
                         currentScreen = "course_detail"
                     }
@@ -973,7 +922,7 @@ fun DashboardScreen(
                                 enrollmentRequests = supabase.from("enrollment_requests").select().decodeList<EnrollmentRequest>()
                                 val fetched = supabase.from("enrollments").select().decodeList<Enrollment>()
                                 enrollments = fetched
-                            } catch (e: Exception) { e.printStackTrace() }
+                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                         }
                     }
                 )
@@ -1087,21 +1036,21 @@ fun DashboardScreen(
                                                 supabase.from("enrollments").delete {
                                                     filter { eq("course_id", course.id) }
                                                 }
-                                            } catch (e: Exception) { e.printStackTrace() }
+                                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                                             
                                             // Delete related interactions
                                             try {
                                                 supabase.from("course_interactions").delete {
                                                     filter { eq("course_id", course.id) }
                                                 }
-                                            } catch (e: Exception) { e.printStackTrace() }
+                                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
 
                                             // Delete related enrollment_requests
                                             try {
                                                 supabase.from("enrollment_requests").delete {
                                                     filter { eq("course_id", course.id) }
                                                 }
-                                            } catch (e: Exception) { e.printStackTrace() }
+                                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
 
                                             // Delete the course itself
                                             supabase.from("courses").delete {

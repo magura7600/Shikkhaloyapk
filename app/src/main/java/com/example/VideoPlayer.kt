@@ -223,7 +223,7 @@ fun VideoPlayer(
                     activity.enterPictureInPictureMode(params)
                 } catch (e: Exception) {
                     try {
-                        activity.enterPictureInPictureMode()
+                        activity.enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
                     } catch (ex: Exception) {
                         ex.printStackTrace()
                     }
@@ -239,7 +239,7 @@ fun VideoPlayer(
 
     
     LaunchedEffect(statusMessage) {
-        if (statusMessage != null) {
+        statusMessage?.let { msg ->
             kotlinx.coroutines.delay(1800L)
             statusMessage = null
         }
@@ -597,7 +597,7 @@ fun VideoPlayer(
 
         if (!VideoPipState.isInPip) {
             // On-screen Transient Status Message
-            if (statusMessage != null) {
+            statusMessage?.let { msg ->
             Box(
                 modifier = Modifier
                     .align(Alignment.TopCenter)
@@ -607,7 +607,7 @@ fun VideoPlayer(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = statusMessage!!,
+                    text = msg,
                     color = Color.White,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold

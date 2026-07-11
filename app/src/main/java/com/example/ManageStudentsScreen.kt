@@ -166,8 +166,10 @@ fun ManageStudentsScreen(
         }
 
         if (showBanDialog && selectedEnrollment != null) {
+            val currentEnrollment = selectedEnrollment
+            if (currentEnrollment != null) {
             BanStudentDialog(
-                enrollment = selectedEnrollment!!,
+                enrollment = currentEnrollment,
                 accentColor = accentColor,
                 onDismiss = { showBanDialog = false },
                 onBanConfirm = { durationMillis, reason ->
@@ -181,12 +183,12 @@ fun ManageStudentsScreen(
                                         set("ban_reason", reason)
                                     }
                                 ) {
-                                    filter { eq("id", selectedEnrollment!!.id) }
+                                    filter { eq("id", currentEnrollment?.id ?: "") }
                                 }
                             }
                             // Update local state
                             enrollments = enrollments.map {
-                                if (it.id == selectedEnrollment!!.id) it.copy(banned_until = bannedUntil, ban_reason = reason) else it
+                                if (it.id == currentEnrollment?.id) it.copy(banned_until = bannedUntil, ban_reason = reason) else it
                             }
                             showBanDialog = false
                         } catch (e: Exception) {
@@ -195,6 +197,7 @@ fun ManageStudentsScreen(
                     }
                 }
             )
+            }
         }
     }
 }

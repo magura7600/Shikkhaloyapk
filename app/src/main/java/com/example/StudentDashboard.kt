@@ -118,7 +118,7 @@ fun StudentDashboardContent(
                 chapter.classes.forEach { courseClass ->
                     try {
                         dates.add(java.time.LocalDate.parse(courseClass.date.trim(), formatter))
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                 }
             }
         }
@@ -137,7 +137,7 @@ fun StudentDashboardContent(
                         if (classDate == selectedDate) {
                             classList.add(Triple(courseClass, chapter, subject))
                         }
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                 }
             }
         }
@@ -385,7 +385,7 @@ fun StudentDashboardContent(
                         viewingMonth = java.time.YearMonth.from(selectedDate)
                     }) {
                         Text(
-                            text = if (isPrevToday) "Today" else prevDate.dayOfWeek.name.take(3).capitalize(), 
+                            text = if (isPrevToday) "Today" else prevDate.dayOfWeek.name.take(3).replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }, 
                             fontSize = 11.sp, 
                             color = if (isPrevToday) accentColor else Color.Gray, 
                             fontWeight = if (isPrevToday) FontWeight.Bold else FontWeight.Medium
@@ -402,7 +402,7 @@ fun StudentDashboardContent(
                             .padding(horizontal = 12.dp, vertical = 6.dp)
                     ) {
                         Text(
-                            text = if (isSelectedToday) "Today" else selectedDate.dayOfWeek.name.take(3).capitalize(), 
+                            text = if (isSelectedToday) "Today" else selectedDate.dayOfWeek.name.take(3).replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }, 
                             fontSize = 11.sp, 
                             color = Color.White, 
                             fontWeight = FontWeight.Bold
@@ -418,7 +418,7 @@ fun StudentDashboardContent(
                         viewingMonth = java.time.YearMonth.from(selectedDate)
                     }) {
                         Text(
-                            text = if (isNextToday) "Today" else nextDate.dayOfWeek.name.take(3).capitalize(), 
+                            text = if (isNextToday) "Today" else nextDate.dayOfWeek.name.take(3).replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.getDefault()) else it.toString() }, 
                             fontSize = 11.sp, 
                             color = if (isNextToday) accentColor else Color.Gray, 
                             fontWeight = if (isNextToday) FontWeight.Bold else FontWeight.Medium
@@ -513,7 +513,7 @@ fun StudentDashboardContent(
                 }
             }
         } else {
-            items(classesForDate.size) { index ->
+            items(classesForDate.size, key = { index -> classesForDate[index].first.id }) { index ->
                 val (courseClass, chapter, subject) = classesForDate[index]
                 Card(
                     modifier = Modifier.fillMaxWidth()
@@ -620,7 +620,7 @@ fun StudentDashboardContent(
                 }
             }
         } else {
-            items(classesWithHomework.size) { index ->
+            items(classesWithHomework.size, key = { index -> classesWithHomework[index].first.id }) { index ->
                 val (courseClass, chapter, subject) = classesWithHomework[index]
                 Card(
                     modifier = Modifier.fillMaxWidth()
@@ -654,7 +654,7 @@ fun StudentDashboardContent(
                         }
                         Spacer(modifier = Modifier.width(16.dp))
                         Button(
-                            onClick = { onClassClick(courseClass, chapter, subject, focusCourse!!) },
+                            onClick = { focusCourse?.let { onClassClick(courseClass, chapter, subject, it) } },
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.1f)),
                             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
                             shape = RoundedCornerShape(12.dp),

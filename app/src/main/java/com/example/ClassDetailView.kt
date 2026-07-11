@@ -163,11 +163,11 @@ fun ClassDetailView(
         AlertDialog(
             onDismissRequest = { recordToDelete = null },
             title = { Text("ডাউনলোড ডিলিট করুন", fontWeight = FontWeight.Bold, color = Color.Red) },
-            text = { Text("আপনি কি নিশ্চিতভাবে এই ফাইলটি ('${recordToDelete!!.title}') ডিলিট করতে চান?") },
+            text = { Text("আপনি কি নিশ্চিতভাবে এই ফাইলটি ('${recordToDelete?.title}') ডিলিট করতে চান?") },
             confirmButton = {
                 Button(
                     onClick = {
-                        OfflineDownloadManager.deleteDownload(context, recordToDelete!!)
+                        recordToDelete?.let { OfflineDownloadManager.deleteDownload(context, it) }
                         recordToDelete = null
                         downloadsList = OfflineDownloadManager.getDownloadRecords(context)
                         Toast.makeText(context, "ডিলিট সম্পন্ন হয়েছে!", Toast.LENGTH_SHORT).show()
@@ -262,9 +262,9 @@ fun ClassDetailView(
     // Use movableContentOf to keep VideoPlayer stable across orientation/PiP changes
     val movableVideoPlayer = remember(videoOptions, currentVideoUrl) {
         movableContentOf { modifier: Modifier ->
-            if (videoOptions != null) {
+            videoOptions?.let {
                 VideoPlayer(
-                    videoOptions = videoOptions!!,
+                    videoOptions = it,
                     modifier = modifier,
                     initialPosition = savedVideoPosition,
                     onPositionChanged = { savedVideoPosition = it },
@@ -298,7 +298,7 @@ fun ClassDetailView(
 
     if (activePdfToView != null) {
         FullScreenPdfViewer(
-            file = activePdfToView!!,
+            file = activePdfToView ?: File(""),
             title = activePdfTitle,
             url = activePdfUrl,
             onClose = { activePdfToView = null }
@@ -499,7 +499,7 @@ fun ClassDetailView(
                             mediaPlayer?.isLooping = true
                             mediaPlayer?.start()
                         }
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                 }
                 onDispose {
                     try {
@@ -507,7 +507,7 @@ fun ClassDetailView(
                             mediaPlayer?.stop()
                         }
                         mediaPlayer?.release()
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                 }
             }
 
@@ -894,7 +894,7 @@ fun ClassDetailView(
                                         openBrowserIntent(pdf.url)
                                     } else {
                                         if (isDownloaded) {
-                                            activePdfToView = File(downloadedRecord!!.localPath)
+                                            downloadedRecord?.localPath?.let { activePdfToView = File(it) }
                                             activePdfTitle = pdf.title
                                             activePdfUrl = pdf.url
                                         } else {

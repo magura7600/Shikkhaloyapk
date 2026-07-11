@@ -73,7 +73,7 @@ fun BannedScreen(
                     lineHeight = 22.sp
                 )
 
-                Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
                 // Account Information
                 Column(

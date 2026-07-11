@@ -298,6 +298,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                         }
 
                         if (latestNotice != null) {
+                            val notice = latestNotice
                             Spacer(modifier = Modifier.height(12.dp))
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
@@ -311,7 +312,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         Text(
-                                            text = latestNotice!!.title,
+                                            text = notice?.title ?: "",
                                             fontWeight = FontWeight.Bold,
                                             fontSize = 13.sp,
                                             color = MaterialTheme.colorScheme.primary
@@ -325,7 +326,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                     }
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = latestNotice!!.content,
+                                        text = notice?.content ?: "",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.primary,
                                         maxLines = 2
@@ -411,6 +412,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                         }
 
                         if (latestAppUpdate != null) {
+                            val update = latestAppUpdate
                             Spacer(modifier = Modifier.height(12.dp))
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
@@ -425,35 +427,35 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                     ) {
                                         Column {
                                             Text(
-                                                text = "সর্বশেষ রিলিজ: v${latestAppUpdate!!.version_name}",
+                                                text = "সর্বশেষ রিলিজ: v${latestAppUpdate?.version_name}",
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.sp,
                                                 color = MaterialTheme.colorScheme.primary
                                             )
                                             Text(
-                                                text = "ভার্সন কোড: ${latestAppUpdate!!.version_code}",
+                                                text = "ভার্সন কোড: ${update?.version_code}",
                                                 fontSize = 11.sp,
                                                 color = MaterialTheme.colorScheme.primary
                                             )
                                         }
                                         Text(
-                                            text = if (latestAppUpdate!!.is_force_update) "বাধ্যতামূলক ⚠️" else "ঐচ্ছিক 🟢",
+                                            text = if (update?.is_force_update == true) "বাধ্যতামূলক ⚠️" else "ঐচ্ছিক 🟢",
                                             fontSize = 11.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = if (latestAppUpdate!!.is_force_update) Color.Red else MaterialTheme.colorScheme.secondary
+                                            color = if (update?.is_force_update == true) Color.Red else MaterialTheme.colorScheme.secondary
                                         )
                                     }
                                     
                                     Spacer(modifier = Modifier.height(6.dp))
                                     Text(
-                                        text = "চ্যাঞ্জেলগ: ${latestAppUpdate!!.changelog.ifBlank { "কোন বিবরণ নেই" }}",
+                                        text = "চ্যাঞ্জেলগ: ${update?.changelog?.ifBlank { "কোন বিবরণ নেই" } ?: ""}",
                                         fontSize = 11.sp,
                                         color = MaterialTheme.colorScheme.primary
                                     )
                                     
                                     Spacer(modifier = Modifier.height(4.dp))
                                     Text(
-                                        text = "লিংক: ${latestAppUpdate!!.apk_url}",
+                                        text = "লিংক: ${update?.apk_url ?: ""}",
                                         fontSize = 10.sp,
                                         color = MaterialTheme.colorScheme.primary,
                                         maxLines = 1
@@ -676,14 +678,14 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                 }
             },
             text = {
-                Text("আপনি কি নিশ্চিতভাবে সর্বশেষ রিলিজ হওয়া আপডেটটি (v${latestAppUpdate!!.version_name}) ডিলিট করতে চান? এটি করার পর ইউজাররা আর আপডেট চেক বা ডাউনলোড করতে পারবেন না।")
+                Text("আপনি কি নিশ্চিতভাবে সর্বশেষ রিলিজ হওয়া আপডেটটি (v${latestAppUpdate?.version_name}) ডিলিট করতে চান? এটি করার পর ইউজাররা আর আপডেট চেক বা ডাউনলোড করতে পারবেন না।")
             },
             confirmButton = {
                 Button(
                     onClick = {
                         isDeletingUpdate = true
                         scope.launch {
-                            val res = AppUpdateManager.deleteUpdate(latestAppUpdate!!.id ?: 0)
+                            val res = AppUpdateManager.deleteUpdate(latestAppUpdate?.id ?: 0)
                             isDeletingUpdate = false
                             showDeleteUpdateConfirm = false
                             if (res.isSuccess) {

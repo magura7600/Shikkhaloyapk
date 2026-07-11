@@ -480,7 +480,7 @@ ALTER TABLE public.app_notices ADD COLUMN IF NOT EXISTS target_course_id TEXT;
                     }
                 }
 
-                Divider(color = Color(0xFFF3F4F6))
+                HorizontalDivider(color = Color(0xFFF3F4F6))
 
                 // SQL Guide dropdown
                 Button(

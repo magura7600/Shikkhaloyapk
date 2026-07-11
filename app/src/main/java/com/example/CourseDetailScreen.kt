@@ -58,6 +58,8 @@ import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.example.viewmodel.CourseDetailViewModel
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.layout
@@ -133,25 +135,31 @@ import androidx.media3.exoplayer.source.MediaSource
 @Composable
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 fun CourseDetailScreen(
-    course: CourseItem,
+    initialCourse: CourseItem,
     profile: UserProfile,
-    mentors: List<Mentor>,
     userEnrollment: Enrollment?,
-    isLiked: Boolean,
-    courseInteractions: List<CourseInteraction> = emptyList(),
     pendingRequest: EnrollmentRequest? = null,
     onPurchaseClick: () -> Unit = {},
     onEnroll: (purchasedQuarters: String) -> Unit,
-    onLikeToggle: () -> Unit,
-    onCourseUpdate: (CourseItem) -> Unit,
     onMultipleCoursesUpdate: (List<CourseItem>) -> Unit = {},
     accentColor: Color,
     initialSubjectId: String? = null,
     initialChapterId: String? = null,
     initialClassId: String? = null,
     onClearInitialNavigation: () -> Unit = {},
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: CourseDetailViewModel = viewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+    val course = uiState.course ?: initialCourse
+    val mentors = uiState.mentors
+    val courseInteractions = uiState.interactions
+    val isLiked = courseInteractions.any { it.user_id == profile.user_id && it.is_like }
+
+    LaunchedEffect(initialCourse.id) {
+        viewModel.loadCourseDetails(initialCourse)
+    }
+
     var selectedQuarters by remember { mutableStateOf(setOf<CourseQuarter>()) }
     var selectFullCourse by remember { mutableStateOf(true) }
     var isAddingSubjectTopBar by remember { mutableStateOf(false) }
@@ -350,7 +358,7 @@ fun CourseDetailScreen(
         val activeEnrollment = userEnrollment
         val isUserBanned = activeEnrollment != null && activeEnrollment.banned_until != null && (activeEnrollment.banned_until == -1L || activeEnrollment.banned_until > System.currentTimeMillis())
         
-        if (isUserBanned && activeEnrollment != null) {
+        if (isUserBanned) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -377,7 +385,8 @@ fun CourseDetailScreen(
                     course = course,
                     profile = profile,
                     courseInteractions = courseInteractions,
-                    onLikeToggle = onLikeToggle,
+                    onLikeToggle = { viewModel.toggleLike(profile.user_id) },
+                    
                     accentColor = accentColor,
                     modifier = Modifier.padding(paddingValues)
                 )
@@ -399,7 +408,7 @@ fun CourseDetailScreen(
                         isTeacher = isTeacher,
                         teacherId = profile.user_id,
                         userEnrollment = userEnrollment,
-                        onUpdate = { newSubjects: List<CourseSubject> -> onCourseUpdate(course.copy(subjects = newSubjects)) },
+                        onUpdate = { newSubjects: List<CourseSubject> -> viewModel.updateCourse(course.copy(subjects = newSubjects)) },
                         onMultipleCoursesUpdate = onMultipleCoursesUpdate,
                         accentColor = accentColor,
                         initialSubjectId = initialSubjectId,
@@ -407,7 +416,7 @@ fun CourseDetailScreen(
                         initialClassId = initialClassId,
                         onClearInitialNavigation = onClearInitialNavigation,
                         initialSelectedQuarterName = initialSelectedQuarterName,
-                        onCourseUpdate = onCourseUpdate,
+                        onCourseUpdate = { viewModel.updateCourse(it) },
                         selectedSubjectForView = selectedSubjectForView,
                         onSelectedSubjectChange = { s: CourseSubject? -> selectedSubjectForView = s },
                         showLearningResourcesForSubject = showLearningResourcesForSubject,
@@ -433,7 +442,7 @@ fun CourseDetailScreen(
                             isTeacher = isTeacher,
                             teacherId = profile.user_id,
                             userEnrollment = userEnrollment,
-                            onUpdate = { newSubjects: List<CourseSubject> -> onCourseUpdate(course.copy(subjects = newSubjects)) },
+                            onUpdate = { newSubjects: List<CourseSubject> -> viewModel.updateCourse(course.copy(subjects = newSubjects)) },
                             onMultipleCoursesUpdate = onMultipleCoursesUpdate,
                             accentColor = accentColor,
                             initialSubjectId = initialSubjectId,
@@ -441,7 +450,7 @@ fun CourseDetailScreen(
                             initialClassId = initialClassId,
                             onClearInitialNavigation = onClearInitialNavigation,
                             initialSelectedQuarterName = initialSelectedQuarterName,
-                            onCourseUpdate = onCourseUpdate,
+                            onCourseUpdate = { viewModel.updateCourse(it) },
                             selectedSubjectForView = selectedSubjectForView,
                             onSelectedSubjectChange = { s: CourseSubject? -> selectedSubjectForView = s },
                             showLearningResourcesForSubject = showLearningResourcesForSubject,

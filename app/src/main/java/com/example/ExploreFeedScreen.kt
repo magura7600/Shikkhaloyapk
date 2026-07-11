@@ -41,11 +41,11 @@ fun ExploreFeedScreen(
     
     val mockPosts = emptyList<FeedItem>()
     
-    val filteredCourses = if (searchQuery.isBlank()) {
+    val filteredCourses = remember(courses, searchQuery) { if (searchQuery.isBlank()) {
         courses
     } else {
         courses.filter { it.title.contains(searchQuery, ignoreCase = true) || it.description.contains(searchQuery, ignoreCase = true) }
-    }
+    } }
     
     val filteredChannels = if (searchQuery.isBlank()) {
         allChannels
@@ -154,7 +154,7 @@ fun ExploreFeedScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(150.dp)
-                                    .background(Color(0xFFE2E8F0)),
+                                    .background(MaterialTheme.colorScheme.surfaceVariant),
                                 contentAlignment = Alignment.Center
                             ) {
                                  if (course.bannerUrl.isNotBlank()) {
@@ -185,7 +185,7 @@ fun ExploreFeedScreen(
 
                             // Details
                             Column(modifier = Modifier.padding(16.dp)) {
-                                Text(course.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 2, color = Color(0xFF2D3748))
+                                Text(course.title, fontWeight = FontWeight.Bold, fontSize = 16.sp, maxLines = 2, color = MaterialTheme.colorScheme.primary)
                                 
                                 val courseChannel = allChannels.find { it.user_id == course.channel_id }
                                 if (courseChannel != null) {
@@ -253,7 +253,7 @@ fun ExploreFeedScreen(
                                                 Spacer(modifier = Modifier.width(4.dp))
                                                 Box(
                                                     modifier = Modifier
-                                                        .background(Color(0xFFFEE2E2), RoundedCornerShape(4.dp))
+                                                        .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp))
                                                         .padding(horizontal = 4.dp, vertical = 1.dp)
                                                 ) {
                                                     Text("$pct%", fontSize = 10.sp, color = Color.Red, fontWeight = FontWeight.Bold)

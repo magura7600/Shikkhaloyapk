@@ -69,6 +69,9 @@ jobs:
         echo "SUPABASE_KEY=$SUPABASE_KEY" >> .env
         echo "GEMINI_API_KEY=$GEMINI_API_KEY" >> .env
         
+    - name: Run Unit Tests
+      run: ./gradlew test
+
     - name: Build Release APK
       env:
         KEYSTORE_PATH: ${{ github.workspace }}/release.keystore

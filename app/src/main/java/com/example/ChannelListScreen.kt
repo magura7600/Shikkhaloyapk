@@ -22,11 +22,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
-import io.github.jan.supabase.postgrest.from
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import com.example.viewmodel.ChannelListViewModel
+import com.example.viewmodel.ChannelListUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -35,29 +34,14 @@ fun ChannelListScreen(
     accentColor: Color,
     onCreateChannel: () -> Unit,
     onChannelClick: (UserProfile) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: ChannelListViewModel = viewModel()
 ) {
-    var channels by remember { mutableStateOf<List<UserProfile>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    val coroutineScope = rememberCoroutineScope()
+    val uiState by viewModel.uiState.collectAsState()
     val context = LocalContext.current
 
-    LaunchedEffect(Unit) {
-        coroutineScope.launch {
-            try {
-                val fetchedChannels = withContext(Dispatchers.IO) {
-                    supabase.from("profiles").select {
-                        filter { eq("user_id", profile.user_id) }
-                    }.decodeList<UserProfile>()
-                }
-                channels = fetchedChannels.filter { it.handle != null }
-            } catch (e: Exception) {
-                errorMessage = e.message
-            } finally {
-                isLoading = false
-            }
-        }
+    LaunchedEffect(profile.user_id) {
+        viewModel.loadChannels(profile.user_id)
     }
 
     Scaffold(
@@ -85,27 +69,33 @@ fun ChannelListScreen(
         containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { padding ->
         Box(modifier = Modifier.fillMaxSize().padding(padding)) {
-            if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = accentColor)
-            } else if (errorMessage != null) {
-                Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Error: $errorMessage", color = Color.Red, modifier = Modifier.padding(16.dp))
-                    Text("Please ensure the 'channels' table exists in Supabase.", color = Color.Gray)
+            when (val state = uiState) {
+                is ChannelListUiState.Loading -> {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center), color = accentColor)
                 }
-            } else if (channels.isEmpty()) {
-                Text(
-                    "কোনো চ্যানেল পাওয়া যায়নি। নতুন চ্যানেল তৈরি করুন।",
-                    color = Color.Gray,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    items(channels, key = { it.user_id }) { channel ->
-                        ChannelItemCard(channel = channel, onClick = { onChannelClick(channel) })
+                is ChannelListUiState.Error -> {
+                    Column(modifier = Modifier.align(Alignment.Center), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("Error: ${state.message}", color = Color.Red, modifier = Modifier.padding(16.dp))
+                        Text("Please ensure the 'channels' table exists in Supabase.", color = Color.Gray)
+                    }
+                }
+                is ChannelListUiState.Success -> {
+                    if (state.channels.isEmpty()) {
+                        Text(
+                            "কোনো চ্যানেল পাওয়া যায়নি। নতুন চ্যানেল তৈরি করুন।",
+                            color = Color.Gray,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(state.channels, key = { it.user_id }) { channel ->
+                                ChannelItemCard(channel = channel, onClick = { onChannelClick(channel) })
+                            }
+                        }
                     }
                 }
             }

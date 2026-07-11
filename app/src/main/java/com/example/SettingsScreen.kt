@@ -126,7 +126,7 @@ fun SettingsScreen(
                             onClick = { showProfileEditDialog = true }
                         )
                     }
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                     SettingItem(
                         icon = Icons.Default.Lock,
                         title = "পাসওয়ার্ড পরিবর্তন".t(),
@@ -162,7 +162,7 @@ fun SettingsScreen(
                         accentColor = accentColor,
                         onClick = { showLanguageSheet = true }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                     SettingItem(
                         icon = Icons.Outlined.Palette,
                         title = "থিম পরিবর্তন".t(),
@@ -174,7 +174,7 @@ fun SettingsScreen(
                         accentColor = accentColor,
                         onClick = { showThemeSheet = true }
                     )
-                    Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                     SettingToggleItem(
                         icon = Icons.Outlined.PlayCircleOutline,
                         title = "পপ-আপ ভিডিও মোড".t(),
@@ -186,7 +186,7 @@ fun SettingsScreen(
                         }
                     )
                     if (!isTeacher) {
-                        Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                         SettingItem(
                             icon = Icons.Outlined.Download,
                             title = "অফলাইন ডাউনলোড".t(),
@@ -278,7 +278,7 @@ fun SettingsScreen(
                         }
                     )
                     if (isAdmin) {
-                        Divider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
+                        HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp), color = MaterialTheme.colorScheme.surfaceVariant)
                         SettingItem(
                             icon = Icons.Outlined.CloudUpload,
                             title = "আপডেট পাবলিশ করুন".t(),
@@ -389,9 +389,9 @@ fun SettingsScreen(
         )
     }
 
-    if (manualUpdateToPrompt != null) {
+    manualUpdateToPrompt?.let { upd ->
         UpdatePromptDialog(
-            update = manualUpdateToPrompt!!,
+            update = upd,
             accentColor = accentColor,
             isAdmin = isAdmin,
             onDismiss = { manualUpdateToPrompt = null }

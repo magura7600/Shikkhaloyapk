@@ -614,7 +614,7 @@ fun MainAppContent() {
                                 withContext(Dispatchers.IO) {
                                     supabase.auth.signOut()
                                 }
-                            } catch (e: Exception) {}
+                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                             sharedPrefs.edit().clear().apply()
                             appState = AppState.Login
                         }
@@ -772,7 +772,7 @@ fun MainAppContent() {
                         withContext(Dispatchers.IO) {
                             supabase.auth.signOut()
                         }
-                    } catch (e: Exception) {}
+                    } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                 }
                 sharedPrefs.edit().clear().apply()
                 appState = AppState.Login
@@ -811,7 +811,7 @@ fun MainAppContent() {
                                     withContext(Dispatchers.IO) {
                                         supabase.auth.signOut()
                                     }
-                                } catch (e: Exception) {}
+                                } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                             }
                             sharedPrefs.edit().clear().apply()
                             appState = AppState.Login
@@ -830,7 +830,7 @@ fun MainAppContent() {
                                     withContext(Dispatchers.IO) {
                                         supabase.auth.signOut()
                                     }
-                                } catch (e: Exception) {}
+                                } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
                             }
                             sharedPrefs.edit().clear().apply()
                             appState = AppState.Login

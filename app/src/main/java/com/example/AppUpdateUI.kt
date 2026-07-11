@@ -503,7 +503,7 @@ CREATE POLICY "Allow all app_updates" ON app_updates
                     )
                 }
 
-                Divider(color = MaterialTheme.colorScheme.surfaceVariant)
+                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant)
 
                 // Database Table Setup Instructions inside popup
                 Button(

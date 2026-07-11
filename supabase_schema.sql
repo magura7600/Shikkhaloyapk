@@ -1,13 +1,10 @@
 -- 1. Create profiles table
 CREATE TABLE IF NOT EXISTS public.profiles (
-    user_id UUID PRIMARY KEY,
-    email TEXT NOT NULL,
-    role TEXT NOT NULL DEFAULT 'student',
+    user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL CHECK (role IN ('student', 'teacher', 'admin')),
     full_name TEXT NOT NULL,
-    institution TEXT,
-    contact TEXT,
-    uid_code TEXT NOT NULL,
-    profile_image_url TEXT,
+    phone TEXT,
+    class_name TEXT,
     handle TEXT,
     description TEXT,
     cover_image_url TEXT,
@@ -107,7 +104,7 @@ CREATE TABLE IF NOT EXISTS public.app_notices (
 -- ROW LEVEL SECURITY (RLS) & ACCESS POLICIES
 -- ==========================================
 
--- 1. Enable RLS on all tables
+-- Enable RLS on all tables
 ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.mentors ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.courses ENABLE ROW LEVEL SECURITY;
@@ -118,66 +115,40 @@ ALTER TABLE public.app_updates ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.app_notices ENABLE ROW LEVEL SECURITY;
 
 -- 2. Define Policies for "profiles"
-CREATE POLICY "Allow read profiles for everyone" ON public.profiles 
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow users to insert their own profile as student" ON public.profiles 
-    FOR INSERT WITH CHECK (auth.uid() = user_id AND role = 'student');
-
-CREATE POLICY "Allow users to update their own non-sensitive profile fields" ON public.profiles 
-    FOR UPDATE USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id AND role = (SELECT role FROM public.profiles WHERE user_id = auth.uid()));
-
-CREATE POLICY "Allow admins full access to profiles" ON public.profiles 
-    FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "Allow read profiles for everyone" ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Allow users to insert their own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid()::text = user_id::text AND role IN ('student', 'teacher'));
+CREATE POLICY "Allow users to update their own non-sensitive profile fields" ON public.profiles FOR UPDATE USING (auth.uid()::text = user_id::text) WITH CHECK (auth.uid()::text = user_id::text AND role = (SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text));
+CREATE POLICY "Allow admins full access to profiles" ON public.profiles FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');
 
 -- 3. Define Policies for "mentors"
-CREATE POLICY "Allow public read mentors" ON public.mentors 
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow admin full access to mentors" ON public.mentors 
-    FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "Allow public read mentors" ON public.mentors FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to mentors" ON public.mentors FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');
+CREATE POLICY "Allow teachers to manage own mentors" ON public.mentors FOR ALL TO authenticated USING (auth.uid()::text = channel_id::text AND (SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'teacher') WITH CHECK (auth.uid()::text = channel_id::text AND (SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'teacher');
 
 -- 4. Define Policies for "courses"
-CREATE POLICY "Allow public read courses" ON public.courses 
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow admin full access to courses" ON public.courses 
-    FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "Allow public read courses" ON public.courses FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to courses" ON public.courses FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');
+CREATE POLICY "Allow teachers to manage own courses" ON public.courses FOR ALL TO authenticated USING (auth.uid()::text = channel_id::text AND (SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'teacher') WITH CHECK (auth.uid()::text = channel_id::text AND (SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'teacher');
 
 -- 5. Define Policies for "enrollments"
-CREATE POLICY "Allow users to read own enrollments" ON public.enrollments 
-    FOR SELECT TO authenticated USING (auth.uid() = user_id OR (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin');
-
-CREATE POLICY "Allow admin full access to enrollments" ON public.enrollments 
-    FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "Allow users to read own enrollments" ON public.enrollments FOR SELECT TO authenticated USING (auth.uid()::text = user_id::text OR (SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');
+CREATE POLICY "Allow teachers to manage enrollments for their courses" ON public.enrollments FOR ALL TO authenticated USING ((SELECT c.channel_id FROM public.courses c WHERE c.id::text = public.enrollments.course_id::text)::text = auth.uid()::text AND (SELECT p.role FROM public.profiles p WHERE p.user_id::text = auth.uid()::text) = 'teacher') WITH CHECK ((SELECT c.channel_id FROM public.courses c WHERE c.id::text = public.enrollments.course_id::text)::text = auth.uid()::text AND (SELECT p.role FROM public.profiles p WHERE p.user_id::text = auth.uid()::text) = 'teacher');
+CREATE POLICY "Allow admin full access to enrollments" ON public.enrollments FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');
 
 -- 6. Define Policies for "enrollment_requests"
-CREATE POLICY "Allow users to read own enrollment requests" ON public.enrollment_requests 
-    FOR SELECT TO authenticated USING (auth.uid() = user_id OR (SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin');
-
-CREATE POLICY "Allow users to insert own enrollment requests" ON public.enrollment_requests 
-    FOR INSERT TO authenticated WITH CHECK (auth.uid() = user_id);
-
-CREATE POLICY "Allow admin full access to enrollment requests" ON public.enrollment_requests 
-    FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "Allow users to read own enrollment requests" ON public.enrollment_requests FOR SELECT TO authenticated USING (auth.uid()::text = user_id::text OR (SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');
+CREATE POLICY "Allow users to insert own enrollment requests" ON public.enrollment_requests FOR INSERT TO authenticated WITH CHECK (auth.uid()::text = user_id::text);
+CREATE POLICY "Allow teachers to manage enrollment requests for their courses" ON public.enrollment_requests FOR ALL TO authenticated USING ((SELECT c.channel_id FROM public.courses c WHERE c.id::text = public.enrollment_requests.course_id::text)::text = auth.uid()::text AND (SELECT p.role FROM public.profiles p WHERE p.user_id::text = auth.uid()::text) = 'teacher') WITH CHECK ((SELECT c.channel_id FROM public.courses c WHERE c.id::text = public.enrollment_requests.course_id::text)::text = auth.uid()::text AND (SELECT p.role FROM public.profiles p WHERE p.user_id::text = auth.uid()::text) = 'teacher');
+CREATE POLICY "Allow admin full access to enrollment requests" ON public.enrollment_requests FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');
 
 -- 7. Define Policies for "course_interactions"
-CREATE POLICY "Allow public read interactions" ON public.course_interactions 
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow users to manage own interactions" ON public.course_interactions 
-    FOR ALL TO authenticated USING (auth.uid() = user_id);
+CREATE POLICY "Allow public read interactions" ON public.course_interactions FOR SELECT USING (true);
+CREATE POLICY "Allow users to manage own interactions" ON public.course_interactions FOR ALL TO authenticated USING (auth.uid()::text = user_id::text) WITH CHECK (auth.uid()::text = user_id::text);
 
 -- 8. Define Policies for "app_updates"
-CREATE POLICY "Allow public read app updates" ON public.app_updates 
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow admin full access to app updates" ON public.app_updates 
-    FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "Allow public read app updates" ON public.app_updates FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to app updates" ON public.app_updates FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');
 
 -- 9. Define Policies for "app_notices"
-CREATE POLICY "Allow public read app notices" ON public.app_notices 
-    FOR SELECT USING (true);
-
-CREATE POLICY "Allow admin full access to app notices" ON public.app_notices 
-    FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id = auth.uid()) = 'admin');
+CREATE POLICY "Allow public read app notices" ON public.app_notices FOR SELECT USING (true);
+CREATE POLICY "Allow admin full access to app notices" ON public.app_notices FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');

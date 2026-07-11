@@ -24,6 +24,9 @@ import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.ScreenRotation
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -190,25 +193,28 @@ fun FullScreenPdfViewer(
                 }
             }
         } else if (pageCount > 0 && pdfRenderer != null) {
-            val pagerState = rememberPagerState(pageCount = { pageCount })
+            val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { pageCount })
             val coroutineScope = rememberCoroutineScope()
             var isPagerScrollEnabled by remember { mutableStateOf(true) }
-
-            HorizontalPager(
-                state = pagerState,
-                userScrollEnabled = isPagerScrollEnabled,
-                modifier = Modifier.fillMaxSize(),
-                pageSpacing = 16.dp
-            ) { index ->
-                ZoomablePdfPage(
-                    pdfRenderer = pdfRenderer!!,
-                    pageIndex = index,
-                    bitmapCache = bitmapCache,
-                    onZoomChanged = { isZoomed ->
-                        isPagerScrollEnabled = !isZoomed
-                    },
-                    onTap = { controlsVisible = !controlsVisible }
-                )
+            
+            val validRenderer = pdfRenderer
+            if (validRenderer != null) {
+                androidx.compose.foundation.pager.HorizontalPager(
+                    state = pagerState,
+                    userScrollEnabled = isPagerScrollEnabled,
+                    modifier = Modifier.fillMaxSize(),
+                    pageSpacing = 16.dp
+                ) { index ->
+                    ZoomablePdfPage(
+                        pdfRenderer = validRenderer,
+                        pageIndex = index,
+                        bitmapCache = bitmapCache,
+                        onZoomChanged = { isZoomed ->
+                            isPagerScrollEnabled = !isZoomed
+                        },
+                        onTap = { controlsVisible = !controlsVisible }
+                    )
+                }
             }
 
             androidx.compose.animation.AnimatedVisibility(
@@ -228,37 +234,21 @@ fun FullScreenPdfViewer(
                     IconButton(
                         onClick = onClose,
                         modifier = Modifier
-                            .size(40.dp)
-                            .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
+                            .background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                            .padding(4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Box(
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (pageCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 12.dp)
+                                    .background(Color.Black.copy(alpha = 0.5f), shape = RoundedCornerShape(12.dp))
+                                    .padding(2.dp)
                             ) {
-                                Text(
-                                    text = title,
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.widthIn(max = 140.dp)
-                                )
-                                Box(
+                                Row(
                                     modifier = Modifier
                                         .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(10.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
@@ -281,106 +271,24 @@ fun FullScreenPdfViewer(
                                     activity.requestedOrientation = if (isLandscape) {
                                         ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                                     } else {
-                                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                                     }
                                 }
                             },
                             modifier = Modifier
-                                .size(40.dp)
-                                .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
+                                .background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                                .padding(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ScreenRotation,
-                                contentDescription = "Rotate Screen",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                if (isLandscape) Icons.Default.ScreenRotation else Icons.Default.ScreenRotation, 
+                                contentDescription = "Rotate", 
+                                tint = Color.White
                             )
                         }
                     }
                 }
             }
-
-            androidx.compose.animation.AnimatedVisibility(
-                visible = controlsVisible,
-                enter = androidx.compose.animation.fadeIn(),
-                exit = androidx.compose.animation.fadeOut(),
-                modifier = Modifier.align(Alignment.BottomCenter)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(24.dp))
-                            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(24.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        IconButton(
-                            onClick = {
-                                if (pagerState.currentPage > 0) {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                                    }
-                                }
-                            },
-                            enabled = pagerState.currentPage > 0,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(
-                                    if (pagerState.currentPage > 0) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                                    shape = RoundedCornerShape(20.dp)
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "আগের পৃষ্ঠা",
-                                tint = if (pagerState.currentPage > 0) Color.White else Color.White.copy(alpha = 0.3f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        Text(
-                            text = "${pagerState.currentPage + 1} / $pageCount পৃষ্ঠা",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp)
-                        )
-
-                        IconButton(
-                            onClick = {
-                                if (pagerState.currentPage < pageCount - 1) {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                    }
-                                }
-                            },
-                            enabled = pagerState.currentPage < pageCount - 1,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(
-                                    if (pagerState.currentPage < pageCount - 1) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                                    shape = RoundedCornerShape(20.dp)
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowForward,
-                                contentDescription = "পরের পৃষ্ঠা",
-                                tint = if (pagerState.currentPage < pageCount - 1) Color.White else Color.White.copy(alpha = 0.3f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
+            
             if (showJumpToPageDialog) {
                 AlertDialog(
                     onDismissRequest = { showJumpToPageDialog = false },
@@ -581,19 +489,21 @@ fun PdfViewerDialog(
                         Text("পিডিএফ ফাইলটি লোড করা যায়নি।", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     }
                 }
-            } else if (pageCount > 0 && pdfRenderer != null) {
-                val pagerState = rememberPagerState(pageCount = { pageCount })
-                val coroutineScope = rememberCoroutineScope()
-                var isPagerScrollEnabled by remember { mutableStateOf(true) }
-
-                HorizontalPager(
+        } else if (pageCount > 0 && pdfRenderer != null) {
+            val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { pageCount })
+            val coroutineScope = rememberCoroutineScope()
+            var isPagerScrollEnabled by remember { mutableStateOf(true) }
+            
+            val validRenderer = pdfRenderer
+            if (validRenderer != null) {
+                androidx.compose.foundation.pager.HorizontalPager(
                     state = pagerState,
                     userScrollEnabled = isPagerScrollEnabled,
                     modifier = Modifier.fillMaxSize(),
                     pageSpacing = 16.dp
                 ) { index ->
                     ZoomablePdfPage(
-                        pdfRenderer = pdfRenderer!!,
+                        pdfRenderer = validRenderer,
                         pageIndex = index,
                         bitmapCache = bitmapCache,
                         onZoomChanged = { isZoomed ->
@@ -602,57 +512,40 @@ fun PdfViewerDialog(
                         onTap = { controlsVisible = !controlsVisible }
                     )
                 }
+            }
 
-                androidx.compose.animation.AnimatedVisibility(
-                    visible = controlsVisible,
-                    enter = androidx.compose.animation.fadeIn(),
-                    exit = androidx.compose.animation.fadeOut(),
-                    modifier = Modifier.align(Alignment.TopCenter)
-                ) {
-// Beautiful translucent floating overlay header at the very top (starts exactly from y = 0)
+            androidx.compose.animation.AnimatedVisibility(
+                visible = controlsVisible,
+                enter = androidx.compose.animation.fadeIn(),
+                exit = androidx.compose.animation.fadeOut(),
+                modifier = Modifier.align(Alignment.TopCenter)
+            ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .statusBarsPadding()
                         .padding(horizontal = 16.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Back button inside translucent circular card for perfect readability on any slide background
                     IconButton(
                         onClick = onClose,
                         modifier = Modifier
-                            .size(40.dp)
-                            .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
+                            .background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                            .padding(4.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Back",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = Color.White)
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        // Title & Page indicator in a beautiful translucent pill
-                        Box(
-                            modifier = Modifier
-                                .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
-                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (pageCount > 0) {
+                            Box(
+                                modifier = Modifier
+                                    .padding(end = 12.dp)
+                                    .background(Color.Black.copy(alpha = 0.5f), shape = RoundedCornerShape(12.dp))
+                                    .padding(2.dp)
                             ) {
-                                Text(
-                                    text = title,
-                                    color = Color.White,
-                                    fontSize = 14.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    modifier = Modifier.widthIn(max = 140.dp)
-                                )
-                                Box(
+                                Row(
                                     modifier = Modifier
                                         .background(MaterialTheme.colorScheme.primary, shape = RoundedCornerShape(10.dp))
                                         .padding(horizontal = 8.dp, vertical = 2.dp)
@@ -668,7 +561,6 @@ fun PdfViewerDialog(
                             }
                         }
                         
-                        // Screen Rotation Button
                         IconButton(
                             onClick = {
                                 if (activity != null) {
@@ -676,155 +568,69 @@ fun PdfViewerDialog(
                                     activity.requestedOrientation = if (isLandscape) {
                                         ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
                                     } else {
-                                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                        ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                                     }
                                 }
                             },
                             modifier = Modifier
-                                .size(40.dp)
-                                .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(20.dp))
+                                .background(Color.Black.copy(alpha = 0.5f), shape = androidx.compose.foundation.shape.CircleShape)
+                                .padding(4.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.ScreenRotation,
-                                contentDescription = "Rotate Screen",
-                                tint = Color.White,
-                                modifier = Modifier.size(20.dp)
+                                if (isLandscape) Icons.Default.ScreenRotation else Icons.Default.ScreenRotation, 
+                                contentDescription = "Rotate", 
+                                tint = Color.White
                             )
                         }
                     }
                 }
-
-                }
-
-androidx.compose.animation.AnimatedVisibility(
-                    visible = controlsVisible,
-                    enter = androidx.compose.animation.fadeIn(),
-                    exit = androidx.compose.animation.fadeOut(),
-                    modifier = Modifier.align(Alignment.BottomCenter)
-                ) {
-// Translucent floating bottom navigation control bar for reliable page switching (Next/Prev)
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.BottomCenter)
-                        .navigationBarsPadding()
-                        .padding(bottom = 24.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .background(MaterialTheme.colorScheme.onSurface, shape = RoundedCornerShape(24.dp))
-                            .border(1.dp, MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(24.dp))
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(16.dp)
-                    ) {
-                        // Previous Page Button
-                        IconButton(
-                            onClick = {
-                                if (pagerState.currentPage > 0) {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(pagerState.currentPage - 1)
-                                    }
-                                }
-                            },
-                            enabled = pagerState.currentPage > 0,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(
-                                    if (pagerState.currentPage > 0) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                                    shape = RoundedCornerShape(20.dp)
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowBack,
-                                contentDescription = "আগের পৃষ্ঠা",
-                                tint = if (pagerState.currentPage > 0) Color.White else Color.White.copy(alpha = 0.3f),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        // Page indicator text in bottom bar
-                        Text(
-                            text = "${pagerState.currentPage + 1} / $pageCount পৃষ্ঠা",
-                            color = Color.White,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(horizontal = 8.dp)
+            }
+            
+            if (showJumpToPageDialog) {
+                AlertDialog(
+                    onDismissRequest = { showJumpToPageDialog = false },
+                    title = { Text("পৃষ্ঠা নম্বর লিখুন") },
+                    text = {
+                        OutlinedTextField(
+                            value = jumpPageInput,
+                            onValueChange = { jumpPageInput = it },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            label = { Text("১ থেকে $pageCount এর মধ্যে") },
+                            singleLine = true
                         )
-
-                        // Next Page Button
-                        IconButton(
-                            onClick = {
-                                if (pagerState.currentPage < pageCount - 1) {
-                                    coroutineScope.launch {
-                                        pagerState.animateScrollToPage(pagerState.currentPage + 1)
-                                    }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            val page = jumpPageInput.toIntOrNull()
+                            if (page != null && page in 1..pageCount) {
+                                coroutineScope.launch {
+                                    pagerState.scrollToPage(page - 1)
                                 }
-                            },
-                            enabled = pagerState.currentPage < pageCount - 1,
-                            modifier = Modifier
-                                .size(40.dp)
-                                .background(
-                                    if (pagerState.currentPage < pageCount - 1) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
-                                    shape = RoundedCornerShape(20.dp)
-                                )
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowForward,
-                                contentDescription = "পরের পৃষ্ঠা",
-                                tint = if (pagerState.currentPage < pageCount - 1) Color.White else Color.White.copy(alpha = 0.3f),
-                                modifier = Modifier.size(20.dp)
-                            )
+                            }
+                            showJumpToPageDialog = false
+                        }) {
+                            Text("যান")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showJumpToPageDialog = false }) {
+                            Text("বাতিল")
                         }
                     }
-                }
-                }
-                if (showJumpToPageDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showJumpToPageDialog = false },
-                        title = { Text("পৃষ্ঠা নম্বর লিখুন") },
-                        text = {
-                            OutlinedTextField(
-                                value = jumpPageInput,
-                                onValueChange = { jumpPageInput = it },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                                label = { Text("১ থেকে $pageCount এর মধ্যে") },
-                                singleLine = true
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                val page = jumpPageInput.toIntOrNull()
-                                if (page != null && page in 1..pageCount) {
-                                    coroutineScope.launch {
-                                        pagerState.scrollToPage(page - 1)
-                                    }
-                                }
-                                showJumpToPageDialog = false
-                            }) {
-                                Text("যান")
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showJumpToPageDialog = false }) {
-                                Text("বাতিল")
-                            }
-                        }
-                    )
-                }
-
-            } else {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
             }
         }
     }
 }
+}
+
 
 @Composable
 fun ZoomablePdfPage(
@@ -882,8 +688,8 @@ fun ZoomablePdfPage(
                         }
 
                         if (bmp != null) {
-                            bmp!!.eraseColor(android.graphics.Color.WHITE)
-                            page.render(bmp!!, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                            bmp.eraseColor(android.graphics.Color.WHITE)
+                            page.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
                         }
                     } finally {
                         page.close()
@@ -975,14 +781,16 @@ fun ZoomablePdfPage(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                if (bitmap != null) {
+                val currentBitmap = bitmap
+                if (currentBitmap != null) {
                     Image(
-                        bitmap = bitmap!!.asImageBitmap(),
+                        bitmap = currentBitmap.asImageBitmap(),
                         contentDescription = "Page ${pageIndex + 1}",
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Fit
                     )
-                } else if (pageErrorMsg != null) {
+                }
+                else if (pageErrorMsg != null) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,

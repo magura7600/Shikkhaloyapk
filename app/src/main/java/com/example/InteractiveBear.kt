@@ -176,8 +176,8 @@ fun InteractiveBear(
         val mouthY = noseY + noseHeight + 2f
         val mouthPath = Path().apply {
             moveTo(centerX - 12f, mouthY)
-            quadraticBezierTo(centerX - 6f, mouthY + 8f, centerX, mouthY)
-            quadraticBezierTo(centerX + 6f, mouthY + 8f, centerX + 12f, mouthY)
+            quadraticTo(centerX - 6f, mouthY + 8f, centerX, mouthY)
+            quadraticTo(centerX + 6f, mouthY + 8f, centerX + 12f, mouthY)
         }
         drawPath(
             path = mouthPath,
@@ -221,7 +221,7 @@ fun InteractiveBear(
             // Left eye is closed (happy closed arc)
             val leftEyePath = Path().apply {
                 moveTo(eyeLeftX - 12f, eyeY + 2f)
-                quadraticBezierTo(eyeLeftX, eyeY - 6f, eyeLeftX + 12f, eyeY + 2f)
+                quadraticTo(eyeLeftX, eyeY - 6f, eyeLeftX + 12f, eyeY + 2f)
             }
             drawPath(
                 path = leftEyePath,
@@ -259,7 +259,7 @@ fun InteractiveBear(
             // Right eye is closed (happy squint arc)
             val rightEyePath = Path().apply {
                 moveTo(eyeRightX - 12f, eyeY + 2f)
-                quadraticBezierTo(eyeRightX, eyeY - 6f, eyeRightX + 12f, eyeY + 2f)
+                quadraticTo(eyeRightX, eyeY - 6f, eyeRightX + 12f, eyeY + 2f)
             }
             drawPath(
                 path = rightEyePath,

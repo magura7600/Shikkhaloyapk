@@ -45,7 +45,7 @@ fun EnrollmentRequestsScreen(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFFFBF8F1))
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
                     .padding(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -56,7 +56,7 @@ fun EnrollmentRequestsScreen(
                 Text("কোর্স কেনা রিকোয়েস্ট", fontSize = 20.sp, fontWeight = FontWeight.Bold)
             }
         },
-        containerColor = Color(0xFFFBF8F1)
+        containerColor = MaterialTheme.colorScheme.surfaceVariant
     ) { paddingValues ->
         Column(modifier = Modifier.padding(paddingValues).fillMaxSize()) {
             if (teacherRequests.isEmpty()) {
@@ -87,9 +87,9 @@ fun EnrollmentRequestsScreen(
                                 Spacer(modifier = Modifier.height(8.dp))
                                 
                                 val statusColor = when (request.status) {
-                                    "PENDING" -> Color(0xFFEAB308)
-                                    "APPROVED" -> Color(0xFF22C55E)
-                                    else -> Color(0xFFEF4444)
+                                    "PENDING" -> MaterialTheme.colorScheme.error
+                                    "APPROVED" -> MaterialTheme.colorScheme.secondary
+                                    else -> MaterialTheme.colorScheme.error
                                 }
                                 Text("Status: ${request.status}", color = statusColor, fontWeight = FontWeight.Bold)
 
@@ -130,7 +130,7 @@ fun EnrollmentRequestsScreen(
                                                     }
                                                 }
                                             },
-                                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF22C55E)),
+                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary),
                                             enabled = !isProcessing,
                                             modifier = Modifier.weight(1f)
                                         ) {
@@ -176,7 +176,7 @@ fun EnrollmentRequestsScreen(
             confirmButton = {
                 Button(
                     onClick = {
-                        val req = showRejectDialogFor!!
+                        val req = showRejectDialogFor ?: return@Button
                         coroutineScope.launch {
                             isProcessing = true
                             try {
