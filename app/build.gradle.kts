@@ -27,21 +27,47 @@ android {
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
 
+
+  compileOptions {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+  }
+
+  // 🔧 CI/CD Release Signing via environment variables (auto-detects keystore)
+  signingConfigs {
+    val envKeystorePath = System.getenv("KEYSTORE_PATH")
+    val envStorePassword = System.getenv("STORE_PASSWORD") ?: "android"
+    val envKeyAlias = System.getenv("KEY_ALIAS") ?: "upload"
+    val envKeyPassword = System.getenv("KEY_PASSWORD") ?: envStorePassword
+
+    create("release") {
+      val keystoreFile = envKeystorePath?.let { file(it) }
+      if (keystoreFile != null && keystoreFile.exists()) {
+        storeFile = keystoreFile
+        storePassword = envStorePassword
+        keyAlias = envKeyAlias
+        keyPassword = envKeyPassword
+      } else {
+        // Fallback to debug keystore for local builds only
+        storeFile = file(System.getProperty("user.home") + "/.android/debug.keystore")
+        storePassword = "android"
+        keyAlias = "androiddebugkey"
+        keyPassword = "android"
+      }
+    }
+  }
+
   buildTypes {
     release {
       isCrunchPngs = false
       isMinifyEnabled = false
       isShrinkResources = false
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-      signingConfig = signingConfigs.getByName("debug")
+      signingConfig = signingConfigs.getByName("release")
     }
     debug {
       // Use default debug signing config automatically
     }
-  }
-  compileOptions {
-    sourceCompatibility = JavaVersion.VERSION_11
-    targetCompatibility = JavaVersion.VERSION_11
   }
   packaging {
     jniLibs.useLegacyPackaging = true
