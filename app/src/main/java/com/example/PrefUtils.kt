@@ -28,7 +28,7 @@ object PrefUtils {
                     EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
                 // Fallback to plain preferences wrapped to sanitize administrative roles
                 val raw = appContext.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)

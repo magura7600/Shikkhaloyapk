@@ -24,7 +24,7 @@ class SharedPreferencesSessionManager(context: Context) : SessionManager {
                 EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
             // Fallback to legacysharedpreferences on encryption initialization failure
             context.getSharedPreferences("supabase_session", Context.MODE_PRIVATE)

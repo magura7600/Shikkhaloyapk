@@ -289,16 +289,24 @@ class MainActivity : ComponentActivity() {
         appContext = applicationContext
         try {
             supabase.handleDeeplinks(intent)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
         try {
             com.google.firebase.FirebaseApp.initializeApp(this)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
-        L.init(this)
-        ThemeManager.init(this)
+        try {
+            L.init(this)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
+        try {
+            ThemeManager.init(this)
+        } catch (e: Throwable) {
+            e.printStackTrace()
+        }
 
         // Initialize Coil ImageLoader with cache for faster image loading
         try {
@@ -317,7 +325,7 @@ class MainActivity : ComponentActivity() {
                 .crossfade(true)
                 .build()
             coil.Coil.setImageLoader(imageLoader)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
 
@@ -357,14 +365,14 @@ class MainActivity : ComponentActivity() {
                     androidx.core.app.ActivityCompat.requestPermissions(this@MainActivity, neededPermissions.toTypedArray(), 101)
                 }
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
 
         try {
             // Clear temporary PDF cache
             OfflineDownloadManager.clearTemporaryCache(this)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
 
@@ -374,7 +382,7 @@ class MainActivity : ComponentActivity() {
             } else {
                 androidx.core.content.ContextCompat.registerReceiver(this, pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED)
             }
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
 
