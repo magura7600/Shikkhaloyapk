@@ -378,11 +378,12 @@ class MainActivity : ComponentActivity() {
         }
 
         try {
-            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"), android.content.Context.RECEIVER_NOT_EXPORTED)
-            } else {
-                registerReceiver(pipReceiver, android.content.IntentFilter("com.example.PIP_CONTROL"))
-            }
+            androidx.core.content.ContextCompat.registerReceiver(
+                this,
+                pipReceiver,
+                android.content.IntentFilter("com.example.PIP_CONTROL"),
+                androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED
+            )
         } catch (e: Throwable) {
             e.printStackTrace()
         }
@@ -499,36 +500,40 @@ fun MainAppContent() {
 
     // Auto-migrate legacy unencrypted credentials to secure storage
     LaunchedEffect(Unit) {
-        val legacyPrefs = context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
-        if (legacyPrefs.contains("user_id") && !sharedPrefs.contains("user_id")) {
-            val uId = legacyPrefs.getString("user_id", null)
-            val email = legacyPrefs.getString("email", null)
-            val role = legacyPrefs.getString("role", null)
-            val fullName = legacyPrefs.getString("full_name", null)
-            val institution = legacyPrefs.getString("institution", "")
-            val contact = legacyPrefs.getString("contact", "")
-            val uidCode = legacyPrefs.getString("uid_code", null)
-            
-            sharedPrefs.edit()
-                .putString("user_id", uId)
-                .putString("email", email)
-                .putString("role", role)
-                .putString("full_name", fullName)
-                .putString("institution", institution)
-                .putString("contact", contact)
-                .putString("uid_code", uidCode)
-                .apply()
+        try {
+            val legacyPrefs = context.getSharedPreferences("shikkhaloy_prefs", Context.MODE_PRIVATE)
+            if (legacyPrefs.contains("user_id") && !sharedPrefs.contains("user_id")) {
+                val uId = legacyPrefs.getString("user_id", null)
+                val email = legacyPrefs.getString("email", null)
+                val role = legacyPrefs.getString("role", null)
+                val fullName = legacyPrefs.getString("full_name", null)
+                val institution = legacyPrefs.getString("institution", "")
+                val contact = legacyPrefs.getString("contact", "")
+                val uidCode = legacyPrefs.getString("uid_code", null)
                 
-            // Clear credentials from legacy preferences
-            legacyPrefs.edit()
-                .remove("user_id")
-                .remove("email")
-                .remove("role")
-                .remove("full_name")
-                .remove("institution")
-                .remove("contact")
-                .remove("uid_code")
-                .apply()
+                sharedPrefs.edit()
+                    .putString("user_id", uId)
+                    .putString("email", email)
+                    .putString("role", role)
+                    .putString("full_name", fullName)
+                    .putString("institution", institution)
+                    .putString("contact", contact)
+                    .putString("uid_code", uidCode)
+                    .apply()
+                    
+                // Clear credentials from legacy preferences
+                legacyPrefs.edit()
+                    .remove("user_id")
+                    .remove("email")
+                    .remove("role")
+                    .remove("full_name")
+                    .remove("institution")
+                    .remove("contact")
+                    .remove("uid_code")
+                    .apply()
+            }
+        } catch (e: Throwable) {
+            e.printStackTrace()
         }
     }
 
@@ -542,7 +547,7 @@ fun MainAppContent() {
                 if (update != null) {
                     activeUpdateToPrompt = update
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
             }
         }
@@ -555,7 +560,7 @@ fun MainAppContent() {
                     activeNoticeToPrompt = notice
                     showNoticeNotification(context, notice)
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 e.printStackTrace()
             }
         }
@@ -624,11 +629,11 @@ fun MainAppContent() {
                                 withContext(Dispatchers.IO) {
                                     supabase.auth.signOut()
                                 }
-                            } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
+                            } catch (e: Throwable) { android.util.Log.e("SilentCatch", "Error", e) }
                             sharedPrefs.edit().clear().apply()
                             appState = AppState.Login
                         }
-                    } catch (e: Exception) {
+                    } catch (e: Throwable) {
                         e.printStackTrace()
                     }
                 }
@@ -644,7 +649,7 @@ fun MainAppContent() {
                                 }
                             }.decodeSingleOrNull<UserProfile>()
                     }
-                } catch (e: Exception) {
+                } catch (e: Throwable) {
                     e.printStackTrace()
                 }
 

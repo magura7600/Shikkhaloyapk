@@ -36,29 +36,29 @@ object PrefUtils {
     }
 
     private class SafeSharedPreferences(private val delegate: SharedPreferences, private val context: Context) : SharedPreferences {
-        override fun getAll(): MutableMap<String, *> = try { delegate.all } catch (e: Exception) { mutableMapOf<String, Any>() }
-        override fun getString(key: String?, defValue: String?): String? = try { delegate.getString(key, defValue) } catch (e: Exception) { defValue }
-        override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? = try { delegate.getStringSet(key, defValues) } catch (e: Exception) { defValues }
-        override fun getInt(key: String?, defValue: Int): Int = try { delegate.getInt(key, defValue) } catch (e: Exception) { defValue }
-        override fun getLong(key: String?, defValue: Long): Long = try { delegate.getLong(key, defValue) } catch (e: Exception) { defValue }
-        override fun getFloat(key: String?, defValue: Float): Float = try { delegate.getFloat(key, defValue) } catch (e: Exception) { defValue }
-        override fun getBoolean(key: String?, defValue: Boolean): Boolean = try { delegate.getBoolean(key, defValue) } catch (e: Exception) { defValue }
-        override fun contains(key: String?): Boolean = try { delegate.contains(key) } catch (e: Exception) { false }
-        override fun edit(): SharedPreferences.Editor = try { SafeEditor(delegate.edit()) } catch (e: Exception) { context.getSharedPreferences("shikkhaloy_prefs_fallback", Context.MODE_PRIVATE).edit() }
-        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = try { delegate.registerOnSharedPreferenceChangeListener(listener) } catch(e:Exception){}
-        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = try { delegate.unregisterOnSharedPreferenceChangeListener(listener) } catch(e:Exception){}
+        override fun getAll(): MutableMap<String, *> = try { delegate.all } catch (e: Throwable) { mutableMapOf<String, Any>() }
+        override fun getString(key: String?, defValue: String?): String? = try { delegate.getString(key, defValue) } catch (e: Throwable) { defValue }
+        override fun getStringSet(key: String?, defValues: MutableSet<String>?): MutableSet<String>? = try { delegate.getStringSet(key, defValues) } catch (e: Throwable) { defValues }
+        override fun getInt(key: String?, defValue: Int): Int = try { delegate.getInt(key, defValue) } catch (e: Throwable) { defValue }
+        override fun getLong(key: String?, defValue: Long): Long = try { delegate.getLong(key, defValue) } catch (e: Throwable) { defValue }
+        override fun getFloat(key: String?, defValue: Float): Float = try { delegate.getFloat(key, defValue) } catch (e: Throwable) { defValue }
+        override fun getBoolean(key: String?, defValue: Boolean): Boolean = try { delegate.getBoolean(key, defValue) } catch (e: Throwable) { defValue }
+        override fun contains(key: String?): Boolean = try { delegate.contains(key) } catch (e: Throwable) { false }
+        override fun edit(): SharedPreferences.Editor = try { SafeEditor(delegate.edit()) } catch (e: Throwable) { context.getSharedPreferences("shikkhaloy_prefs_fallback", Context.MODE_PRIVATE).edit() }
+        override fun registerOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = try { delegate.registerOnSharedPreferenceChangeListener(listener) } catch(e: Throwable){}
+        override fun unregisterOnSharedPreferenceChangeListener(listener: SharedPreferences.OnSharedPreferenceChangeListener?) = try { delegate.unregisterOnSharedPreferenceChangeListener(listener) } catch(e: Throwable){}
 
         private class SafeEditor(private val editor: SharedPreferences.Editor) : SharedPreferences.Editor {
-            override fun putString(key: String?, value: String?): SharedPreferences.Editor = try { editor.putString(key, value); this } catch(e:Exception){this}
-            override fun putStringSet(key: String?, values: MutableSet<String>?): SharedPreferences.Editor = try { editor.putStringSet(key, values); this } catch(e:Exception){this}
-            override fun putInt(key: String?, value: Int): SharedPreferences.Editor = try { editor.putInt(key, value); this } catch(e:Exception){this}
-            override fun putLong(key: String?, value: Long): SharedPreferences.Editor = try { editor.putLong(key, value); this } catch(e:Exception){this}
-            override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = try { editor.putFloat(key, value); this } catch(e:Exception){this}
-            override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = try { editor.putBoolean(key, value); this } catch(e:Exception){this}
-            override fun remove(key: String?): SharedPreferences.Editor = try { editor.remove(key); this } catch(e:Exception){this}
-            override fun clear(): SharedPreferences.Editor = try { editor.clear(); this } catch(e:Exception){this}
-            override fun commit(): Boolean = try { editor.commit() } catch(e:Exception){false}
-            override fun apply() = try { editor.apply() } catch(e:Exception){}
+            override fun putString(key: String?, value: String?): SharedPreferences.Editor = try { editor.putString(key, value); this } catch(e: Throwable){this}
+            override fun putStringSet(key: String?, values: MutableSet<String>?): SharedPreferences.Editor = try { editor.putStringSet(key, values); this } catch(e: Throwable){this}
+            override fun putInt(key: String?, value: Int): SharedPreferences.Editor = try { editor.putInt(key, value); this } catch(e: Throwable){this}
+            override fun putLong(key: String?, value: Long): SharedPreferences.Editor = try { editor.putLong(key, value); this } catch(e: Throwable){this}
+            override fun putFloat(key: String?, value: Float): SharedPreferences.Editor = try { editor.putFloat(key, value); this } catch(e: Throwable){this}
+            override fun putBoolean(key: String?, value: Boolean): SharedPreferences.Editor = try { editor.putBoolean(key, value); this } catch(e: Throwable){this}
+            override fun remove(key: String?): SharedPreferences.Editor = try { editor.remove(key); this } catch(e: Throwable){this}
+            override fun clear(): SharedPreferences.Editor = try { editor.clear(); this } catch(e: Throwable){this}
+            override fun commit(): Boolean = try { editor.commit() } catch(e: Throwable){false}
+            override fun apply() = try { editor.apply() } catch(e: Throwable){}
         }
     }
 
@@ -71,7 +71,7 @@ object PrefUtils {
                 } else {
                     delegate.getString(key, defValue)
                 }
-            } catch (e: Exception) {
+            } catch (e: Throwable) {
                 defValue
             }
         }

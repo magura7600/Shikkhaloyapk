@@ -40,7 +40,7 @@ class SharedPreferencesSessionManager(context: Context) : SessionManager {
         try {
             val sessionString = json.encodeToString(session)
             sharedPrefs.edit().putString("session", sessionString).apply()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
     }
@@ -49,7 +49,7 @@ class SharedPreferencesSessionManager(context: Context) : SessionManager {
         return try {
             val sessionString = sharedPrefs.getString("session", null) ?: return null
             json.decodeFromString<UserSession>(sessionString)
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
             null
         }
@@ -58,7 +58,7 @@ class SharedPreferencesSessionManager(context: Context) : SessionManager {
     override suspend fun deleteSession() {
         try {
             sharedPrefs.edit().remove("session").apply()
-        } catch (e: Exception) {
+        } catch (e: Throwable) {
             e.printStackTrace()
         }
     }
