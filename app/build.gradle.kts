@@ -35,6 +35,8 @@ android {
         storePassword = System.getenv("STORE_PASSWORD")
         keyAlias = System.getenv("KEY_ALIAS") ?: "upload"
         keyPassword = System.getenv("KEY_PASSWORD")
+      } else if (System.getenv("GITHUB_ACTIONS") == "true") {
+        throw GradleException("Keystore file not found at $keystorePath in GitHub Actions! Please check your repository secrets (e.g., RELEASE_KEYSTORE_BASE64).")
       } else {
         // Fallback to debug keystore to allow building unsigned/debug-signed release APKs
         storeFile = file("${rootDir}/debug.keystore")
