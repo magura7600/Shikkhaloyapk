@@ -261,6 +261,69 @@ fun LoginScreen(
             Text("Google দিয়ে সাইন-ইন করুন", fontSize = 16.sp, fontWeight = FontWeight.Bold)
         }
 
+        Spacer(modifier = Modifier.height(24.dp))
+        
+        HorizontalDivider(modifier = Modifier.fillMaxWidth(), color = Color.LightGray.copy(alpha = 0.5f))
+        
+        Spacer(modifier = Modifier.height(16.dp))
+        
+        Text(
+            text = "পরীক্ষা বা ডেমো ব্যবহারের জন্য:",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.Medium,
+            color = Color.Gray,
+            modifier = Modifier.padding(bottom = 12.dp)
+        )
+        
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            ElevatedButton(
+                onClick = {
+                    onLoginSuccess("teacher@shikkhaloy.com", "demo_teacher_user")
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.elevatedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CoPresent,
+                    contentDescription = "Teacher Demo",
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("শিক্ষক ডেমো", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+            
+            ElevatedButton(
+                onClick = {
+                    onLoginSuccess("student@shikkhaloy.com", "demo_student_user")
+                },
+                modifier = Modifier
+                    .weight(1f)
+                    .height(48.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.elevatedButtonColors(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                )
+            ) {
+                Icon(
+                    imageVector = Icons.Default.AutoStories,
+                    contentDescription = "Student Demo",
+                    modifier = Modifier.size(16.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("শিক্ষার্থী ডেমো", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+
     }
 
     if (showVerificationSentDialog) {

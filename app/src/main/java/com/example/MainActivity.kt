@@ -699,6 +699,40 @@ fun MainAppContent() {
 
     val handleLoginSuccess: (String, String) -> Unit = { email, userId ->
         coroutineScope.launch {
+            if (userId.startsWith("demo_")) {
+                val role = if (userId.contains("teacher")) "teacher" else "student"
+                val demoProfile = UserProfile(
+                    user_id = userId,
+                    email = email,
+                    role = role,
+                    full_name = if (role == "teacher") "ডেমো শিক্ষক (Demo Teacher)" else "ডেমো শিক্ষার্থী (Demo Student)",
+                    institution = "শিক্ষালয় ডেমো কলেজ",
+                    contact = "01700000000",
+                    uid_code = if (role == "teacher") "SL-999999" else "SL-111111",
+                    profile_image_url = null,
+                    handle = if (role == "teacher") "demoteacher" else null,
+                    description = if (role == "teacher") "This is a demo teacher profile" else null,
+                    cover_image_url = null,
+                    is_banned = false
+                )
+                sharedPrefs.edit()
+                    .putString("user_id", userId)
+                    .putString("email", email)
+                    .putString("role", demoProfile.role)
+                    .putString("full_name", demoProfile.full_name)
+                    .putString("institution", demoProfile.institution)
+                    .putString("contact", demoProfile.contact)
+                    .putString("uid_code", demoProfile.uid_code)
+                    .apply()
+
+                appState = AppState.Dashboard(
+                    email = email,
+                    userId = userId,
+                    profile = demoProfile
+                )
+                return@launch
+            }
+
             var dbProfile: UserProfile? = null
             var dbFetchSuccess = false
             try {

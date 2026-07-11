@@ -81,9 +81,12 @@ fun MyApplicationTheme(
     val context = LocalContext.current
     val safeFontFamily = remember(context) {
         try {
-            // Pre-verify that the system can load custom font resources without throwing
-            val typeface = ResourcesCompat.getFont(context, com.example.R.font.hind_siliguri_regular)
-            if (typeface != null) {
+            // Pre-verify that the system can load all custom font resources without throwing
+            val tfRegular = ResourcesCompat.getFont(context, com.example.R.font.hind_siliguri_regular)
+            val tfMedium = ResourcesCompat.getFont(context, com.example.R.font.hind_siliguri_medium)
+            val tfBold = ResourcesCompat.getFont(context, com.example.R.font.hind_siliguri_bold)
+            
+            if (tfRegular != null && tfMedium != null && tfBold != null) {
                 FontFamily(
                     Font(com.example.R.font.hind_siliguri_regular, FontWeight.Normal),
                     Font(com.example.R.font.hind_siliguri_medium, FontWeight.Medium),
