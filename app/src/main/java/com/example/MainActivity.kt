@@ -406,51 +406,60 @@ class MainActivity : ComponentActivity() {
             }
 
             if (crashReport != null) {
-                androidx.compose.material3.AlertDialog(
-                    onDismissRequest = { crashReport = null },
-                    title = { Text("এপ ক্র্যাশ রিপোর্ট (Error Report)") },
-                    text = {
-                        Column {
-                            Text("পূর্বে এপটি বন্ধ হয়ে গিয়েছিল। নিচের টেক্সটটি কপি করে ডেভেলপারকে পাঠান:")
-                            Spacer(Modifier.height(8.dp))
-                            androidx.compose.foundation.lazy.LazyColumn(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .heightIn(max = 300.dp)
-                                    .background(Color.LightGray.copy(alpha = 0.2f))
-                                    .padding(8.dp)
-                            ) {
-                                item {
-                                    Text(
-                                        text = crashReport ?: "",
-                                        fontSize = 11.sp,
-                                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
-                                    )
+                MaterialTheme(
+                    colorScheme = colorScheme,
+                    typography = com.example.ui.theme.Typography,
+                    shapes = com.example.ui.theme.Shapes
+                ) {
+                    androidx.compose.material3.Surface(modifier = Modifier.fillMaxSize()) {
+                        androidx.compose.material3.AlertDialog(
+                            onDismissRequest = { crashReport = null },
+                            title = { Text("এপ ক্র্যাশ রিপোর্ট (Error Report)") },
+                            text = {
+                                Column {
+                                    Text("পূর্বে এপটি বন্ধ হয়ে গিয়েছিল। নিচের টেক্সটটি কপি করে ডেভেলপারকে পাঠান:")
+                                    Spacer(Modifier.height(8.dp))
+                                    androidx.compose.foundation.lazy.LazyColumn(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .heightIn(max = 300.dp)
+                                            .background(Color.LightGray.copy(alpha = 0.2f))
+                                            .padding(8.dp)
+                                    ) {
+                                        item {
+                                            Text(
+                                                text = crashReport ?: "",
+                                                fontSize = 11.sp,
+                                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace
+                                            )
+                                        }
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                Button(onClick = {
+                                    try {
+                                        val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                        val clip = android.content.ClipData.newPlainText("Crash Report", crashReport)
+                                        clipboard.setPrimaryClip(clip)
+                                        Toast.makeText(this@MainActivity, "ক্র্যাশ রিপোর্ট কপি হয়েছে!", Toast.LENGTH_SHORT).show()
+                                    } catch (e: Exception) {
+                                        e.printStackTrace()
+                                    }
+                                    crashReport = null
+                                }) {
+                                    Text("কপি করুন")
+                                }
+                            },
+                            dismissButton = {
+                                androidx.compose.material3.TextButton(onClick = { crashReport = null }) {
+                                    Text("বন্ধ করুন")
                                 }
                             }
-                        }
-                    },
-                    confirmButton = {
-                        Button(onClick = {
-                            try {
-                                val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                val clip = android.content.ClipData.newPlainText("Crash Report", crashReport)
-                                clipboard.setPrimaryClip(clip)
-                                Toast.makeText(this@MainActivity, "ক্র্যাশ রিপোর্ট কপি হয়েছে!", Toast.LENGTH_SHORT).show()
-                            } catch (e: Exception) {
-                                e.printStackTrace()
-                            }
-                            crashReport = null
-                        }) {
-                            Text("কপি করুন")
-                        }
-                    },
-                    dismissButton = {
-                        androidx.compose.material3.TextButton(onClick = { crashReport = null }) {
-                            Text("বন্ধ করুন")
-                        }
+                        )
                     }
-                )
+                }
+                return@setContent
             }
 
             MaterialTheme(
