@@ -2,12 +2,10 @@
 # You can control the set of applied configuration files using the
 # proguardFiles setting in build.gradle.
 
-# --- SAFE SHRINKING ONLY (CRITICAL TO PREVENT CRASHES) ---
-# Disable optimization and obfuscation. This lets R8 shrink the unused classes
-# (which reduces the APK size from 30MB to ~15-20MB) but completely avoids
-# runtime crashes caused by class renaming or bytecode rewriting.
--dontoptimize
--dontobfuscate
+# --- ENABLE OBFUSCATION AND OPTIMIZATION (STEP 4) ---
+# We enable shrinking, optimization, and obfuscation.
+# -dontoptimize
+# -dontobfuscate
 
 # Keep line numbers for easier crash debugging
 -keepattributes SourceFile,LineNumberTable
@@ -25,10 +23,7 @@
 -keep class * implements com.yausername.youtubedl_android.** { *; }
 
 # --- Kotlinx Serialization ---
--keep @kotlinx.serialization.Serializable class * {
-    *** Companion;
-    *** $serializer;
-}
+-keep @kotlinx.serialization.Serializable class * { *; }
 -keepclassmembers class * {
     *** Companion;
     *** $serializer;

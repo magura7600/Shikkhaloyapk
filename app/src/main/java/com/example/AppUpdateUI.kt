@@ -316,7 +316,7 @@ fun UpdatePromptDialog(
                             }
                             else -> {
                                 scope.launch {
-                                    AppUpdateManager.downloadApk(context, update.apk_url)
+                                    AppUpdateManager.downloadApk(context, update.apk_url, update.sha256_checksum)
                                 }
                             }
                         }

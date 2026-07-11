@@ -62,61 +62,18 @@ class ExampleUnitTest {
     }
 
     @Test
-    fun fetchFbHtml() {
-        try {
-            val shareUrl = "https://www.facebook.com/share/v/19AExLG3zX/"
-            var resolved = resolveRedirect(shareUrl)
-            resolved = resolved.replace("&amp;", "&")
-            println("INITIAL SHARE URL: $shareUrl")
-            println("RESOLVED REDIRECT: $resolved")
-            
-            // Try Direct Meta Extraction
-            val url = java.net.URL(resolved)
-            val connection = url.openConnection() as java.net.HttpURLConnection
-            connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
-            connection.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8")
-            connection.setRequestProperty("Accept-Language", "en-US,en;q=0.5")
-            connection.connectTimeout = 10000
-            connection.readTimeout = 10000
-            
-            println("Direct FB Response Code: ${connection.responseCode}")
-            if (connection.responseCode in 200..299) {
-                val html = connection.inputStream.bufferedReader().readText()
-                java.io.File("fb_direct.html").writeText(html)
-                
-                val ogVideoRegex = """<meta\s+property="og:video:secure_url"\s+content="([^"]+)"""".toRegex()
-                val ogVideoRegex2 = """<meta\s+property="og:video"\s+content="([^"]+)"""".toRegex()
-                val sdVideoRegex = """"browser_native_sd_url"\s*:\s*"([^"]+)"""".toRegex()
-                val hdVideoRegex = """"browser_native_hd_url"\s*:\s*"([^"]+)"""".toRegex()
-                
-                var videoUrl = ogVideoRegex.find(html)?.groups?.get(1)?.value
-                    ?: ogVideoRegex2.find(html)?.groups?.get(1)?.value
-                
-                var sdUrl = sdVideoRegex.find(html)?.groups?.get(1)?.value
-                var hdUrl = hdVideoRegex.find(html)?.groups?.get(1)?.value
-                
-                videoUrl = videoUrl?.replace("&amp;", "&")?.replace("\\/", "/")
-                sdUrl = sdUrl?.replace("&amp;", "&")?.replace("\\/", "/")
-                hdUrl = hdUrl?.replace("&amp;", "&")?.replace("\\/", "/")
-                
-                println("og:video Extracted URL: $videoUrl")
-                println("browser_native_sd_url Extracted URL: $sdUrl")
-                println("browser_native_hd_url Extracted URL: $hdUrl")
-                
-                // Let's also search for any other video strings
-                val regex3 = """"playable_url"\s*:\s*"([^"]+)"""".toRegex()
-                val regex4 = """"playable_url_quality_hd"\s*:\s*"([^"]+)"""".toRegex()
-                val playable = regex3.find(html)?.groups?.get(1)?.value?.replace("\\/", "/")
-                val playableHd = regex4.find(html)?.groups?.get(1)?.value?.replace("\\/", "/")
-                println("playable_url: $playable")
-                println("playable_url_quality_hd: $playableHd")
-            } else {
-                val err = connection.errorStream?.bufferedReader()?.readText()
-                println("Direct FB Error: $err")
-            }
-            
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+    fun testShouldResolveRedirect() {
+        assert(shouldResolveRedirect("https://fb.watch/123"))
+        assert(shouldResolveRedirect("https://facebook.com/share/v/123"))
+        assert(shouldResolveRedirect("https://fb.me/xyz"))
+        assert(!shouldResolveRedirect("https://facebook.com/reel/123"))
+        assert(!shouldResolveRedirect("https://facebook.com/watch/?v=123"))
+    }
+
+    @Test
+    fun testResolveRedirect_returnsOriginalUrlIfNoRedirectNeeded() {
+        val originalUrl = "https://facebook.com/reel/123"
+        val resolved = resolveRedirect(originalUrl)
+        org.junit.Assert.assertEquals(originalUrl, resolved)
     }
 }

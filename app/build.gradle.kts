@@ -20,7 +20,7 @@ android {
   defaultConfig {
     applicationId = "com.shikkhaloyai.app"
     minSdk = 26
-    targetSdk = 34
+    targetSdk = 35
     versionCode = 16
     versionName = "16.0"
 
@@ -60,8 +60,8 @@ android {
   buildTypes {
     release {
       isCrunchPngs = false
-      isMinifyEnabled = false
-      isShrinkResources = false
+      isMinifyEnabled = true
+      isShrinkResources = true
       proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
       signingConfig = signingConfigs.getByName("release")
     }

@@ -1,5 +1,6 @@
 package com.example
 
+import android.util.Log
 import java.io.File
 import android.content.Context
 import androidx.compose.foundation.background
@@ -222,10 +223,11 @@ fun VideoPlayer(
                         .build()
                     activity.enterPictureInPictureMode(params)
                 } catch (e: Exception) {
+                    Log.e("Shikkhaloy", "Failed to enter picture-in-picture with custom aspect ratio", e)
                     try {
                         activity.enterPictureInPictureMode(android.app.PictureInPictureParams.Builder().build())
                     } catch (ex: Exception) {
-                        ex.printStackTrace()
+                        Log.e("Shikkhaloy", "Failed to enter picture-in-picture with default params", ex)
                     }
                 }
             }
@@ -327,7 +329,9 @@ fun VideoPlayer(
         onDispose {
             try {
                 exoPlayer.removeListener(listener)
-            } catch (e: Exception) {}
+            } catch (e: Exception) {
+                Log.e("Shikkhaloy", "Failed to remove player listener on dispose", e)
+            }
             VideoPipState.onPlayPauseToggle = null
             VideoPipState.onRewind = null
             VideoPipState.onForward = null

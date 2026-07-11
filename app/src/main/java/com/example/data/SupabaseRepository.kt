@@ -12,7 +12,7 @@ import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
-class SupabaseRepository {
+open class SupabaseRepository {
     
     suspend fun getChannelsForUser(userId: String): List<UserProfile> {
         return withContext(Dispatchers.IO) {
@@ -115,8 +115,9 @@ class SupabaseRepository {
         supabase.from("enrollment_requests").delete { filter { eq("course_id", courseId) } }
     }
 
-    suspend fun addEnrollment(enrollment: Enrollment) = withContext(Dispatchers.IO) {
+    open suspend fun addEnrollment(enrollment: Enrollment): Unit = withContext(Dispatchers.IO) {
         supabase.from("enrollments").insert(enrollment)
+        Unit
     }
 
     suspend fun deleteEnrollment(enrollmentId: String) = withContext(Dispatchers.IO) {
@@ -127,8 +128,9 @@ class SupabaseRepository {
         supabase.from("enrollment_requests").insert(request)
     }
 
-    suspend fun deleteEnrollmentRequest(requestId: String) = withContext(Dispatchers.IO) {
+    open suspend fun deleteEnrollmentRequest(requestId: String): Unit = withContext(Dispatchers.IO) {
         supabase.from("enrollment_requests").delete { filter { eq("id", requestId) } }
+        Unit
     }
     
     suspend fun updateProfile(profile: UserProfile) = withContext(Dispatchers.IO) {

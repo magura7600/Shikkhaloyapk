@@ -171,6 +171,14 @@ fun DashboardScreen(
     var hasPromptedOffline by remember { mutableStateOf(false) }
     var showOfflineDownloadsGlobal by remember { mutableStateOf(false) }
     val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
+    
+    LaunchedEffect(uiState.errorMessage) {
+        uiState.errorMessage?.let { message ->
+            snackbarHostState.showSnackbar(message)
+            viewModel.clearErrorMessage()
+        }
+    }
     var lastBackPressTime by remember { mutableStateOf(0L) }
     val activity = context as? ComponentActivity
 
@@ -315,231 +323,45 @@ fun DashboardScreen(
     Scaffold(
         containerColor = Color.Transparent,
         contentWindowInsets = WindowInsets(0, 0, 0, 0),
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             if (currentScreen == "dashboard") {
-                Column(modifier = Modifier.background(Color.White)) {
-                    TopAppBar(
-                    title = { 
-                        if (!isManagementUser) {
-                            val myEnrolledCourses = courses.filter { course -> 
-                                enrollments.any { it.user_id == profile.user_id && it.course_id == course.id }
-                            }
-                            if (myEnrolledCourses.isNotEmpty()) {
-                                var expanded by remember { mutableStateOf(false) }
-                                val currentFocusCourse = myEnrolledCourses.find { it.id == focusCourseId } ?: myEnrolledCourses.firstOrNull()
-                                
-                                if (currentFocusCourse != null) {
-                                    Box {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(20.dp))
-                                                .clickable { expanded = true }
-                                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                                .padding(horizontal = 16.dp, vertical = 8.dp)
-                                        ) {
-                                            Icon(
-                                                imageVector = Icons.Default.Language,
-                                                contentDescription = "Course Icon",
-                                                tint = accentColor,
-                                                modifier = Modifier.size(18.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                currentFocusCourse.title, 
-                                                fontWeight = FontWeight.Bold, 
-                                                color = MaterialTheme.colorScheme.primary,
-                                                fontSize = 15.sp,
-                                                maxLines = 1,
-                                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-                                                modifier = Modifier.widthIn(max = 140.dp)
-                                            ) 
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
-                                        }
-                                        DropdownMenu(
-                                            expanded = expanded,
-                                            onDismissRequest = { expanded = false },
-                                            modifier = Modifier.background(Color.White)
-                                        ) {
-                                            myEnrolledCourses.forEach { course ->
-                                                DropdownMenuItem(
-                                                    text = { Text(course.title, fontSize = 14.sp, color = if (course.id == focusCourseId) accentColor else Color.Black) },
-                                                    onClick = {
-                                                        focusCourseId = course.id
-                                                        try {
-                                                            sharedPrefs.edit().putString("cached_focus_course_id_${profile.user_id}", course.id).apply()
-                                                        } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
-                                                        expanded = false
-                                                    }
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            } else {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Language,
-                                        contentDescription = "App Logo",
-                                        tint = accentColor,
-                                        modifier = Modifier.size(24.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(
-                                        "Shikkhaloy", 
-                                        fontWeight = FontWeight.Bold, 
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontSize = 18.sp
-                                    ) 
-                                }
-                            }
+                DashboardTopBar(
+                    isManagementUser = isManagementUser,
+                    courses = courses,
+                    enrollments = enrollments,
+                    profile = profile,
+                    focusCourseId = focusCourseId,
+                    accentColor = accentColor,
+                    onFocusCourseChange = { newId ->
+                        focusCourseId = newId
+                        try {
+                            sharedPrefs.edit().putString("cached_focus_course_id_${profile.user_id}", newId).apply()
+                        } catch (e: Exception) { android.util.Log.e("SilentCatch", "Error", e) }
+                    },
+                    onNotificationsClick = { showAllNotificationsDialog = true },
+                    onProfileClick = {
+                        if (isManagementUser) {
+                            selectedTab = 1
                         } else {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Language,
-                                    contentDescription = "App Logo",
-                                    tint = accentColor,
-                                    modifier = Modifier.size(24.dp)
-                                )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(
-                                    "Shikkhaloy", 
-                                    fontWeight = FontWeight.Bold, 
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontSize = 18.sp
-                                ) 
-                            }
+                            selectedTab = 4
                         }
                     },
-                    actions = {
-                        IconButton(onClick = { showAllNotificationsDialog = true }) {
-                            Icon(Icons.Outlined.Notifications, contentDescription = "Notifications", tint = Color.DarkGray)
-                        }
-                        IconButton(onClick = {
-                            if (isManagementUser) {
-                                selectedTab = 1
-                            } else {
-                                selectedTab = 4
-                            }
-                        }) {
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .clip(CircleShape)
-                                    .background(accentColor),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                val displayAvatar = profile.profile_image_url
-                                if (displayAvatar != null) {
-                                    AsyncImage(
-                                        model = displayAvatar,
-                                        contentDescription = "Avatar",
-                                        modifier = Modifier.fillMaxSize(),
-                                        contentScale = ContentScale.Crop
-                                    )
-                                } else {
-                                    Text(
-                                        text = profile.full_name.firstOrNull()?.toString()?.uppercase() ?: "",
-                                        color = Color.White,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 16.sp
-                                    )
-                                }
-                            }
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.White
-                    )
+                    isOffline = isOffline,
+                    onOfflineBannerClick = { showOfflineDownloadsGlobal = true }
                 )
-                HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
-                if (isOffline) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { showOfflineDownloadsGlobal = true }
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.WifiOff,
-                            contentDescription = "Offline Mode",
-                            tint = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "কোনো ইন্টারনেট সংযোগ নেই! আপনি অফলাইন মোডে আছেন।",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.Medium,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Text(
-                            text = "ডাউনলোডকৃত ক্লাস দেখুন >",
-                            color = MaterialTheme.colorScheme.error,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            textDecoration = TextDecoration.Underline
-                        )
-                    }
-                    HorizontalDivider(color = MaterialTheme.colorScheme.error, thickness = 1.dp)
-                }
-                }
             }
         },
         bottomBar = {
             if (currentScreen == "dashboard") {
-                if (!isManagementUser) {
-                val studentNavItems = listOf(
-                    BottomNavItem("হোম", Icons.Outlined.Home, MaterialTheme.colorScheme.secondary),
-                    BottomNavItem("কোর্স", Icons.Outlined.MenuBook, MaterialTheme.colorScheme.primary),
-                    BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, MaterialTheme.colorScheme.error),
-                    BottomNavItem("এক্সপ্লোর", Icons.Outlined.Explore, MaterialTheme.colorScheme.primary),
-                    BottomNavItem("সেটিংস", Icons.Outlined.Settings, MaterialTheme.colorScheme.primary)
-                )
-                CustomBottomNavigation(
-                    items = studentNavItems,
-                    selectedIndex = selectedTab,
-                    onItemSelected = { index ->
-                        selectedTab = index
+                DashboardBottomBar(
+                    isManagementUser = isManagementUser,
+                    selectedTab = selectedTab,
+                    onTabSelected = { newTab ->
+                        selectedTab = newTab
                         currentScreen = "dashboard"
                     }
                 )
-            } else {
-                val teacherNavItems = listOf(
-                    BottomNavItem("চ্যানেল", Icons.Outlined.Home, MaterialTheme.colorScheme.secondary),
-                    BottomNavItem("কোর্স", Icons.Outlined.MenuBook, MaterialTheme.colorScheme.primary),
-                    BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, MaterialTheme.colorScheme.error),
-                    BottomNavItem("সেটিংস", Icons.Outlined.Settings, MaterialTheme.colorScheme.primary)
-                )
-                
-                val visualIndex = when (selectedTab) {
-                    0 -> 0
-                    3 -> 1
-                    2 -> 2
-                    1 -> 3
-                    else -> 0
-                }
-                
-                CustomBottomNavigation(
-                    items = teacherNavItems,
-                    selectedIndex = visualIndex,
-                    onItemSelected = { index ->
-                        selectedTab = when (index) {
-                            0 -> 0
-                            1 -> 3
-                            2 -> 2
-                            3 -> 1
-                            else -> 0
-                        }
-                        currentScreen = "dashboard"
-                    }
-                )
-            }
             }
         },
         floatingActionButton = {
@@ -985,16 +807,297 @@ fun DashboardScreen(
     }
         }
     
+    DashboardDialogs(
+        showOfflineDownloadsGlobal = showOfflineDownloadsGlobal,
+        onDismissOfflineDownloads = { showOfflineDownloadsGlobal = false },
+        showMentorsDialog = showMentorsDialog,
+        onDismissMentors = { showMentorsDialog = false },
+        showPublishUpdateDialog = showPublishUpdateDialog,
+        onDismissPublishUpdate = { showPublishUpdateDialog = false },
+        showPublishNoticeDialog = showPublishNoticeDialog,
+        onDismissPublishNotice = { showPublishNoticeDialog = false },
+        showAllNotificationsDialog = showAllNotificationsDialog,
+        onDismissAllNotifications = { showAllNotificationsDialog = false },
+        accentColor = accentColor,
+        profile = profile,
+        courses = courses,
+        enrollments = enrollments,
+        viewModel = viewModel,
+        onClassClickFromNotification = { classInfo, chapter, subject, course ->
+            selectedCourse = course
+            initialSubjectId = subject.id
+            initialChapterId = chapter.id
+            initialClassId = classInfo.id
+            currentScreen = "course_detail"
+        },
+        context = context
+    )
+}
+
+// --- REFACTORED PRIVATE HELPER COMPOSABLES ---
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DashboardTopBar(
+    isManagementUser: Boolean,
+    courses: List<CourseItem>,
+    enrollments: List<Enrollment>,
+    profile: UserProfile,
+    focusCourseId: String?,
+    accentColor: Color,
+    onFocusCourseChange: (String) -> Unit,
+    onNotificationsClick: () -> Unit,
+    onProfileClick: () -> Unit,
+    isOffline: Boolean,
+    onOfflineBannerClick: () -> Unit
+) {
+    Column(modifier = Modifier.background(Color.White)) {
+        TopAppBar(
+            title = { 
+                if (!isManagementUser) {
+                    val myEnrolledCourses = courses.filter { course -> 
+                        enrollments.any { it.user_id == profile.user_id && it.course_id == course.id }
+                    }
+                    if (myEnrolledCourses.isNotEmpty()) {
+                        var expanded by remember { mutableStateOf(false) }
+                        val currentFocusCourse = myEnrolledCourses.find { it.id == focusCourseId } ?: myEnrolledCourses.firstOrNull()
+                        
+                        if (currentFocusCourse != null) {
+                            Box {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .clickable { expanded = true }
+                                        .background(MaterialTheme.colorScheme.surfaceVariant)
+                                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Language,
+                                        contentDescription = "Course Icon",
+                                        tint = accentColor,
+                                        modifier = Modifier.size(18.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(
+                                        currentFocusCourse.title, 
+                                        fontWeight = FontWeight.Bold, 
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontSize = 15.sp,
+                                        maxLines = 1,
+                                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                        modifier = Modifier.widthIn(max = 140.dp)
+                                    ) 
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Expand", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
+                                }
+                                DropdownMenu(
+                                    expanded = expanded,
+                                    onDismissRequest = { expanded = false },
+                                    modifier = Modifier.background(Color.White)
+                                ) {
+                                    myEnrolledCourses.forEach { course ->
+                                        DropdownMenuItem(
+                                            text = { Text(course.title, fontSize = 14.sp, color = if (course.id == focusCourseId) accentColor else Color.Black) },
+                                            onClick = {
+                                                onFocusCourseChange(course.id)
+                                                expanded = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    } else {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = "App Logo",
+                                tint = accentColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                "Shikkhaloy", 
+                                fontWeight = FontWeight.Bold, 
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 18.sp
+                            ) 
+                        }
+                    }
+                } else {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.Language,
+                            contentDescription = "App Logo",
+                            tint = accentColor,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Shikkhaloy", 
+                            fontWeight = FontWeight.Bold, 
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = 18.sp
+                        ) 
+                    }
+                }
+            },
+            actions = {
+                IconButton(onClick = onNotificationsClick) {
+                    Icon(Icons.Outlined.Notifications, contentDescription = "Notifications", tint = Color.DarkGray)
+                }
+                IconButton(onClick = onProfileClick) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(accentColor),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val displayAvatar = profile.profile_image_url
+                        if (displayAvatar != null) {
+                            AsyncImage(
+                                model = displayAvatar,
+                                contentDescription = "Avatar",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Text(
+                                text = profile.full_name.firstOrNull()?.toString()?.uppercase() ?: "",
+                                color = Color.White,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 16.sp
+                            )
+                        }
+                    }
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = Color.White
+            )
+        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant, thickness = 1.dp)
+        if (isOffline) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                    .clickable { onOfflineBannerClick() }
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.WifiOff,
+                    contentDescription = "Offline Mode",
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "কোনো ইন্টারনেট সংযোগ নেই! আপনি অফলাইন মোডে আছেন।",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "ডাউনলোডকৃত ক্লাস দেখুন >",
+                    color = MaterialTheme.colorScheme.error,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    textDecoration = TextDecoration.Underline
+                )
+            }
+            HorizontalDivider(color = MaterialTheme.colorScheme.error, thickness = 1.dp)
+        }
+    }
+}
+
+@Composable
+private fun DashboardBottomBar(
+    isManagementUser: Boolean,
+    selectedTab: Int,
+    onTabSelected: (Int) -> Unit
+) {
+    if (!isManagementUser) {
+        val studentNavItems = listOf(
+            BottomNavItem("হোম", Icons.Outlined.Home, MaterialTheme.colorScheme.secondary),
+            BottomNavItem("কোর্স", Icons.Outlined.MenuBook, MaterialTheme.colorScheme.primary),
+            BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, MaterialTheme.colorScheme.error),
+            BottomNavItem("এক্সপ্লোর", Icons.Outlined.Explore, MaterialTheme.colorScheme.primary),
+            BottomNavItem("সেটিংস", Icons.Outlined.Settings, MaterialTheme.colorScheme.primary)
+        )
+        CustomBottomNavigation(
+            items = studentNavItems,
+            selectedIndex = selectedTab,
+            onItemSelected = onTabSelected
+        )
+    } else {
+        val teacherNavItems = listOf(
+            BottomNavItem("চ্যানেল", Icons.Outlined.Home, MaterialTheme.colorScheme.secondary),
+            BottomNavItem("কোর্স", Icons.Outlined.MenuBook, MaterialTheme.colorScheme.primary),
+            BottomNavItem("ম্যানেজমেন্ট", Icons.Outlined.Dashboard, MaterialTheme.colorScheme.error),
+            BottomNavItem("সেটিংস", Icons.Outlined.Settings, MaterialTheme.colorScheme.primary)
+        )
+        
+        val visualIndex = when (selectedTab) {
+            0 -> 0
+            3 -> 1
+            2 -> 2
+            1 -> 3
+            else -> 0
+        }
+        
+        CustomBottomNavigation(
+            items = teacherNavItems,
+            selectedIndex = visualIndex,
+            onItemSelected = { index ->
+                val newTab = when (index) {
+                    0 -> 0
+                    1 -> 3
+                    2 -> 2
+                    3 -> 1
+                    else -> 0
+                }
+                onTabSelected(newTab)
+            }
+        )
+    }
+}
+
+@Composable
+private fun DashboardDialogs(
+    showOfflineDownloadsGlobal: Boolean,
+    onDismissOfflineDownloads: () -> Unit,
+    showMentorsDialog: Boolean,
+    onDismissMentors: () -> Unit,
+    showPublishUpdateDialog: Boolean,
+    onDismissPublishUpdate: () -> Unit,
+    showPublishNoticeDialog: Boolean,
+    onDismissPublishNotice: () -> Unit,
+    showAllNotificationsDialog: Boolean,
+    onDismissAllNotifications: () -> Unit,
+    accentColor: Color,
+    profile: UserProfile,
+    courses: List<CourseItem>,
+    enrollments: List<Enrollment>,
+    viewModel: DashboardViewModel,
+    onClassClickFromNotification: (CourseClass, CourseChapter, CourseSubject, CourseItem) -> Unit,
+    context: Context
+) {
     if (showOfflineDownloadsGlobal) {
         OfflineDownloadsDialog(
-            onDismiss = { showOfflineDownloadsGlobal = false },
+            onDismiss = onDismissOfflineDownloads,
             accentColor = accentColor
         )
     }
 
     if (showMentorsDialog) {
         MentorsListDialog(
-            mentors = uiState.mentors,
+            mentors = viewModel.uiState.collectAsState().value.mentors,
             onAddMentor = { newMentor -> 
                 viewModel.saveMentor(
                     mentor = newMentor.copy(channel_id = profile.user_id),
@@ -1016,7 +1119,7 @@ fun DashboardScreen(
                     onError = { e -> Toast.makeText(context, "Failed: ${e.message}", Toast.LENGTH_SHORT).show() }
                 )
             },
-            onDismiss = { showMentorsDialog = false },
+            onDismiss = onDismissMentors,
             accentColor = accentColor
         )
     }
@@ -1024,7 +1127,7 @@ fun DashboardScreen(
     if (showPublishUpdateDialog) {
         PublishUpdateDialog(
             accentColor = accentColor,
-            onDismiss = { showPublishUpdateDialog = false },
+            onDismiss = onDismissPublishUpdate,
             onPublished = {
                 Toast.makeText(context, "নতুন আপডেট সফলভাবে রিলিজ করা হয়েছে! 🎉", Toast.LENGTH_LONG).show()
             }
@@ -1034,7 +1137,7 @@ fun DashboardScreen(
     if (showPublishNoticeDialog) {
         PublishNoticeDialog(
             accentColor = accentColor,
-            onDismiss = { showPublishNoticeDialog = false },
+            onDismiss = onDismissPublishNotice,
             onPublished = {
                 Toast.makeText(context, "জরুরি নোটিশ সফলভাবে প্রচার করা হয়েছে! 📢", Toast.LENGTH_LONG).show()
             }
@@ -1051,14 +1154,8 @@ fun DashboardScreen(
             enrollments = enrollments,
             profile = profile,
             accentColor = accentColor,
-            onDismiss = { showAllNotificationsDialog = false },
-            onClassClick = { classInfo, chapter, subject, course ->
-                selectedCourse = course
-                initialSubjectId = subject.id
-                initialChapterId = chapter.id
-                initialClassId = classInfo.id
-                currentScreen = "course_detail"
-            }
+            onDismiss = onDismissAllNotifications,
+            onClassClick = onClassClickFromNotification
         )
     }
 }

@@ -121,21 +121,17 @@ data class UserProfile(
 var appContext: android.content.Context? = null
 
 val supabase by lazy {
-    val rawUrl = BuildConfig.SUPABASE_URL
-    val url = if (rawUrl.isBlank() || rawUrl.contains("YOUR_SUPABASE_URL")) {
-        "https://gputlynskpbbiexbpphj.supabase.co"
-    } else {
-        rawUrl
-    }
+    val url = BuildConfig.SUPABASE_URL
+    val key = BuildConfig.SUPABASE_KEY
     
-    val rawKey = BuildConfig.SUPABASE_KEY
-    val key = if (rawKey.isBlank() || rawKey.contains("YOUR_SUPABASE_ANON_KEY")) {
-        "sb_publishable_NwiSPi0Rl4VAf_B2v5Fp6g_KgwTb_Ol"
+    if (url.isBlank() || key.isBlank()) {
+        android.util.Log.e("Shikkhaloy", "Supabase credentials are EMPTY! Please configure .env file.")
     } else {
-        rawKey
+        android.util.Log.d("Shikkhaloy", "Initializing Supabase with URL: $url")
     }
+
     createSupabaseClient(
-        supabaseUrl = if (url.startsWith("http")) url else "https://gputlynskpbbiexbpphj.supabase.co",
+        supabaseUrl = url,
         supabaseKey = key
     ) {
         install(Postgrest)

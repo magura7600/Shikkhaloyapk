@@ -16,6 +16,8 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
 import java.io.FileOutputStream
+import java.io.FileInputStream
+import java.security.MessageDigest
 
 @Serializable
 data class AppUpdate(
@@ -25,7 +27,8 @@ data class AppUpdate(
     val apk_url: String,
     val changelog: String = "",
     val is_force_update: Boolean = false,
-    val created_at: String? = null
+    val created_at: String? = null,
+    val sha256_checksum: String? = null
 )
 
 sealed class UpdateDownloadState {
@@ -166,9 +169,31 @@ object AppUpdateManager {
     }
 
     /**
-     * Downloads the APK file from the given url to cache.
+     * Helper to calculate SHA-256 checksum of a file.
      */
-    suspend fun downloadApk(context: Context, url: String) {
+    private fun calculateSha256(file: File): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        FileInputStream(file).use { inputStream ->
+            val buffer = ByteArray(8192)
+            var bytesRead: Int
+            while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                digest.update(buffer, 0, bytesRead)
+            }
+        }
+        val hashBytes = digest.digest()
+        val hexString = StringBuilder()
+        for (b in hashBytes) {
+            val hex = Integer.toHexString(0xff and b.toInt())
+            if (hex.length == 1) hexString.append('0')
+            hexString.append(hex)
+        }
+        return hexString.toString()
+    }
+
+    /**
+     * Downloads the APK file from the given url to cache and verifies its checksum if provided.
+     */
+    suspend fun downloadApk(context: Context, url: String, expectedChecksum: String? = null) {
         withContext(Dispatchers.IO) {
             _downloadState.value = UpdateDownloadState.Downloading(0f)
             try {
@@ -205,6 +230,18 @@ object AppUpdateManager {
                                 }
                             }
                         }
+                    }
+                }
+                
+                // Perform Checksum Verification if provided
+                if (!expectedChecksum.isNullOrBlank()) {
+                    val calculatedChecksum = calculateSha256(apkFile)
+                    if (!calculatedChecksum.equals(expectedChecksum, ignoreCase = true)) {
+                        if (apkFile.exists()) {
+                            apkFile.delete()
+                        }
+                        _downloadState.value = UpdateDownloadState.Error("ডাউনলোড করা ফাইলটির ইন্টিগ্রিটি চেক ব্যর্থ হয়েছে (চেকসাম মেলেনি)।")
+                        return@withContext
                     }
                 }
                 

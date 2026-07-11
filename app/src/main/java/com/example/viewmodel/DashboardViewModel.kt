@@ -1,5 +1,6 @@
 package com.example.viewmodel
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.CourseItem
@@ -25,14 +26,18 @@ data class DashboardUiState(
     val allChannels: List<UserProfile> = emptyList(),
     val courseInteractions: List<CourseInteraction> = emptyList(),
     val mentors: List<Mentor> = emptyList(),
-    val isInitialLoadComplete: Boolean = false
+    val isInitialLoadComplete: Boolean = false,
+    val errorMessage: String? = null
 )
 
-class DashboardViewModel : ViewModel() {
-    private val repository = SupabaseRepository()
+class DashboardViewModel(private val repository: SupabaseRepository = SupabaseRepository()) : ViewModel() {
 
     private val _uiState = MutableStateFlow(DashboardUiState())
     val uiState: StateFlow<DashboardUiState> = _uiState.asStateFlow()
+
+    fun clearErrorMessage() {
+        _uiState.value = _uiState.value.copy(errorMessage = null)
+    }
 
     fun initializeCachedData(cachedCourses: List<CourseItem>, cachedEnrollments: List<Enrollment>) {
         if (!_uiState.value.isInitialLoadComplete) {
@@ -89,30 +94,45 @@ class DashboardViewModel : ViewModel() {
                 if (!isTeacher && !isAdmin) {
                     newEnrollments = try {
                         repository.getEnrollmentsForUser(profile.user_id)
-                    } catch(e: Exception) { _uiState.value.enrollments }
+                    } catch(e: Exception) {
+                        Log.e("Shikkhaloy", "Failed to load enrollments for user ${profile.user_id}", e)
+                        _uiState.value.enrollments
+                    }
                     
                     newRequests = try {
                         repository.getEnrollmentRequestsForUser(profile.user_id)
-                    } catch(e: Exception) { _uiState.value.enrollmentRequests }
+                    } catch(e: Exception) {
+                        Log.e("Shikkhaloy", "Failed to load enrollment requests for user ${profile.user_id}", e)
+                        _uiState.value.enrollmentRequests
+                    }
                 }
 
                 // 2. All Enrollments & Requests
                 if (isTeacher || isAdmin) {
                     newEnrollments = try {
                         repository.getAllEnrollments()
-                    } catch(e: Exception) { _uiState.value.enrollments }
+                    } catch(e: Exception) {
+                        Log.e("Shikkhaloy", "Failed to load all enrollments", e)
+                        _uiState.value.enrollments
+                    }
                     
                     if (selectedTab == 2 || currentScreen == "enrollment_requests") {
                         newRequests = try {
                             repository.getAllEnrollmentRequests()
-                        } catch(e: Exception) { _uiState.value.enrollmentRequests }
+                        } catch(e: Exception) {
+                            Log.e("Shikkhaloy", "Failed to load all enrollment requests", e)
+                            _uiState.value.enrollmentRequests
+                        }
                     }
                 }
 
                 // 3. Courses
                 val newCourses = try {
                     repository.getAllCourses()
-                } catch(e: Exception) { _uiState.value.courses }
+                } catch(e: Exception) {
+                    Log.e("Shikkhaloy", "Failed to load courses", e)
+                    _uiState.value.courses
+                }
                 
                 val mappedCourses = if (isTeacher || isAdmin) {
                     newCourses.map { c -> c.copy(studentsCount = newEnrollments.count { it.course_id == c.id }) }
@@ -123,7 +143,10 @@ class DashboardViewModel : ViewModel() {
                 // 4. Channels
                 val allChannels = try {
                     repository.getAllChannels()
-                } catch(e: Exception) { _uiState.value.allChannels }
+                } catch(e: Exception) {
+                    Log.e("Shikkhaloy", "Failed to load channels", e)
+                    _uiState.value.allChannels
+                }
 
                 // 5. Course Interactions & Mentors
                 var courseInteractions = _uiState.value.courseInteractions
@@ -131,15 +154,24 @@ class DashboardViewModel : ViewModel() {
                 if (currentScreen == "course_detail" && selectedCourse != null) {
                     courseInteractions = try {
                         repository.getCourseInteractions(selectedCourse.id)
-                    } catch(e: Exception) { _uiState.value.courseInteractions }
+                    } catch(e: Exception) {
+                        Log.e("Shikkhaloy", "Failed to load course interactions for course ${selectedCourse.id}", e)
+                        _uiState.value.courseInteractions
+                    }
                     
                     mentors = try {
                         repository.getMentorsForChannel(selectedCourse.channel_id)
-                    } catch(e: Exception) { _uiState.value.mentors }
+                    } catch(e: Exception) {
+                        Log.e("Shikkhaloy", "Failed to load mentors for channel ${selectedCourse.channel_id}", e)
+                        _uiState.value.mentors
+                    }
                 } else if (isTeacher) {
                     mentors = try {
                         repository.getMentorsForChannel(profile.user_id)
-                    } catch(e: Exception) { _uiState.value.mentors }
+                    } catch(e: Exception) {
+                        Log.e("Shikkhaloy", "Failed to load mentors for channel ${profile.user_id}", e)
+                        _uiState.value.mentors
+                    }
                 }
 
                 _uiState.value = _uiState.value.copy(
@@ -153,7 +185,10 @@ class DashboardViewModel : ViewModel() {
                 )
 
             } catch (e: Exception) {
-                // Handle error
+                Log.e("Shikkhaloy", "Error inside loadData", e)
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "সার্ভার থেকে ডেটা লোড করা যায়নি। অনুগ্রহ করে ইন্টারনেট সংযোগ চেক করুন।"
+                )
             }
         }
     }
@@ -234,7 +269,8 @@ class DashboardViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                // handle error silently
+                Log.e("Shikkhaloy", "Failed to toggle like for course $courseId", e)
+                _uiState.value = _uiState.value.copy(errorMessage = "লাইক টগল করা যায়নি।")
             }
         }
     }
@@ -251,7 +287,7 @@ class DashboardViewModel : ViewModel() {
                     )
                 }
             } catch (e: Exception) {
-                // handle error silently
+                Log.e("Shikkhaloy", "Failed to register view interaction for course $courseId", e)
             }
         }
     }
@@ -271,7 +307,12 @@ class DashboardViewModel : ViewModel() {
                     enrollmentRequests = _uiState.value.enrollmentRequests.filter { it.id != request.id },
                     enrollments = _uiState.value.enrollments + enrollment
                 )
-            } catch(e: Exception) { }
+            } catch(e: Exception) {
+                Log.e("Shikkhaloy", "Failed to approve enrollment for request ${request.id}", e)
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "এনরোলমেন্ট অনুমোদন করা যায়নি। অনুগ্রহ করে আবার চেষ্টা করুন।"
+                )
+            }
         }
     }
 
@@ -282,7 +323,12 @@ class DashboardViewModel : ViewModel() {
                 _uiState.value = _uiState.value.copy(
                     enrollmentRequests = _uiState.value.enrollmentRequests.filter { it.id != request.id }
                 )
-            } catch(e: Exception) { }
+            } catch(e: Exception) {
+                Log.e("Shikkhaloy", "Failed to reject enrollment for request ${request.id}", e)
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "এনরোলমেন্ট প্রত্যাখ্যান করা যায়নি।"
+                )
+            }
         }
     }
     
@@ -357,7 +403,9 @@ class DashboardViewModel : ViewModel() {
                     val requests = repository.getAllEnrollmentRequests()
                     _uiState.value = _uiState.value.copy(enrollments = enrollments, enrollmentRequests = requests)
                 }
-            } catch(e: Exception) { }
+            } catch(e: Exception) {
+                Log.e("Shikkhaloy", "Failed to reload enrollments and requests", e)
+            }
         }
     }
 }

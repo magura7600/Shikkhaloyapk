@@ -83,7 +83,8 @@ CREATE TABLE IF NOT EXISTS public.app_updates (
     apk_url TEXT NOT NULL,
     changelog TEXT DEFAULT '',
     is_force_update BOOLEAN NOT NULL DEFAULT false,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now())
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()),
+    sha256_checksum TEXT
 );
 
 -- 8. Create app_notices table
@@ -152,3 +153,11 @@ CREATE POLICY "Allow admin full access to app updates" ON public.app_updates FOR
 -- 9. Define Policies for "app_notices"
 CREATE POLICY "Allow public read app notices" ON public.app_notices FOR SELECT USING (true);
 CREATE POLICY "Allow admin full access to app notices" ON public.app_notices FOR ALL TO authenticated USING ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin') WITH CHECK ((SELECT role FROM public.profiles WHERE user_id::text = auth.uid()::text) = 'admin');
+
+-- ==========================================================
+-- STEP 3 MIGRATE SCHEMA FOR EXISTING app_updates TABLE
+-- Run this ALTER statement in the Supabase SQL Editor if you
+-- are updating an already existing database instance:
+-- ==========================================================
+-- ALTER TABLE public.app_updates ADD COLUMN IF NOT EXISTS sha256_checksum TEXT;
+
