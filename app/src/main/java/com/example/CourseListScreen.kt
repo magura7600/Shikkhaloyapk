@@ -173,7 +173,7 @@ fun CourseListScreen(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.MenuBook, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(16.dp))
+                                Icon(Icons.Default.MenuBook, contentDescription = null, tint = Color(0xFF0F172A).copy(alpha = 0.5f), modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
                                 Text("0%", fontSize = 14.sp, color = Color(0xFF64748B), fontWeight = FontWeight.Medium)
                             }
@@ -239,7 +239,7 @@ fun CourseListScreen(
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF94A3B8))
+                                    Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF0F172A).copy(alpha = 0.5f))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text(
                                         text = "${course.studentsCount} Students",

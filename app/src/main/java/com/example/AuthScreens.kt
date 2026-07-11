@@ -390,7 +390,7 @@ fun OnboardingScreen(
         Text(
             text = "সতর্কতা: আপনার ভূমিকা (শিক্ষক/শিক্ষার্থী) একবার নির্বাচন করার পর আর পরিবর্তন করা যাবে না।",
             fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.error,
+            color = Color(0xFFEF4444),
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(bottom = 12.dp)
         )

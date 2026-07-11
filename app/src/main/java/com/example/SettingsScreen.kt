@@ -92,7 +92,7 @@ fun SettingsScreen(
                 text = "সেটিংস".t(),
                 fontSize = 24.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = MaterialTheme.colorScheme.onBackground
+                color = Color(0xFF1E293B)
             )
             Spacer(modifier = Modifier.height(16.dp))
         }
@@ -142,7 +142,7 @@ fun SettingsScreen(
                 text = "পছন্দসমূহ".t(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                color = Color(0xFF1E293B).copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
             Card(
@@ -204,7 +204,7 @@ fun SettingsScreen(
                     text = "প্রশাসনিক প্যানেল".t(),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                    color = Color(0xFF1E293B).copy(alpha = 0.7f),
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                 )
                 Card(
@@ -239,7 +239,7 @@ fun SettingsScreen(
                 text = "এপ আপডেট".t(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                color = Color(0xFF1E293B).copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
             Card(
@@ -295,7 +295,7 @@ fun SettingsScreen(
                 text = "অ্যাকাউন্ট ও নিরাপত্তা".t(),
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                color = Color(0xFF1E293B).copy(alpha = 0.7f),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
             )
             Card(
@@ -440,7 +440,7 @@ fun LanguageSelectionSheet(
                 text = if (currentLang == "bn") "ভাষা পরিবর্তন করুন" else "Select Language",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = Color(0xFF0F172A)
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -463,7 +463,7 @@ fun LanguageSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("English", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text("English", fontSize = 16.sp, color = Color(0xFF0F172A))
             }
 
             Row(
@@ -485,7 +485,7 @@ fun LanguageSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("বাংলা (Bengali)", fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text("বাংলা (Bengali)", fontSize = 16.sp, color = Color(0xFF0F172A))
             }
             
             Spacer(modifier = Modifier.height(32.dp))
@@ -515,7 +515,7 @@ fun ThemeSelectionSheet(
                 text = "থিম নির্বাচন করুন".t(),
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface
+                color = Color(0xFF0F172A)
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -539,7 +539,7 @@ fun ThemeSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("লাইট থিম".t(), fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text("লাইট থিম".t(), fontSize = 16.sp, color = Color(0xFF0F172A))
             }
 
             // Dark theme option
@@ -562,7 +562,7 @@ fun ThemeSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("ডার্ক থিম".t(), fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text("ডার্ক থিম".t(), fontSize = 16.sp, color = Color(0xFF0F172A))
             }
 
             // System default theme option
@@ -585,7 +585,7 @@ fun ThemeSelectionSheet(
                     colors = RadioButtonDefaults.colors(selectedColor = accentColor)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("সistem ডিফল্ট".t(), fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface)
+                Text("সistem ডিফল্ট".t(), fontSize = 16.sp, color = Color(0xFF0F172A))
             }
             
             Spacer(modifier = Modifier.height(32.dp))

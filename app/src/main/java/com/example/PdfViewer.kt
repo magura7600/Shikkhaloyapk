@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -175,7 +176,7 @@ fun FullScreenPdfViewer(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF0F172A))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         if (error) {
             Box(
@@ -567,7 +568,7 @@ fun PdfViewerDialog(
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF0F172A)) // Immersive dark theme background (Sleek Dark Slate)
+                .background(MaterialTheme.colorScheme.background) // Immersive dark theme background (Sleek Dark Slate)
         ) {
             if (error) {
                 Box(
@@ -981,7 +982,7 @@ fun ZoomablePdfPage(
                         verticalArrangement = Arrangement.Center,
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color(0xFF1E293B))
+                            .background(MaterialTheme.colorScheme.surface)
                     ) {
                         Icon(
                             Icons.Filled.Warning,

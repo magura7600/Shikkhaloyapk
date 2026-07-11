@@ -992,7 +992,7 @@ fun CourseContentSection(
                             imageVector = Icons.Default.EventAvailable,
                             contentDescription = "Empty",
                             modifier = Modifier.size(64.dp),
-                            tint = Color(0xFF94A3B8)
+                            tint = Color(0xFF0F172A).copy(alpha = 0.5f)
                         )
                         Spacer(modifier = Modifier.height(16.dp))
                         Text(
@@ -1602,9 +1602,9 @@ fun CourseContentSection(
                                     readOnly = true,
                                     enabled = false,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                        disabledTextColor = Color(0xFF0F172A),
                                         disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        disabledLabelColor = Color(0xFF64748B)
                                     )
                                 )
                             }
@@ -1630,9 +1630,9 @@ fun CourseContentSection(
                                     readOnly = true,
                                     enabled = false,
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                        disabledTextColor = Color(0xFF0F172A),
                                         disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        disabledLabelColor = Color(0xFF64748B)
                                     )
                                 )
                             }
@@ -1652,10 +1652,10 @@ fun CourseContentSection(
                                         modifier = Modifier.fillMaxWidth(),
                                         trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown") },
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                            disabledTextColor = Color(0xFF0F172A),
                                             disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                            disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                            disabledLabelColor = Color(0xFF64748B),
+                                            disabledTrailingIconColor = Color(0xFF64748B)
                                         )
                                     )
                                 }
@@ -1689,10 +1689,10 @@ fun CourseContentSection(
                                     modifier = Modifier.fillMaxWidth(),
                                     trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = "Dropdown") },
                                     colors = OutlinedTextFieldDefaults.colors(
-                                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                                        disabledTextColor = Color(0xFF0F172A),
                                         disabledBorderColor = MaterialTheme.colorScheme.outline,
-                                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        disabledTrailingIconColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                        disabledLabelColor = Color(0xFF64748B),
+                                        disabledTrailingIconColor = Color(0xFF64748B)
                                     )
                                 )
                             }

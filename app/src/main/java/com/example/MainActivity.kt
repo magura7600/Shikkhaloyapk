@@ -453,7 +453,9 @@ class MainActivity : ComponentActivity() {
             }
 
             MaterialTheme(
-                colorScheme = colorScheme
+                colorScheme = colorScheme,
+                typography = com.example.ui.theme.Typography,
+                shapes = com.example.ui.theme.Shapes
             ) {
                 val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
                     colors = if (isDark) {

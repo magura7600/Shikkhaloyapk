@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -579,7 +580,7 @@ fun VideoPlayer(
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     CircularProgressIndicator(
-                        color = Color(0xFF0F766E),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(48.dp),
                         strokeWidth = 4.dp
                     )
@@ -829,7 +830,7 @@ fun VideoPlayer(
                         },
                         modifier = Modifier
                             .size(64.dp)
-                            .background(Color(0xFF0F766E), CircleShape)
+                            .background(MaterialTheme.colorScheme.primary, CircleShape)
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
@@ -942,8 +943,8 @@ fun VideoPlayer(
                         },
                         valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF0F766E),
-                            activeTrackColor = Color(0xFF0F766E),
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
                             inactiveTrackColor = Color.White.copy(alpha = 0.3f)
                         ),
                         modifier = Modifier.fillMaxWidth()
@@ -966,7 +967,7 @@ fun VideoPlayer(
                         text = "প্লেব্যাক গতি নির্ধারণ করুন",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFF1E293B)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(16.dp))
                     
@@ -974,7 +975,7 @@ fun VideoPlayer(
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color(0xFFF1F5F9), RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp))
                             .padding(vertical = 12.dp),
                         contentAlignment = Alignment.Center
                     ) {
@@ -982,14 +983,14 @@ fun VideoPlayer(
                             text = String.format("%.2fx", playbackSpeed),
                             fontSize = 28.sp,
                             fontWeight = FontWeight.Black,
-                            color = Color(0xFF0F766E)
+                            color = MaterialTheme.colorScheme.primary
                         )
                     }
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     // Granular Slider
-                    Text("সূক্ষ্ম সমন্বয় করুন (০.২৫x - ৩.০০x)", fontSize = 12.sp, color = Color(0xFF64748B))
+                    Text("সূক্ষ্ম সমন্বয় করুন (০.২৫x - ৩.০০x)", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Slider(
                         value = playbackSpeed,
                         onValueChange = { 
@@ -997,9 +998,9 @@ fun VideoPlayer(
                         },
                         valueRange = 0.25f..3.0f,
                         colors = SliderDefaults.colors(
-                            thumbColor = Color(0xFF0F766E),
-                            activeTrackColor = Color(0xFF0F766E),
-                            inactiveTrackColor = Color(0xFFE2E8F0)
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.outlineVariant
                         ),
                         modifier = Modifier.fillMaxWidth()
                     )
@@ -1015,7 +1016,7 @@ fun VideoPlayer(
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
-                            Text("- ০.০৫x", fontSize = 13.sp, color = Color(0xFF0F766E))
+                            Text("- ০.০৫x", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                         }
                         
                         OutlinedButton(
@@ -1023,14 +1024,14 @@ fun VideoPlayer(
                             shape = RoundedCornerShape(8.dp),
                             contentPadding = PaddingValues(horizontal = 12.dp)
                         ) {
-                            Text("+ ০.০৫x", fontSize = 13.sp, color = Color(0xFF0F766E))
+                            Text("+ ০.০৫x", fontSize = 13.sp, color = MaterialTheme.colorScheme.primary)
                         }
                     }
                     
                     Spacer(modifier = Modifier.height(16.dp))
                     
                     // Quick Presets Header
-                    Text("দ্রুত গতি নির্বাচন করুন", fontSize = 12.sp, color = Color(0xFF64748B))
+                    Text("দ্রুত গতি নির্বাচন করুন", fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(8.dp))
                     
                     val presets = listOf(0.5f, 0.75f, 1.0f, 1.25f, 1.5f, 1.75f, 2.0f, 2.5f)
@@ -1045,7 +1046,7 @@ fun VideoPlayer(
                             Box(
                                 modifier = Modifier
                                     .background(
-                                        color = if (isSelected) Color(0xFF0F766E) else Color(0xFFF1F5F9),
+                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                                         shape = RoundedCornerShape(8.dp)
                                     )
                                     .clickable { 
@@ -1056,7 +1057,7 @@ fun VideoPlayer(
                             ) {
                                 Text(
                                     text = if (speed == 1.0f) "স্বাভাবিক" else "${speed}x",
-                                    color = if (isSelected) Color.White else Color(0xFF1E293B),
+                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -1069,7 +1070,7 @@ fun VideoPlayer(
                         onClick = { showSpeedDialog = false }, 
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text("ঠিক আছে", color = Color(0xFF0F766E), fontWeight = FontWeight.Bold)
+                        Text("ঠিক আছে", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1088,7 +1089,7 @@ fun VideoPlayer(
                         text = "ভিডিওর কোয়ালিটি নির্বাচন করুন",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = Color(0xFF1E293B)
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.height(12.dp))
                     
@@ -1109,13 +1110,13 @@ fun VideoPlayer(
                                 RadioButton(
                                     selected = currentNonAdaptiveQuality == link.quality, 
                                     onClick = null,
-                                    colors = RadioButtonDefaults.colors(selectedColor = Color(0xFF0F766E))
+                                    colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
                                 )
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Text(
                                     text = link.quality,
                                     fontSize = 15.sp,
-                                    color = Color(0xFF1E293B),
+                                    color = MaterialTheme.colorScheme.onSurface,
                                     fontWeight = if (currentNonAdaptiveQuality == link.quality) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
@@ -1127,7 +1128,7 @@ fun VideoPlayer(
                         onClick = { showQualitySelector = false }, 
                         modifier = Modifier.align(Alignment.End)
                     ) {
-                        Text("বন্ধ করুন", color = Color(0xFF0F766E), fontWeight = FontWeight.Bold)
+                        Text("বন্ধ করুন", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1177,7 +1178,7 @@ fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(220.dp)
             .background(
-                brush = Brush.verticalGradient(colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A)))
+                brush = Brush.verticalGradient(colors = listOf(MaterialTheme.colorScheme.onSurface, MaterialTheme.colorScheme.background))
             )
             .border(1.dp, Color(0xFF334155).copy(alpha = 0.5f), RoundedCornerShape(16.dp)),
         contentAlignment = Alignment.Center
@@ -1187,6 +1188,7 @@ fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
             verticalArrangement = Arrangement.Center
         ) {
             // Elegant pulsing & rotating loading graphic
+            val primaryColor = MaterialTheme.colorScheme.primary
             Box(
                 modifier = Modifier
                     .size(64.dp)
@@ -1196,7 +1198,7 @@ fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
                 // Background outer soft glow ring
                 Canvas(modifier = Modifier.fillMaxSize()) {
                     drawCircle(
-                        color = Color(0xFF0F766E).copy(alpha = 0.15f),
+                        color = primaryColor.copy(alpha = 0.15f),
                         radius = size.minDimension / 1.8f
                     )
                 }
@@ -1205,7 +1207,7 @@ fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
                 Canvas(modifier = Modifier.size(48.dp).graphicsLayer(rotationZ = angle)) {
                     drawArc(
                         brush = Brush.sweepGradient(
-                            colors = listOf(Color(0xFF0F766E), Color(0xFF8B5CF6), Color(0xFF0F766E))
+                            colors = listOf(primaryColor, Color(0xFF8B5CF6), primaryColor)
                         ),
                         startAngle = 0f,
                         sweepAngle = 280f,
@@ -1236,7 +1238,7 @@ fun VideoLoadingPlaceholder(modifier: Modifier = Modifier) {
             Text(
                 text = "ভিডিও লোড হচ্ছে, অনুগ্রহ করে অপেক্ষা করুন",
                 fontSize = 12.sp,
-                color = Color(0xFF94A3B8),
+                color = MaterialTheme.colorScheme.background.copy(alpha = 0.5f),
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 24.dp)
             )

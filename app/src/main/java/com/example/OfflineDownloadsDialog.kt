@@ -148,7 +148,7 @@ fun OfflineDownloadsDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.Star, contentDescription = "No items", tint = Color(0xFF94A3B8), modifier = Modifier.size(64.dp))
+                                Icon(Icons.Default.Star, contentDescription = "No items", tint = Color(0xFF0F172A).copy(alpha = 0.5f), modifier = Modifier.size(64.dp))
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text("কোনো পছন্দের বা সাম্প্রতিক ফাইল নেই", fontWeight = FontWeight.Bold, color = Color(0xFF475569))
                                 Spacer(modifier = Modifier.height(8.dp))
@@ -243,7 +243,7 @@ fun OfflineDownloadsDialog(
                                                 Text(rec.title, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = Color(0xFF1E293B), maxLines = 1)
                                                 Text(if (isDownloaded) "অফলাইন ডাউনলোডকৃত" else "অনলাইন / লিংক ড্যামেজ", fontSize = 11.sp, color = if (isDownloaded) Color(0xFF16A34A) else Color(0xFFEF4444))
                                             }
-                                            Icon(Icons.Default.ChevronRight, contentDescription = "Open", tint = Color(0xFF94A3B8))
+                                            Icon(Icons.Default.ChevronRight, contentDescription = "Open", tint = Color(0xFF0F172A).copy(alpha = 0.5f))
                                         }
                                     }
                                 }
@@ -496,7 +496,7 @@ fun EmptyDownloadsView(tabIndex: Int) {
             Icon(
                 imageVector = Icons.Outlined.DownloadDone,
                 contentDescription = "No downloads",
-                tint = Color(0xFF94A3B8),
+                tint = Color(0xFF0F172A).copy(alpha = 0.5f),
                 modifier = Modifier.size(64.dp)
             )
             Spacer(modifier = Modifier.height(16.dp))

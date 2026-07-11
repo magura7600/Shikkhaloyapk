@@ -146,12 +146,12 @@ fun StudentDashboardContent(
 
     val isDark = ThemeManager.isDarkTheme()
     val bgGradient = androidx.compose.ui.graphics.Brush.linearGradient(
-        colors = if (isDark) listOf(Color(0xFF0F172A), Color(0xFF1E293B)) else listOf(Color(0xFFF8FAFC), Color(0xFFF1F5F9))
+        colors = listOf(MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.surface)
     )
-    val textColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B)
-    val subTextColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
-    val cardBgColor = if (isDark) Color(0xFF1E293B) else Color.White
-    val borderColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+    val textColor = MaterialTheme.colorScheme.onBackground
+    val subTextColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+    val cardBgColor = MaterialTheme.colorScheme.surface
+    val borderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
     
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -166,8 +166,8 @@ fun StudentDashboardContent(
                     .shadow(
                         elevation = 6.dp,
                         shape = RoundedCornerShape(16.dp),
-                        spotColor = Color(0xFF94A3B8).copy(alpha = 0.15f),
-                        ambientColor = Color(0xFF94A3B8).copy(alpha = 0.15f)
+                        spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f),
+                        ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f)
                     ),
                 colors = CardDefaults.cardColors(containerColor = cardBgColor),
                 shape = RoundedCornerShape(16.dp),
@@ -462,8 +462,8 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 4.dp,
                             shape = RoundedCornerShape(16.dp),
-                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.15f),
-                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.15f)
+                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f),
+                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f)
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(16.dp),
@@ -481,8 +481,8 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 4.dp,
                             shape = RoundedCornerShape(16.dp),
-                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.15f),
-                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.15f)
+                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f),
+                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f)
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(16.dp),
@@ -520,8 +520,8 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 4.dp,
                             shape = RoundedCornerShape(16.dp),
-                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.15f),
-                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.15f)
+                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f),
+                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.15f)
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color.White),
                     shape = RoundedCornerShape(16.dp),
@@ -593,8 +593,8 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 16.dp,
                             shape = RoundedCornerShape(24.dp),
-                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
-                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.2f),
+                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.2f)
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
                     shape = RoundedCornerShape(24.dp),
@@ -627,8 +627,8 @@ fun StudentDashboardContent(
                         .shadow(
                             elevation = 12.dp,
                             shape = RoundedCornerShape(20.dp),
-                            spotColor = Color(0xFF94A3B8).copy(alpha = 0.2f),
-                            ambientColor = Color(0xFF94A3B8).copy(alpha = 0.2f)
+                            spotColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.2f),
+                            ambientColor = Color(0xFF0F172A).copy(alpha = 0.5f).copy(alpha = 0.2f)
                         ),
                     colors = CardDefaults.cardColors(containerColor = Color(0xFFE2E8F0)),
                     shape = RoundedCornerShape(20.dp),

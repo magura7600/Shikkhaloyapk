@@ -113,13 +113,13 @@ fun TeacherDashboardContent(accentColor: Color, onChannelClick: () -> Unit, onAd
                 "শিক্ষক ড্যাশবোর্ড".t(),
                 fontSize = 22.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color(0xFF4A5568)
+                color = MaterialTheme.colorScheme.onSurface
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 "আপনার ক্লাসরুম ও কোর্সের কাজগুলো পরিচালনা করুন".t(),
                 fontSize = 14.sp,
-                color = Color(0xFF718096)
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
             )
             Spacer(modifier = Modifier.height(16.dp))
         }

@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -157,20 +158,20 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                         Column {
                             Text(
                                 text = "প্রশাসক প্যানেল (Admin Panel)",
-                                color = Color.White,
+                                color = MaterialTheme.colorScheme.surface,
                                 fontSize = 20.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = "অ্যাপের সার্বিক নিয়ন্ত্রণ ও তদারকি",
-                                color = Color.White.copy(alpha = 0.8f),
+                                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                                 fontSize = 12.sp
                             )
                         }
                         Icon(
                             imageVector = Icons.Default.AdminPanelSettings,
                             contentDescription = "Admin",
-                            tint = Color.White,
+                            tint = MaterialTheme.colorScheme.surface,
                             modifier = Modifier.size(36.dp)
                         )
                     }
@@ -207,8 +208,8 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable { showSqlDialog = true },
-                colors = CardDefaults.cardColors(containerColor = Color(0xFFFFFBEB)),
-                border = BorderStroke(1.dp, Color(0xFFFDE68A)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.secondary),
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Row(
@@ -249,7 +250,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                 text = "জরুরি নিয়ন্ত্রণ (Emergency Actions)",
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
-                color = Color(0xFF1E293B)
+                color = MaterialTheme.colorScheme.onBackground
             )
         }
 
@@ -261,8 +262,8 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -281,7 +282,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                     text = "জরুরি নোটিশ প্রচার",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 14.sp,
-                                    color = Color(0xFF1E293B)
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                             }
                             Button(
@@ -300,7 +301,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                             Spacer(modifier = Modifier.height(12.dp))
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                                 border = BorderStroke(1.dp, Color(0xFFF1F5F9))
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
@@ -367,8 +368,8 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                 Card(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = Color.White),
-                    border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Column(modifier = Modifier.padding(16.dp)) {
                         Row(
@@ -388,7 +389,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                         text = "নতুন এপ সংস্করণ রিলিজ",
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp,
-                                        color = Color(0xFF1E293B)
+                                        color = MaterialTheme.colorScheme.onBackground
                                     )
                                     Text(
                                         text = "এপিকে ফাইল আপডেট ও ফোর্সমোড পরিচালনা",
@@ -413,7 +414,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                             Spacer(modifier = Modifier.height(12.dp))
                             Card(
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = CardDefaults.cardColors(containerColor = Color(0xFFF8FAFC)),
+                                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                                 border = BorderStroke(1.dp, Color(0xFFF1F5F9))
                             ) {
                                 Column(modifier = Modifier.padding(12.dp)) {
@@ -515,7 +516,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                     text = "ইউজার অ্যাকাউন্ট নিয়ন্ত্রণ (Ban/Unban)",
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp,
-                    color = Color(0xFF1E293B)
+                    color = MaterialTheme.colorScheme.onBackground
                 )
                 IconButton(onClick = { fetchAllData() }) {
                     Icon(Icons.Default.Refresh, contentDescription = "Refresh", tint = accentColor)
@@ -629,7 +630,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                                 Icon(
                                     imageVector = Icons.Default.ContentCopy,
                                     contentDescription = "Copy",
-                                    tint = Color.White,
+                                    tint = MaterialTheme.colorScheme.surface,
                                     modifier = Modifier.size(14.dp)
                                 )
                             }
@@ -637,7 +638,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = sqlDbUpdate,
-                            color = Color(0xFFE2E8F0),
+                            color = MaterialTheme.colorScheme.outlineVariant,
                             fontSize = 10.sp,
                             fontFamily = FontFamily.Monospace,
                             lineHeight = 14.sp
@@ -698,7 +699,7 @@ ALTER TABLE enrollments ADD COLUMN IF NOT EXISTS ban_reason TEXT;
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     if (isDeletingUpdate) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
                     } else {
                         Text("ডিলিট করুন 🗑️")
                     }
@@ -726,8 +727,8 @@ fun StatsCard(
     Card(
         modifier = modifier,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, Color(0xFFE2E8F0))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -742,7 +743,7 @@ fun StatsCard(
                 Icon(imageVector = icon, contentDescription = title, tint = color, modifier = Modifier.size(20.dp))
             }
             Text(text = title, fontSize = 11.sp, color = Color.Gray, fontWeight = FontWeight.Medium)
-            Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+            Text(text = value, fontSize = 18.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
         }
     }
 }
@@ -762,8 +763,8 @@ fun UserManagementRow(
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
-        border = BorderStroke(1.dp, if (user.is_banned) Color.Red.copy(alpha = 0.3f) else Color(0xFFE2E8F0))
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, if (user.is_banned) Color.Red.copy(alpha = 0.3f) else MaterialTheme.colorScheme.outlineVariant)
     ) {
         Row(
             modifier = Modifier
@@ -809,7 +810,7 @@ fun UserManagementRow(
                             text = user.full_name,
                             fontWeight = FontWeight.Bold,
                             fontSize = 13.sp,
-                            color = Color(0xFF1E293B)
+                            color = MaterialTheme.colorScheme.onBackground
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         // Role Badge
@@ -895,7 +896,7 @@ fun UserManagementRow(
                     contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     if (isUpdating) {
-                        CircularProgressIndicator(color = Color.White, modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
                     } else {
                         Text(
                             text = if (user.is_banned) "আনব্যান" else "ব্যান করুন",

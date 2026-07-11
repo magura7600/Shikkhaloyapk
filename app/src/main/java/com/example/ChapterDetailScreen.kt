@@ -387,7 +387,7 @@ fun ChapterDetailScreen(
                                 Icon(
                                     imageVector = Icons.Default.DateRange,
                                     contentDescription = null,
-                                    tint = Color(0xFF94A3B8),
+                                    tint = Color(0xFF0F172A).copy(alpha = 0.5f),
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(4.dp))

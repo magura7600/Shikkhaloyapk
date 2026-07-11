@@ -57,6 +57,7 @@ import androidx.compose.material.icons.filled.Fullscreen
 import androidx.compose.material.icons.filled.FullscreenExit
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -365,7 +366,7 @@ fun ClassDetailView(
                     androidx.compose.material3.Icon(
                         imageVector = androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack,
                         contentDescription = "Back",
-                        tint = Color(0xFF1E293B),
+                        tint = MaterialTheme.colorScheme.onBackground,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -378,7 +379,7 @@ fun ClassDetailView(
                 style = androidx.compose.ui.text.TextStyle(
                     fontSize = 17.sp,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    color = Color(0xFF0F172A),
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center
                 ),
                 maxLines = 1,
@@ -437,8 +438,8 @@ fun ClassDetailView(
                             .fillMaxWidth()
                             .height(56.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = if (isDownloaded) Color(0xFF10B981) else Color(0xFF0F766E),
-                            disabledContainerColor = Color(0xFF94A3B8)
+                            containerColor = if (isDownloaded) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.primary,
+                            disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
                         ),
                         shape = RoundedCornerShape(16.dp),
                         enabled = !isLoadingVideo && dlUrl != null
@@ -513,7 +514,7 @@ fun ClassDetailView(
             Card(
                 modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                 shape = RoundedCornerShape(24.dp),
-                colors = CardDefaults.cardColors(containerColor = Color(0xFF0F172A)),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
             ) {
                 Column(
@@ -669,14 +670,14 @@ fun ClassDetailView(
             // Placeholder when no video
             Box(
                 modifier = Modifier.fillMaxWidth().height(250.dp).background(
-                        brush = Brush.verticalGradient(colors = listOf(Color(0xFF1E293B), Color(0xFF0F172A)))
+                        brush = Brush.verticalGradient(colors = listOf(MaterialTheme.colorScheme.onBackground, MaterialTheme.colorScheme.surfaceVariant))
                     ),
                 contentAlignment = Alignment.Center
             ) {
                 Box(
                     modifier = Modifier
                         .size(64.dp)
-                        .background(Color(0xFF0F766E), CircleShape),
+                        .background(MaterialTheme.colorScheme.primary, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
                     Box(modifier = Modifier.size(24.dp).background(Color.White, CircleShape))
@@ -717,7 +718,7 @@ fun ClassDetailView(
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(clazz.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                Text(clazz.title, fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -732,14 +733,14 @@ fun ClassDetailView(
                 val mentorObj = remember(mentors, clazz.mentorId) { mentors.find { it.id == clazz.mentorId } }
                 Row(
                     modifier = Modifier
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(24.dp))
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
                         .padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(
                         modifier = Modifier
                             .size(32.dp)
-                            .background(Color(0xFFE2E8F0), CircleShape),
+                            .background(MaterialTheme.colorScheme.outlineVariant, CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         if (mentorObj != null && mentorObj.image_url.isNotBlank()) {
@@ -757,7 +758,7 @@ fun ClassDetailView(
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     val mentorName = mentorObj?.name ?: "অজানা শিক্ষক"
-                    Text(mentorName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = Color(0xFF1E293B))
+                    Text(mentorName, fontSize = 14.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onBackground)
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -771,17 +772,17 @@ fun ClassDetailView(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFFF8FAFC), RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(12.dp))
                         .clickable { isContentExpanded = !isContentExpanded }
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("ক্লাসের বিষয়বস্তু", color = Color(0xFF0F766E), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    Text("ক্লাসের বিষয়বস্তু", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     Icon(
                         imageVector = Icons.Default.KeyboardArrowDown,
                         contentDescription = "Expand",
-                        tint = Color(0xFF0F766E),
+                        tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.rotate(rotationAngle)
                     )
                 }
@@ -824,7 +825,7 @@ fun ClassDetailView(
                         Row(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .background(Color(0xFFF8FAFC), RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(16.dp))
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -847,12 +848,12 @@ fun ClassDetailView(
                                     text = pdf.title,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = Color(0xFF1E293B)
+                                    color = MaterialTheme.colorScheme.onBackground
                                 )
                                 Text(
                                     text = if (isDownloaded) "অফলাইন (ডাউনলোডকৃত)" else "অনলাইন ডকুমেন্ট",
                                     fontSize = 11.sp,
-                                    color = if (isDownloaded) Color(0xFF10B981) else Color(0xFF64748B),
+                                    color = if (isDownloaded) MaterialTheme.colorScheme.secondary else Color(0xFF64748B),
                                     fontWeight = if (isDownloaded) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
@@ -929,7 +930,7 @@ fun ClassDetailView(
                                     Icon(
                                         imageVector = Icons.Default.CheckCircle,
                                         contentDescription = "Downloaded",
-                                        tint = Color(0xFF10B981),
+                                        tint = MaterialTheme.colorScheme.secondary,
                                         modifier = Modifier.size(24.dp)
                                     )
                                     Spacer(modifier = Modifier.width(6.dp))
@@ -1213,14 +1214,14 @@ fun RoutineDialog(
     ) {
         Surface(
             modifier = Modifier.fillMaxSize(),
-            color = Color(0xFF0F172A)
+            color = MaterialTheme.colorScheme.surfaceVariant
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Top Custom App Bar
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .background(Color(0xFF1E293B))
+                        .background(MaterialTheme.colorScheme.onBackground)
                         .padding(vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
@@ -1293,7 +1294,7 @@ fun RoutineDialog(
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
-                        .background(Color(0xFF0F172A)),
+                        .background(MaterialTheme.colorScheme.surfaceVariant),
                     contentAlignment = Alignment.Center
                 ) {
                     if (currentRoutineUrl.isNotBlank()) {
@@ -1349,7 +1350,7 @@ fun RoutineDialog(
                                 Spacer(modifier = Modifier.height(24.dp))
                                 Button(
                                     onClick = { routinePickerLauncher.launch("image/*") },
-                                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF0F766E))
+                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                                 ) {
                                     Icon(Icons.Default.Upload, contentDescription = "Upload")
                                     Spacer(modifier = Modifier.width(8.dp))
