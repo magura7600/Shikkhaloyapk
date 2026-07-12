@@ -81,3 +81,19 @@
 # --- Android / Jetpack Compose / Reflection ---
 -keep class androidx.compose.** { *; }
 -dontwarn androidx.compose.**
+
+# --- Room Persistence Library (CRITICAL) ---
+-keep class * extends androidx.room.RoomDatabase { *; }
+-keep class androidx.room.** { *; }
+-dontwarn androidx.room.**
+
+# --- WorkManager (CRITICAL) ---
+-keep class androidx.work.** { *; }
+-keep class * extends androidx.work.ListenableWorker {
+    <init>(android.content.Context, androidx.work.WorkerParameters);
+}
+-keep class * extends androidx.work.Worker {
+    <init>(android.content.Context, androidx.work.WorkerParameters);
+}
+-dontwarn androidx.work.**
+
