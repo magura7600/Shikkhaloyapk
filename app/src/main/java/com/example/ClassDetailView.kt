@@ -207,6 +207,8 @@ fun ClassDetailView(
     }
     val isLiveActive = timeRemainingMillis <= 0L
 
+    var youtubeVideoId by remember { mutableStateOf<String?>(null) }
+    
     LaunchedEffect(clazz.recordedLink, clazz.liveLink, isLiveActive) {
         val linkToExtract = if (clazz.recordedLink.isNotBlank()) {
             clazz.recordedLink
@@ -218,15 +220,22 @@ fun ClassDetailView(
 
         if (linkToExtract.isNotBlank()) {
             isLoadingVideo = true
-            val options = FacebookVideoExtractor.extractVideoOptions(context, linkToExtract)
-            videoOptions = options
-            if (options != null) {
-                currentVideoUrl = options.links.firstOrNull()?.url ?: options.adaptiveUrl
-            } else {
+            youtubeVideoId = YouTubeVideoExtractor.extractVideoId(linkToExtract)
+            if (youtubeVideoId != null) {
+                videoOptions = null
                 currentVideoUrl = null
+            } else {
+                val options = FacebookVideoExtractor.extractVideoOptions(context, linkToExtract)
+                videoOptions = options
+                if (options != null) {
+                    currentVideoUrl = options.links.firstOrNull()?.url ?: options.adaptiveUrl
+                } else {
+                    currentVideoUrl = null
+                }
             }
             isLoadingVideo = false
         } else {
+            youtubeVideoId = null
             videoOptions = null
             currentVideoUrl = null
         }
@@ -260,19 +269,12 @@ fun ClassDetailView(
     }
 
     // Use movableContentOf to keep VideoPlayer stable across orientation/PiP changes
-    val movableVideoPlayer = remember(videoOptions, currentVideoUrl) {
+    val movableVideoPlayer = remember(videoOptions, currentVideoUrl, youtubeVideoId) {
         movableContentOf { modifier: Modifier ->
-            videoOptions?.let {
-                VideoPlayer(
-                    videoOptions = it,
+            if (youtubeVideoId != null) {
+                YouTubePlayerWidget(
+                    videoId = youtubeVideoId!!,
                     modifier = modifier,
-                    initialPosition = savedVideoPosition,
-                    onPositionChanged = { savedVideoPosition = it },
-                    initialPlaying = savedVideoPlaying,
-                    onPlayingChanged = { savedVideoPlaying = it },
-                    onQualityChanged = { link ->
-                        currentVideoUrl = link.url
-                    },
                     isFullscreen = isManualFullscreen,
                     onFullscreenToggle = { fullscreen ->
                         isManualFullscreen = fullscreen
@@ -285,6 +287,31 @@ fun ClassDetailView(
                         }
                     }
                 )
+            } else {
+                videoOptions?.let {
+                    VideoPlayer(
+                        videoOptions = it,
+                        modifier = modifier,
+                        initialPosition = savedVideoPosition,
+                        onPositionChanged = { savedVideoPosition = it },
+                        initialPlaying = savedVideoPlaying,
+                        onPlayingChanged = { savedVideoPlaying = it },
+                        onQualityChanged = { link ->
+                            currentVideoUrl = link.url
+                        },
+                        isFullscreen = isManualFullscreen,
+                        onFullscreenToggle = { fullscreen ->
+                            isManualFullscreen = fullscreen
+                            if (activity != null) {
+                                activity.requestedOrientation = if (fullscreen) {
+                                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                                } else {
+                                    android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                                }
+                            }
+                        }
+                    )
+                }
             }
         }
     }
@@ -306,7 +333,7 @@ fun ClassDetailView(
         return
     }
 
-    val isVideoPlayingActive = clazz.recordedLink.isNotBlank() || (clazz.liveLink.isNotBlank() && isLiveActive && videoOptions != null)
+    val isVideoPlayingActive = clazz.recordedLink.isNotBlank() || (clazz.liveLink.isNotBlank() && isLiveActive && (videoOptions != null || youtubeVideoId != null))
 
     // Apply immersive mode for full screen video
     androidx.compose.runtime.LaunchedEffect(isManualFullscreen, isDeviceLandscape) {
@@ -328,7 +355,7 @@ fun ClassDetailView(
         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = androidx.compose.ui.Alignment.Center) {
             if (isLoadingVideo) {
                 VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
-            } else if (videoOptions != null) {
+            } else if (videoOptions != null || youtubeVideoId != null) {
                 movableVideoPlayer(Modifier.fillMaxSize())
             } else {
                 androidx.compose.material3.Text("Failed to load video", color = Color.White)
@@ -394,7 +421,7 @@ fun ClassDetailView(
                 Box(modifier = Modifier.fillMaxWidth().height(250.dp)) {
                     if (isLoadingVideo) {
                         VideoLoadingPlaceholder(modifier = Modifier.fillMaxSize())
-                    } else if (videoOptions != null) {
+                    } else if (videoOptions != null || youtubeVideoId != null) {
                         movableVideoPlayer(Modifier.fillMaxSize().background(Color.Black))
                     } else {
                         Box(modifier = Modifier.fillMaxSize().background(Color.Black), contentAlignment = Alignment.Center) {

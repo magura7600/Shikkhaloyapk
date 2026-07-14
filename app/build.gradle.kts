@@ -21,8 +21,8 @@ android {
     applicationId = "com.shikkhaloyai.app"
     minSdk = 26
     targetSdk = 35
-    versionCode = 16
-    versionName = "16.0"
+    versionCode = 104
+    versionName = "1.0.4"
 
     testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
   }
@@ -144,6 +144,7 @@ dependencies {
   
   // OneSignal - used?
   implementation(libs.onesignal)
+  implementation(libs.youtube.player)
   
   // Firebase Auth
   implementation(platform(libs.firebase.bom))
